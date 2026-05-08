@@ -1,0 +1,40 @@
+*.iml
+.gradle
+/local.properties
+/.idea/caches
+/.idea/libraries
+/.idea/modules.xml
+/.idea/workspace.xml
+/.idea/navEditor.xml
+/.idea/assetWizardSettings.xml
+.DS_Store
+/build
+/captures
+.externalNativeBuild
+.cxx
+local.properties
+
+# === Java / Maven ===
+target/
+*.jar
+*.war
+*.class
+server.log
+
+# === База данных (локальная, не для GitHub) ===
+*.db
+*.db-shm
+*.db-wal
+
+# === Android build ===
+android-client/app/build/
+android-client/build/
+android-client/.gradle/
+
+# === Desktop build ===
+desktop-client/target/
+
+# === Секреты ===
+.env
+.env.local
+secrets.properties

@@ -1,0 +1,96 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<?import javafx.scene.control.*?>
+<?import javafx.scene.layout.*?>
+<?import javafx.scene.text.*?>
+<?import javafx.geometry.*?>
+
+<BorderPane xmlns:fx="http://javafx.com/fxml"
+            fx:controller="com.messageonline.desktop.controller.ChatController"
+            style="-fx-background-color: #F5F5F5;">
+
+    <!-- ===== Верхняя панель ===== -->
+    <top>
+        <HBox alignment="CENTER_LEFT" spacing="12"
+              style="-fx-background-color: #1976D2; -fx-padding: 10 16 10 16;">
+
+            <!-- Кнопка Общий чат -->
+            <Button text="💬 Общий чат"
+                    onAction="#onGlobalChat"
+                    style="-fx-background-color: rgba(255,255,255,0.2);
+                           -fx-text-fill: white; -fx-font-size: 13px;
+                           -fx-background-radius: 16; -fx-padding: 6 14 6 14;"/>
+
+            <!-- Заголовок -->
+            <Label fx:id="lblTitle" text="Общий чат"
+                   HBox.hgrow="ALWAYS"
+                   style="-fx-font-size: 16px; -fx-font-weight: bold; -fx-text-fill: white;"/>
+
+            <!-- Кнопка выхода -->
+            <Button fx:id="btnLogout" text="Выйти"
+                    onAction="#onLogout"
+                    style="-fx-background-color: rgba(255,255,255,0.2);
+                           -fx-text-fill: white; -fx-font-size: 12px;
+                           -fx-background-radius: 16; -fx-padding: 6 14 6 14;"/>
+        </HBox>
+    </top>
+
+    <!-- ===== Левая панель: Пользователи ===== -->
+    <left>
+        <VBox prefWidth="200" spacing="0"
+              style="-fx-background-color: white;
+                     -fx-border-color: #E0E0E0; -fx-border-width: 0 1 0 0;">
+
+            <Label text="  Онлайн"
+                   style="-fx-font-weight: bold; -fx-font-size: 12px;
+                          -fx-text-fill: #9E9E9E; -fx-padding: 10 0 6 0;
+                          -fx-background-color: white;"/>
+
+            <ListView fx:id="lvUsers" VBox.vgrow="ALWAYS"
+                      style="-fx-background-color: transparent; -fx-border-width: 0;"/>
+
+            <Label text="  ↑ Двойной клик = личный чат"
+                   style="-fx-font-size: 10px; -fx-text-fill: #BDBDBD;
+                          -fx-padding: 6 4 6 4;"/>
+        </VBox>
+    </left>
+
+    <!-- ===== Центр: Сообщения ===== -->
+    <center>
+        <VBox>
+            <!-- Список сообщений -->
+            <ListView fx:id="lvMessages" VBox.vgrow="ALWAYS"
+                      style="-fx-background-color: #FAFAFA; -fx-border-width: 0;"/>
+
+            <!-- Нижняя панель ввода -->
+            <HBox spacing="8" alignment="CENTER"
+                  style="-fx-background-color: white;
+                         -fx-border-color: #E0E0E0; -fx-border-width: 1 0 0 0;
+                         -fx-padding: 8 12 8 12;">
+
+                <TextField fx:id="tfMessage"
+                           HBox.hgrow="ALWAYS"
+                           promptText="Написать сообщение..."
+                           style="-fx-font-size: 14px; -fx-padding: 8 12;
+                                  -fx-background-radius: 20;
+                                  -fx-border-radius: 20;
+                                  -fx-border-color: #E0E0E0;"/>
+
+                <Button text="Отправить ➤"
+                        onAction="#onSend"
+                        style="-fx-background-color: #1976D2; -fx-text-fill: white;
+                               -fx-font-size: 13px; -fx-font-weight: bold;
+                               -fx-background-radius: 20; -fx-padding: 8 18 8 18;"/>
+            </HBox>
+        </VBox>
+    </center>
+
+    <!-- ===== Нижняя статус-строка ===== -->
+    <bottom>
+        <Label fx:id="lblStatus" text="Подключено"
+               style="-fx-background-color: #E3F2FD;
+                      -fx-text-fill: #1565C0;
+                      -fx-padding: 4 12 4 12;
+                      -fx-font-size: 11px;"/>
+    </bottom>
+</BorderPane>

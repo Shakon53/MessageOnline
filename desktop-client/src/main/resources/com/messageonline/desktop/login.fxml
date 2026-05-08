@@ -1,0 +1,120 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<?import javafx.scene.control.*?>
+<?import javafx.scene.layout.*?>
+<?import javafx.scene.text.*?>
+<?import javafx.geometry.*?>
+
+<VBox xmlns:fx="http://javafx.com/fxml"
+      fx:controller="com.messageonline.desktop.controller.LoginController"
+      alignment="CENTER"
+      spacing="0"
+      style="-fx-background-color: #F5F5F5;">
+
+    <!-- Заголовок -->
+    <VBox alignment="CENTER" spacing="8" style="-fx-background-color: #1976D2; -fx-padding: 30;">
+        <Text text="💬" style="-fx-font-size: 48px;"/>
+        <Label text="MessageOnline"
+               style="-fx-font-size: 24px; -fx-font-weight: bold; -fx-text-fill: white;"/>
+        <Label text="Мессенджер реального времени"
+               style="-fx-font-size: 12px; -fx-text-fill: #BBDEFB;"/>
+    </VBox>
+
+    <!-- Вкладки: Вход / Регистрация -->
+    <TabPane fx:id="tabPane" tabClosingPolicy="UNAVAILABLE"
+             style="-fx-background-color: white; -fx-padding: 0;"
+             VBox.vgrow="ALWAYS">
+
+        <!-- Вкладка ВХОД -->
+        <Tab text="  Вход  ">
+            <ScrollPane fitToWidth="true" style="-fx-background-color: white;">
+                <VBox spacing="14" style="-fx-padding: 24; -fx-background-color: white;">
+
+                    <Label text="Настройки сервера"
+                           style="-fx-font-weight: bold; -fx-text-fill: #1976D2;"/>
+
+                    <HBox spacing="8" alignment="CENTER_LEFT">
+                        <Label text="IP:" style="-fx-min-width: 30;"/>
+                        <TextField fx:id="tfLoginHost" text="localhost"
+                                   promptText="IP-адрес" HBox.hgrow="ALWAYS"/>
+                        <Label text="Порт:"/>
+                        <TextField fx:id="tfLoginPort" text="8888"
+                                   promptText="8888" prefWidth="70"/>
+                    </HBox>
+
+                    <Separator/>
+
+                    <Label text="Данные аккаунта"
+                           style="-fx-font-weight: bold; -fx-text-fill: #1976D2;"/>
+
+                    <TextField fx:id="tfLoginUsername"
+                               promptText="Имя пользователя"
+                               style="-fx-font-size: 14px; -fx-padding: 8;"/>
+
+                    <PasswordField fx:id="pfLoginPassword"
+                                  promptText="Пароль"
+                                  style="-fx-font-size: 14px; -fx-padding: 8;"/>
+
+                    <Label fx:id="lblLoginStatus" text=""
+                           style="-fx-text-fill: red; -fx-font-size: 12px;" wrapText="true"/>
+
+                    <HBox alignment="CENTER" spacing="12">
+                        <ProgressIndicator fx:id="loginProgress" prefWidth="24" prefHeight="24"/>
+                        <Button fx:id="btnLogin" text="Войти →"
+                                onAction="#onLogin"
+                                prefWidth="200" prefHeight="40"
+                                style="-fx-background-color: #1976D2; -fx-text-fill: white;
+                                       -fx-font-size: 14px; -fx-font-weight: bold;
+                                       -fx-background-radius: 6;"/>
+                    </HBox>
+                </VBox>
+            </ScrollPane>
+        </Tab>
+
+        <!-- Вкладка РЕГИСТРАЦИЯ -->
+        <Tab text="  Регистрация  ">
+            <ScrollPane fitToWidth="true" style="-fx-background-color: white;">
+                <VBox spacing="12" style="-fx-padding: 24; -fx-background-color: white;">
+
+                    <Label text="Настройки сервера"
+                           style="-fx-font-weight: bold; -fx-text-fill: #1976D2;"/>
+
+                    <HBox spacing="8" alignment="CENTER_LEFT">
+                        <Label text="IP:" style="-fx-min-width: 30;"/>
+                        <TextField fx:id="tfRegHost" text="localhost"
+                                   HBox.hgrow="ALWAYS"/>
+                        <Label text="Порт:"/>
+                        <TextField fx:id="tfRegPort" text="8888" prefWidth="70"/>
+                    </HBox>
+
+                    <Separator/>
+
+                    <Label text="Данные нового аккаунта"
+                           style="-fx-font-weight: bold; -fx-text-fill: #1976D2;"/>
+
+                    <TextField fx:id="tfRegUsername" promptText="Имя пользователя (мин. 3 символа)"
+                               style="-fx-padding: 8;"/>
+                    <TextField fx:id="tfRegEmail" promptText="Email"
+                               style="-fx-padding: 8;"/>
+                    <PasswordField fx:id="pfRegPassword" promptText="Пароль (мин. 4 символа)"
+                                  style="-fx-padding: 8;"/>
+                    <PasswordField fx:id="pfRegPasswordConfirm" promptText="Подтвердите пароль"
+                                  style="-fx-padding: 8;"/>
+
+                    <Label fx:id="lblRegStatus" text=""
+                           style="-fx-font-size: 12px;" wrapText="true"/>
+
+                    <HBox alignment="CENTER" spacing="12">
+                        <ProgressIndicator fx:id="regProgress" prefWidth="24" prefHeight="24"/>
+                        <Button fx:id="btnRegister" text="Зарегистрироваться"
+                                onAction="#onRegister"
+                                prefWidth="200" prefHeight="40"
+                                style="-fx-background-color: #388E3C; -fx-text-fill: white;
+                                       -fx-font-size: 14px; -fx-font-weight: bold;
+                                       -fx-background-radius: 6;"/>
+                    </HBox>
+                </VBox>
+            </ScrollPane>
+        </Tab>
+    </TabPane>
+</VBox>

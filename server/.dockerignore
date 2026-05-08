@@ -1,0 +1,7 @@
+target/
+*.log
+*.db
+.git
+.gitignore
+run.bat
+run.sh

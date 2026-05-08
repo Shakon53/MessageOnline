@@ -1,0 +1,23 @@
+# =====================================================
+#  Railway конфигурация для MessageOnline Chat Server
+#  Документация: https://docs.railway.app/reference/config-as-code
+# =====================================================
+
+[build]
+  # Railway найдёт Dockerfile автоматически
+  dockerfile = "Dockerfile"
+
+[deploy]
+  # Политика перезапуска при падении
+  restartPolicyType    = "on_failure"
+  restartPolicyMaxRetries = 5
+
+  # Healthcheck — Railway будет знать что сервер живой
+  healthcheckTimeout = 30
+
+# ── Постоянное хранилище (SQLite не теряет данные при перезапуске) ──
+# Railway Volumes: https://docs.railway.app/guides/volumes
+# Если tom указан — Railway создаст диск и смонтирует его в /data
+[[volumes]]
+  name      = "chat-data"
+  mountPath = "/data"

@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Светлая тема — WhatsApp-палитра -->
+    <color name="primaryColor">#075E54</color>
+    <color name="onPrimaryColor">#FFFFFF</color>
+    <color name="primaryContainerColor">#DCF8C6</color>
+    <color name="onPrimaryContainerColor">#111B21</color>
+
+    <color name="secondaryColor">#25D366</color>
+    <color name="onSecondaryColor">#FFFFFF</color>
+    <color name="secondaryContainerColor">#FFFFFF</color>
+    <color name="onSecondaryContainerColor">#111B21</color>
+
+    <color name="surfaceColor">#ECE5DD</color>
+    <color name="onSurfaceColor">#111B21</color>
+</resources>

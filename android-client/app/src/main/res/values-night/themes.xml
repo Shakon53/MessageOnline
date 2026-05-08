@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Тёмная тема приложения -->
+    <style name="Theme.MessageOnline" parent="Theme.Material3.Dark.NoActionBar">
+        <item name="colorPrimary">#90CAF9</item>
+        <item name="colorOnPrimary">#0D47A1</item>
+        <item name="colorPrimaryContainer">#1565C0</item>
+        <item name="colorOnPrimaryContainer">#BBDEFB</item>
+
+        <item name="colorSecondary">#81D4FA</item>
+        <item name="colorOnSecondary">#01579B</item>
+        <item name="colorSecondaryContainer">#0277BD</item>
+        <item name="colorOnSecondaryContainer">#E1F5FE</item>
+
+        <item name="colorSurface">#1C1B1F</item>
+        <item name="colorOnSurface">#E6E1E5</item>
+
+        <item name="android:statusBarColor">#121212</item>
+        <item name="android:navigationBarColor">#1C1B1F</item>
+    </style>
+</resources>

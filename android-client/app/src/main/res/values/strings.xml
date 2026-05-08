@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">MessageOnline</string>
+    <string name="login">Войти</string>
+    <string name="register">Зарегистрироваться</string>
+    <string name="logout">Выйти</string>
+    <string name="send">Отправить</string>
+    <string name="global_chat">Общий чат</string>
+    <string name="private_chat">Личный чат</string>
+    <string name="online_users">Пользователи онлайн</string>
+    <string name="type_message">Напишите сообщение...</string>
+    <string name="connecting">Подключение...</string>
+    <string name="disconnected">Отключено</string>
+</resources>

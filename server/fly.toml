@@ -1,0 +1,44 @@
+# =====================================================
+#  Fly.io конфигурация для MessageOnline Chat Server
+#  Бесплатный план: 3 shared VMs, 3GB storage
+# =====================================================
+
+# ВАЖНО: замени "messageonline-chat" на своё уникальное имя приложения
+app = "messageonline-chat"
+primary_region = "fra"   # Frankfurt — близко к СНГ (или "iad" для США)
+
+[build]
+  # Используем наш Dockerfile
+  dockerfile = "Dockerfile"
+
+# Переменные окружения
+[env]
+  SERVER_PORT = "8888"
+  DB_PATH     = "/data/chat.db"
+
+# Постоянное хранилище для SQLite базы данных
+# Данные НЕ теряются при перезапуске контейнера
+[mounts]
+  source      = "chat_data"    # Имя тома (создаётся командой fly vol create)
+  destination = "/data"
+
+# TCP сервис на порту 8888
+[[services]]
+  protocol      = "tcp"
+  internal_port = 8888
+
+  # Внешние порты (клиенты подключаются именно сюда)
+  [[services.ports]]
+    port = 8888
+
+  # Проверка работоспособности — Fly.io перезапустит сервер если он упадёт
+  [[services.tcp_checks]]
+    interval    = "15s"
+    timeout     = "5s"
+    grace_period = "10s"
+
+# Ресурсы для бесплатного плана
+[vm]
+  cpu_kind  = "shared"
+  cpus      = 1
+  memory_mb = 256
