@@ -57,7 +57,7 @@ public class ClientHandler implements Runnable {
                 }
             }
 
-        } catch (EOFException | IOException e) {
+        } catch (IOException e) {
             // Клиент отключился (нормальная ситуация)
             if (currentUser != null) {
                 ServerLogger.info("Клиент отключился: " + currentUser.getUsername());
