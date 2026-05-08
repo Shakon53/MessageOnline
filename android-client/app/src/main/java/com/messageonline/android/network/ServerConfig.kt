@@ -31,8 +31,8 @@ package com.messageonline.android.network
 object ServerConfig {
 
     // ★ ИЗМЕНИ ЭТИ ЗНАЧЕНИЯ НА СВОЙ СЕРВЕР ★
-    const val HOST: String = "messageonline-chat.fly.dev"
-    const val PORT: Int    = 8888
+    const val HOST: String = "turntable.proxy.rlwy.net"
+    const val PORT: Int    = 24584
 
     // Таймаут подключения (мс)
     const val CONNECT_TIMEOUT_MS: Int = 8000
