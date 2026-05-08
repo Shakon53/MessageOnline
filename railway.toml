@@ -1,10 +1,6 @@
-# Railway читает этот файл из КОРНЯ репозитория
-# Указываем что нужно собирать папку server/ через Dockerfile
-
 [build]
   builder        = "dockerfile"
-  dockerfilePath = "server/Dockerfile"
-  buildContext   = "server"
+  dockerfilePath = "Dockerfile"
 
 [deploy]
   restartPolicyType       = "on_failure"
