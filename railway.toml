@@ -2,8 +2,9 @@
 # Указываем что нужно собирать папку server/ через Dockerfile
 
 [build]
-  builder    = "dockerfile"
+  builder        = "dockerfile"
   dockerfilePath = "server/Dockerfile"
+  buildContext   = "server"
 
 [deploy]
   restartPolicyType       = "on_failure"
