@@ -28,40 +28,75 @@
                 app:title="Профиль"
                 app:titleTextColor="#FFFFFF" />
 
-            <!-- Avatar centered -->
+            <!-- Avatar centered + clickable to change -->
             <FrameLayout
-                android:layout_width="96dp"
-                android:layout_height="96dp"
-                android:layout_gravity="center">
+                android:id="@+id/flAvatarContainer"
+                android:layout_width="104dp"
+                android:layout_height="104dp"
+                android:layout_gravity="center"
+                android:clickable="true"
+                android:focusable="true"
+                android:foreground="?attr/selectableItemBackgroundBorderless">
 
                 <!-- Avatar background ring -->
                 <View
-                    android:layout_width="96dp"
-                    android:layout_height="96dp"
+                    android:layout_width="104dp"
+                    android:layout_height="104dp"
                     android:background="@drawable/bg_avatar_ring" />
 
-                <!-- Photo from Google (hidden if no URL) -->
+                <!-- Avatar image -->
                 <ImageView
                     android:id="@+id/ivAvatar"
-                    android:layout_width="88dp"
-                    android:layout_height="88dp"
+                    android:layout_width="92dp"
+                    android:layout_height="92dp"
                     android:layout_gravity="center"
                     android:scaleType="centerCrop"
                     android:background="@drawable/avatar_circle_bg"
                     android:visibility="gone"
                     android:contentDescription="@null" />
 
+                <!-- Initial letter -->
                 <TextView
                     android:id="@+id/tvAvatarInitial"
-                    android:layout_width="88dp"
-                    android:layout_height="88dp"
+                    android:layout_width="92dp"
+                    android:layout_height="92dp"
                     android:layout_gravity="center"
                     android:background="@drawable/avatar_circle_bg"
                     android:gravity="center"
                     android:textSize="38sp"
                     android:textColor="#FFFFFF"
                     android:textStyle="bold" />
+
+                <!-- Camera badge (bottom-right) -->
+                <FrameLayout
+                    android:layout_width="30dp"
+                    android:layout_height="30dp"
+                    android:layout_gravity="bottom|end"
+                    android:layout_marginEnd="2dp"
+                    android:layout_marginBottom="2dp"
+                    android:background="@drawable/bg_camera_badge">
+
+                    <ImageView
+                        android:layout_width="16dp"
+                        android:layout_height="16dp"
+                        android:layout_gravity="center"
+                        android:src="@drawable/ic_camera"
+                        android:tint="#FFFFFF"
+                        android:contentDescription="@null" />
+                </FrameLayout>
+
             </FrameLayout>
+
+            <!-- "Нажмите для изменения" hint -->
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_gravity="bottom|center_horizontal"
+                android:layout_marginBottom="12dp"
+                android:text="Нажмите на фото, чтобы изменить"
+                android:textColor="#80FFFFFF"
+                android:textSize="11sp" />
+
         </FrameLayout>
 
         <!-- Profile Info Glass Card -->
@@ -91,23 +126,40 @@
                 android:textColor="#FFFFFF"
                 android:textStyle="bold"
                 android:paddingTop="6dp"
-                android:paddingBottom="8dp" />
+                android:paddingBottom="4dp" />
 
-            <TextView
-                android:id="@+id/tvUserId"
-                android:layout_width="match_parent"
+            <!-- ID row -->
+            <LinearLayout
+                android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:textSize="13sp"
-                android:textColor="#6366F1"
-                android:paddingBottom="20dp"
-                android:text="ID: #—" />
+                android:orientation="horizontal"
+                android:gravity="center_vertical"
+                android:layout_marginBottom="20dp">
+
+                <TextView
+                    android:id="@+id/tvUserId"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:textSize="12sp"
+                    android:textColor="#6366F1"
+                    android:text="ID: #—" />
+
+                <ImageView
+                    android:id="@+id/ivCopyId"
+                    android:layout_width="16dp"
+                    android:layout_height="16dp"
+                    android:layout_marginStart="6dp"
+                    android:src="@drawable/ic_copy"
+                    android:tint="#4B5563"
+                    android:contentDescription="@null" />
+            </LinearLayout>
 
             <View
                 android:layout_width="match_parent"
                 android:layout_height="1dp"
                 android:background="#1AFFFFFF" />
 
-            <!-- Phone section -->
+            <!-- Email section -->
             <TextView
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
