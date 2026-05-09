@@ -1,17 +1,21 @@
 package server;
 
+import com.google.auth.oauth2.GoogleCredentials;
+import com.google.firebase.FirebaseApp;
+import com.google.firebase.FirebaseOptions;
+import com.google.firebase.messaging.FirebaseMessaging;
+import com.google.firebase.messaging.Notification;
+import server.model.Message;
 import org.java_websocket.WebSocket;
 import org.json.JSONArray;
 import org.json.JSONObject;
 import server.database.DatabaseManager;
-import server.model.Message;
 import server.model.Packet;
 import server.model.User;
 import server.util.ServerLogger;
 
-import java.io.OutputStream;
-import java.net.HttpURLConnection;
-import java.net.URL;
+import java.io.ByteArrayInputStream;
+import java.io.InputStream;
 import java.nio.charset.StandardCharsets;
 
 public class ClientHandler {
@@ -414,39 +418,54 @@ public class ClientHandler {
         send(DatabaseManager.getInstance().getFriendsList(currentUser.getId(), onlineNames).toString());
     }
 
-    private void sendFCMPush(String token, String title, String body, String senderUsername) {
-        String serverKey = System.getenv("FCM_SERVER_KEY");
-        if (serverKey == null || serverKey.isEmpty()) {
-            ServerLogger.info("FCM_SERVER_KEY не задан, push не отправлен");
-            return;
-        }
+    // ─── FCM v1 via Firebase Admin SDK ────────────────────────────────────────
+
+    private static volatile boolean firebaseInitialized = false;
+
+    private static synchronized void ensureFirebaseInitialized() {
+        if (firebaseInitialized) return;
         try {
-            URL url = new URL("https://fcm.googleapis.com/fcm/send");
-            HttpURLConnection conn = (HttpURLConnection) url.openConnection();
-            conn.setDoOutput(true);
-            conn.setRequestMethod("POST");
-            conn.setRequestProperty("Authorization", "key=" + serverKey);
-            conn.setRequestProperty("Content-Type", "application/json; charset=UTF-8");
-
-            // Экранируем спецсимволы JSON
-            String safeTitle = title.replace("\\", "\\\\").replace("\"", "\\\"");
-            String safeBody  = body .replace("\\", "\\\\").replace("\"", "\\\"");
-
-            String safeSender = senderUsername.replace("\\", "\\\\").replace("\"", "\\\"");
-            String json = "{\"to\":\"" + token + "\"," +
-                    "\"notification\":{\"title\":\"" + safeTitle + "\",\"body\":\"" + safeBody + "\"}," +
-                    "\"data\":{\"title\":\"" + safeTitle + "\",\"body\":\"" + safeBody + "\"," +
-                    "\"chatType\":\"private\",\"peerUsername\":\"" + safeSender + "\"}}";
-
-            byte[] bytes = json.getBytes(StandardCharsets.UTF_8);
-            conn.setRequestProperty("Content-Length", String.valueOf(bytes.length));
-            try (OutputStream os = conn.getOutputStream()) {
-                os.write(bytes);
+            String credJson = System.getenv("FIREBASE_SERVICE_ACCOUNT_JSON");
+            if (credJson == null || credJson.isEmpty()) {
+                ServerLogger.info("FIREBASE_SERVICE_ACCOUNT_JSON не задан, FCM push отключён");
+                return;
             }
+            if (FirebaseApp.getApps().isEmpty()) {
+                InputStream credStream = new ByteArrayInputStream(
+                        credJson.getBytes(StandardCharsets.UTF_8));
+                GoogleCredentials credentials = GoogleCredentials
+                        .fromStream(credStream)
+                        .createScoped("https://www.googleapis.com/auth/firebase.messaging");
+                FirebaseOptions options = FirebaseOptions.builder()
+                        .setCredentials(credentials)
+                        .build();
+                FirebaseApp.initializeApp(options);
+            }
+            firebaseInitialized = true;
+            ServerLogger.info("Firebase Admin SDK инициализирован");
+        } catch (Exception e) {
+            ServerLogger.error("Firebase init ошибка: " + e.getMessage());
+        }
+    }
 
-            int code = conn.getResponseCode();
-            ServerLogger.info("FCM push отправлен: HTTP " + code);
-            conn.disconnect();
+    private void sendFCMPush(String token, String title, String body, String senderUsername) {
+        ensureFirebaseInitialized();
+        if (!firebaseInitialized) return;
+        try {
+            com.google.firebase.messaging.Message fcmMsg =
+                    com.google.firebase.messaging.Message.builder()
+                    .setToken(token)
+                    .setNotification(Notification.builder()
+                            .setTitle(title)
+                            .setBody(body)
+                            .build())
+                    .putData("title",        title)
+                    .putData("body",         body)
+                    .putData("chatType",     "private")
+                    .putData("peerUsername", senderUsername)
+                    .build();
+            String response = FirebaseMessaging.getInstance().send(fcmMsg);
+            ServerLogger.info("FCM v1 push отправлен: " + response);
         } catch (Exception e) {
             ServerLogger.error("FCM push ошибка: " + e.getMessage());
         }

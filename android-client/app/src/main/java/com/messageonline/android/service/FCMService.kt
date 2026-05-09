@@ -7,6 +7,7 @@ import android.content.Intent
 import androidx.core.app.NotificationCompat
 import com.google.firebase.messaging.FirebaseMessagingService
 import com.google.firebase.messaging.RemoteMessage
+import com.messageonline.android.R
 import com.messageonline.android.network.SocketManager
 import com.messageonline.android.ui.ChatsActivity
 import com.messageonline.android.ui.PrivateChatActivity
@@ -14,44 +15,47 @@ import com.messageonline.android.ui.PrivateChatActivity
 class FCMService : FirebaseMessagingService() {
 
     companion object {
-        const val CHANNEL_ID = "msg_push"
+        const val CHANNEL_ID   = "msg_incoming"
+        const val CHANNEL_NAME = "Входящие сообщения"
     }
 
-    /**
-     * Вызывается когда FCM выдаёт новый токен (первый запуск или сброс).
-     * Сохраняем локально и отправляем на сервер если уже подключены.
-     */
     override fun onNewToken(token: String) {
         getSharedPreferences("MessageOnline", MODE_PRIVATE)
             .edit().putString("fcm_token", token).apply()
-
-        if (SocketManager.isConnected) {
-            SocketManager.sendFCMToken(token)
-        }
+        if (SocketManager.isConnected) SocketManager.sendFCMToken(token)
     }
 
-    /**
-     * Входящий push когда приложение на переднем плане или фоне.
-     */
     override fun onMessageReceived(message: RemoteMessage) {
-        val title = message.data["title"] ?: message.notification?.title ?: "MessageOnline"
-        val body = message.data["body"] ?: message.notification?.body ?: return
-        val chatType = message.data["chatType"] ?: "global"
-        val peerUsername = message.data["peerUsername"] ?: ""
+        val data         = message.data
+        val title        = data["title"]       ?: message.notification?.title ?: "MessageOnline"
+        val body         = data["body"]        ?: message.notification?.body  ?: return
+        val chatType     = data["chatType"]    ?: "global"
+        val peerUsername = data["peerUsername"] ?: ""
         showNotification(title, body, chatType, peerUsername)
     }
 
-    private fun showNotification(title: String, body: String, chatType: String = "global", peerUsername: String = "") {
+    private fun showNotification(
+        title: String,
+        body: String,
+        chatType: String = "global",
+        peerUsername: String = ""
+    ) {
         val manager = getSystemService(NOTIFICATION_SERVICE) as NotificationManager
 
-        // Создаём канал (Android 8+)
+        // High-priority channel with sound + vibration
         val channel = NotificationChannel(
-            CHANNEL_ID, "Сообщения",
+            CHANNEL_ID,
+            CHANNEL_NAME,
             NotificationManager.IMPORTANCE_HIGH
-        ).apply { description = "Входящие сообщения" }
+        ).apply {
+            description = "Уведомления о новых сообщениях"
+            enableVibration(true)
+            vibrationPattern = longArrayOf(0, 150, 80, 150)
+            enableLights(true)
+        }
         manager.createNotificationChannel(channel)
 
-        // Intent при тапе на уведомление — открываем правильный чат
+        // Intent: открыть нужный чат при нажатии
         val intent = if (chatType == "private" && peerUsername.isNotEmpty()) {
             Intent(this, PrivateChatActivity::class.java).apply {
                 flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
@@ -64,20 +68,26 @@ class FCMService : FirebaseMessagingService() {
         }
 
         val pendingIntent = PendingIntent.getActivity(
-            this, System.currentTimeMillis().toInt(), intent,
+            this,
+            peerUsername.hashCode(),
+            intent,
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
         )
 
         val notification = NotificationCompat.Builder(this, CHANNEL_ID)
-            .setSmallIcon(android.R.drawable.ic_dialog_email)
+            .setSmallIcon(R.drawable.ic_message)
             .setContentTitle(title)
             .setContentText(body)
             .setStyle(NotificationCompat.BigTextStyle().bigText(body))
-            .setAutoCancel(true)
             .setPriority(NotificationCompat.PRIORITY_HIGH)
+            .setCategory(NotificationCompat.CATEGORY_MESSAGE)
+            .setAutoCancel(true)
             .setContentIntent(pendingIntent)
+            .setColor(0xFF6366F1.toInt())
+            .setColorized(true)
+            .setGroup("messages_$peerUsername")
             .build()
 
-        manager.notify(System.currentTimeMillis().toInt(), notification)
+        manager.notify(peerUsername.hashCode(), notification)
     }
 }

@@ -249,8 +249,11 @@ class ChatViewModel(app: Application) : AndroidViewModel(app) {
                     else list.add(msg.copy(status = ChatMessage.STATUS_SENT))
                 } else {
                     list.add(msg)
-                    // Vibrate on new incoming private message
                     vibrate()
+                    // Show local notification if user is NOT currently in this chat
+                    if (msg.senderUsername != currentPrivatePeer) {
+                        showIncomingNotification(msg.senderUsername, msg.content)
+                    }
                 }
                 _privateMessages.postValue(list)
                 saveToRoom(msg)
@@ -659,21 +662,59 @@ class ChatViewModel(app: Application) : AndroidViewModel(app) {
 
     // ==================== УВЕДОМЛЕНИЯ ====================
 
-    fun showNotification(context: Context, title: String, text: String) {
-        val channelId = "chat_notifications"
-        val manager = context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
-        if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O) {
-            manager.createNotificationChannel(
-                NotificationChannel(channelId, "Сообщения чата",
-                    NotificationManager.IMPORTANCE_DEFAULT)
-            )
+    private fun showIncomingNotification(senderUsername: String, messageText: String) {
+        val ctx = getApplication<Application>()
+        val channelId = "msg_incoming"
+        val manager = ctx.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
+
+        // Create channel with sound + vibration (Android 8+)
+        val channel = NotificationChannel(
+            channelId,
+            "Входящие сообщения",
+            NotificationManager.IMPORTANCE_HIGH
+        ).apply {
+            description = "Уведомления о новых сообщениях"
+            enableVibration(true)
+            vibrationPattern = longArrayOf(0, 150, 80, 150)
+            enableLights(true)
         }
-        manager.notify(System.currentTimeMillis().toInt(),
-            NotificationCompat.Builder(context, channelId)
-                .setSmallIcon(android.R.drawable.ic_dialog_email)
-                .setContentTitle(title).setContentText(text)
-                .setAutoCancel(true).build()
+        manager.createNotificationChannel(channel)
+
+        // Intent: tap → open PrivateChatActivity
+        val intent = android.content.Intent(ctx,
+            com.messageonline.android.ui.PrivateChatActivity::class.java).apply {
+            flags = android.content.Intent.FLAG_ACTIVITY_NEW_TASK or
+                    android.content.Intent.FLAG_ACTIVITY_CLEAR_TOP
+            putExtra("peer_username", senderUsername)
+        }
+        val pendingIntent = android.app.PendingIntent.getActivity(
+            ctx,
+            senderUsername.hashCode(),
+            intent,
+            android.app.PendingIntent.FLAG_UPDATE_CURRENT or android.app.PendingIntent.FLAG_IMMUTABLE
         )
+
+        // Avatar initial as large icon color
+        val notification = NotificationCompat.Builder(ctx, channelId)
+            .setSmallIcon(com.messageonline.android.R.drawable.ic_message)
+            .setContentTitle(senderUsername)
+            .setContentText(messageText)
+            .setStyle(NotificationCompat.BigTextStyle().bigText(messageText))
+            .setPriority(NotificationCompat.PRIORITY_HIGH)
+            .setCategory(NotificationCompat.CATEGORY_MESSAGE)
+            .setAutoCancel(true)
+            .setContentIntent(pendingIntent)
+            .setColorized(true)
+            .setColor(0xFF6366F1.toInt())
+            // Group multiple messages from same sender
+            .setGroup("messages_$senderUsername")
+            .build()
+
+        manager.notify(senderUsername.hashCode(), notification)
+    }
+
+    fun showNotification(context: Context, title: String, text: String) {
+        showIncomingNotification(title, text)
     }
 
     // ==================== ПАРСИНГ ====================
