@@ -13,7 +13,6 @@
         <item name="colorOnSecondaryContainer">#FFFFFF</item>
         <item name="colorTertiary">#818CF8</item>
         <item name="colorOnTertiary">#FFFFFF</item>
-        <item name="colorBackground">#080C18</item>
         <item name="colorOnBackground">#FFFFFF</item>
         <item name="colorSurface">#111827</item>
         <item name="colorOnSurface">#FFFFFF</item>
@@ -40,7 +39,6 @@
         <item name="colorSurface">#1A2236</item>
         <item name="colorOnSurface">#FFFFFF</item>
         <item name="android:colorBackground">#1A2236</item>
-        <item name="colorOnBackground">#FFFFFF</item>
     </style>
 
     <!-- Toolbar title text appearance -->
