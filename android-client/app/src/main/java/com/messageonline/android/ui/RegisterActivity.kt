@@ -73,12 +73,10 @@ class RegisterActivity : AppCompatActivity() {
 
             setLoading(true)
 
-            if (SocketManager.isConnected) {
-                viewModel.register(username, verifiedEmail, password)
-            } else {
-                pendingRegister = Triple(username, verifiedEmail, password)
-                viewModel.connect()
-            }
+            // Всегда переподключаемся для чистого состояния
+            pendingRegister = Triple(username, verifiedEmail, password)
+            SocketManager.disconnect()
+            viewModel.connect()
         }
     }
 

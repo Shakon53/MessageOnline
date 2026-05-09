@@ -125,15 +125,13 @@ class LoginActivity : AppCompatActivity() {
                 return@setOnClickListener
             }
 
-            setLoading(true, "Вход...")
+            setLoading(true, "Подключение...")
 
-            if (SocketManager.isConnected) {
-                viewModel.login(username, password)
-            } else {
-                pendingUsername = username
-                pendingPassword = password
-                viewModel.connect()
-            }
+            // Всегда переподключаемся — старое соединение могло устареть
+            pendingUsername = username
+            pendingPassword = password
+            SocketManager.disconnect()
+            viewModel.connect()
         }
 
         binding.tvRegister.setOnClickListener {
