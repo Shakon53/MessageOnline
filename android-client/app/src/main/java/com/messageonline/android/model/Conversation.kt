@@ -6,5 +6,6 @@ data class Conversation(
     val lastTimestamp: Long,
     val unreadCount: Int = 0,
     val isGlobal: Boolean = false,
-    val isOnline: Boolean = false
+    val isOnline: Boolean = false,
+    val avatarUrl: String = ""
 )

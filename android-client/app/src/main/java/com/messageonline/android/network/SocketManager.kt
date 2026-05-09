@@ -179,4 +179,21 @@ object SocketManager {
             put("token", token)
         })
     }
+
+    fun sendEditMessage(timestamp: Long, newContent: String, isGlobal: Boolean, receiverUsername: String = "") {
+        send(JSONObject().apply {
+            put("type", Packet.EDIT_MESSAGE)
+            put("timestamp", timestamp)
+            put("newContent", newContent)
+            put("isGlobal", isGlobal)
+            if (receiverUsername.isNotEmpty()) put("receiverUsername", receiverUsername)
+        })
+    }
+
+    fun sendUpdateAvatar(avatarUrl: String) {
+        send(JSONObject().apply {
+            put("type", Packet.UPDATE_AVATAR)
+            put("avatarUrl", avatarUrl)
+        })
+    }
 }

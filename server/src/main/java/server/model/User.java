@@ -11,6 +11,7 @@ public class User {
     private String passwordHash;
     private String statusText = "Привет, я использую MessageOnline";
     private boolean online;
+    private String avatarUrl = "";
 
     public User() {}
 
@@ -45,6 +46,9 @@ public class User {
 
     public boolean isOnline() { return online; }
     public void setOnline(boolean online) { this.online = online; }
+
+    public String getAvatarUrl() { return avatarUrl; }
+    public void setAvatarUrl(String avatarUrl) { this.avatarUrl = avatarUrl; }
 
     @Override
     public String toString() {

@@ -4,8 +4,11 @@ import android.graphics.Color
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
+import android.widget.ImageView
 import android.widget.TextView
 import androidx.recyclerview.widget.RecyclerView
+import coil.load
+import coil.transform.CircleCropTransformation
 import com.messageonline.android.R
 import com.messageonline.android.model.Conversation
 import java.text.SimpleDateFormat
@@ -24,14 +27,13 @@ class ChatsAdapter(
     private val dateFormat = SimpleDateFormat("dd.MM", Locale.getDefault())
 
     inner class ChatViewHolder(view: View) : RecyclerView.ViewHolder(view) {
-        val tvInitial:     TextView = view.findViewById(R.id.tvChatInitial)
-        val tvName:        TextView = view.findViewById(R.id.tvChatName)
-        val tvLastMessage: TextView = view.findViewById(R.id.tvLastMessage)
-        val tvTime:        TextView = view.findViewById(R.id.tvChatTime)
-        val tvBadge:       TextView = view.findViewById(R.id.tvUnreadBadge)
-        val vOnlineDot:    View     = view.findViewById(R.id.viewOnlineDot)
-        val vAvatar:       View     = view.rootView.findViewById<View?>(R.id.tvChatInitial)
-                                        ?.parent as? View ?: view
+        val tvInitial:     TextView  = view.findViewById(R.id.tvChatInitial)
+        val ivAvatar:      ImageView = view.findViewById(R.id.ivChatAvatar)
+        val tvName:        TextView  = view.findViewById(R.id.tvChatName)
+        val tvLastMessage: TextView  = view.findViewById(R.id.tvLastMessage)
+        val tvTime:        TextView  = view.findViewById(R.id.tvChatTime)
+        val tvBadge:       TextView  = view.findViewById(R.id.tvUnreadBadge)
+        val vOnlineDot:    View      = view.findViewById(R.id.viewOnlineDot)
     }
 
     override fun onCreateViewHolder(parent: ViewGroup, viewType: Int) =
@@ -59,6 +61,25 @@ class ChatsAdapter(
             holder.tvBadge.text       = if (conv.unreadCount > 99) "99+" else conv.unreadCount.toString()
         } else {
             holder.tvBadge.visibility = View.GONE
+        }
+
+        // Avatar: load real photo if available, else show initial
+        if (!conv.avatarUrl.isNullOrEmpty() && !conv.isGlobal) {
+            holder.ivAvatar.visibility = View.VISIBLE
+            holder.tvInitial.visibility = View.INVISIBLE
+            holder.ivAvatar.load(conv.avatarUrl) {
+                transformations(CircleCropTransformation())
+                placeholder(R.drawable.avatar_circle_bg)
+                listener(
+                    onError = { _, _ ->
+                        holder.ivAvatar.visibility = View.GONE
+                        holder.tvInitial.visibility = View.VISIBLE
+                    }
+                )
+            }
+        } else {
+            holder.ivAvatar.visibility = View.GONE
+            holder.tvInitial.visibility = View.VISIBLE
         }
 
         holder.itemView.setOnClickListener { onChatClick(conv) }

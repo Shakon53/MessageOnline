@@ -11,6 +11,7 @@ import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
 import android.view.animation.AnimationUtils
+import android.widget.ImageView
 import android.widget.TextView
 import android.widget.Toast
 import androidx.recyclerview.widget.RecyclerView
@@ -25,7 +26,10 @@ import java.util.Locale
 class MessageAdapter(
     private val messages: MutableList<ChatMessage>,
     private val myUsername: String,
-    private val onDeleteMessage: ((ChatMessage) -> Unit)? = null
+    private val onDeleteMessage: ((ChatMessage) -> Unit)? = null,
+    private val onEditMessage: ((ChatMessage, String) -> Unit)? = null,
+    private val onReplyMessage: ((ChatMessage) -> Unit)? = null,
+    private val onForwardMessage: ((ChatMessage) -> Unit)? = null
 ) : RecyclerView.Adapter<RecyclerView.ViewHolder>() {
 
     companion object {
@@ -66,20 +70,23 @@ class MessageAdapter(
         val tvContent:      TextView = view.findViewById(R.id.tvMessageContent)
         val tvTime:         TextView = view.findViewById(R.id.tvMessageTime)
         val tvStatus:       TextView = view.findViewById(R.id.tvStatus)
+        val tvEdited:       TextView = view.findViewById(R.id.tvEdited)
         val llReplyQuote:   View     = view.findViewById(R.id.llReplyQuote)
         val tvReplySender:  TextView = view.findViewById(R.id.tvReplyToSender)
         val tvReplyContent: TextView = view.findViewById(R.id.tvReplyToContent)
     }
 
     inner class ReceivedViewHolder(view: View) : RecyclerView.ViewHolder(view) {
-        val flAvatar:       View     = view.findViewById(R.id.flAvatar)
-        val tvInitial:      TextView = view.findViewById(R.id.tvAvatarInitial)
-        val tvSender:       TextView = view.findViewById(R.id.tvSenderName)
-        val tvContent:      TextView = view.findViewById(R.id.tvMessageContent)
-        val tvTime:         TextView = view.findViewById(R.id.tvMessageTime)
-        val llReplyQuote:   View     = view.findViewById(R.id.llReplyQuote)
-        val tvReplySender:  TextView = view.findViewById(R.id.tvReplyToSender)
-        val tvReplyContent: TextView = view.findViewById(R.id.tvReplyToContent)
+        val flAvatar:       View      = view.findViewById(R.id.flAvatar)
+        val tvInitial:      TextView  = view.findViewById(R.id.tvAvatarInitial)
+        val ivAvatarImage:  ImageView = view.findViewById(R.id.ivAvatarImage)
+        val tvSender:       TextView  = view.findViewById(R.id.tvSenderName)
+        val tvContent:      TextView  = view.findViewById(R.id.tvMessageContent)
+        val tvTime:         TextView  = view.findViewById(R.id.tvMessageTime)
+        val tvEdited:       TextView  = view.findViewById(R.id.tvEdited)
+        val llReplyQuote:   View      = view.findViewById(R.id.llReplyQuote)
+        val tvReplySender:  TextView  = view.findViewById(R.id.tvReplyToSender)
+        val tvReplyContent: TextView  = view.findViewById(R.id.tvReplyToContent)
     }
 
     inner class DateViewHolder(view: View) : RecyclerView.ViewHolder(view) {
@@ -129,6 +136,7 @@ class MessageAdapter(
                 holder.tvTime.text    = timeFormat.format(Date(msg.timestamp))
                 bindStatus(holder.tvStatus, msg.status)
                 bindReplyQuote(holder.llReplyQuote, holder.tvReplySender, holder.tvReplyContent, msg)
+                holder.tvEdited.visibility = if (msg.isEdited) View.VISIBLE else View.GONE
 
                 // Group spacing
                 val lp = holder.itemView.layoutParams as? ViewGroup.MarginLayoutParams
@@ -143,11 +151,14 @@ class MessageAdapter(
                 highlightText(holder.tvContent, msg.content)
                 holder.tvTime.text    = timeFormat.format(Date(msg.timestamp))
                 bindReplyQuote(holder.llReplyQuote, holder.tvReplySender, holder.tvReplyContent, msg)
+                holder.tvEdited.visibility = if (msg.isEdited) View.VISIBLE else View.GONE
 
                 // Avatar — visible only on last message of group (bottom of bubble stack)
                 if (item.isLastInGroup) {
                     holder.flAvatar.visibility = View.VISIBLE
                     holder.tvInitial.text = msg.senderUsername.firstOrNull()?.uppercaseChar()?.toString() ?: "?"
+                    holder.ivAvatarImage.visibility = View.GONE
+                    holder.tvInitial.visibility = View.VISIBLE
                 } else {
                     holder.flAvatar.visibility = View.INVISIBLE   // keep layout space
                 }
@@ -187,13 +198,16 @@ class MessageAdapter(
         }
     }
 
-    // ─── Long press: copy / delete ─────────────────────────────────────────────
+    // ─── Long press: copy / reply / edit / forward / delete ───────────────────
 
     private fun setupLongPress(view: View, msg: ChatMessage) {
         view.setOnLongClickListener {
             val ctx = view.context
-            val options = if (msg.isMine(myUsername)) arrayOf("Копировать", "Удалить")
-                          else arrayOf("Копировать")
+            val options = if (msg.isMine(myUsername)) {
+                arrayOf("Копировать", "Ответить", "Редактировать", "Переслать", "Удалить")
+            } else {
+                arrayOf("Копировать", "Ответить", "Переслать")
+            }
 
             MaterialAlertDialogBuilder(ctx)
                 .setItems(options) { _, which ->
@@ -203,12 +217,36 @@ class MessageAdapter(
                             cm.setPrimaryClip(ClipData.newPlainText("msg", msg.content))
                             Toast.makeText(ctx, "Скопировано", Toast.LENGTH_SHORT).show()
                         }
-                        "Удалить" -> onDeleteMessage?.invoke(msg)
+                        "Ответить"       -> onReplyMessage?.invoke(msg)
+                        "Редактировать"  -> showEditDialog(ctx, msg)
+                        "Переслать"      -> onForwardMessage?.invoke(msg)
+                        "Удалить"        -> onDeleteMessage?.invoke(msg)
                     }
                 }
                 .show()
             true
         }
+    }
+
+    private fun showEditDialog(ctx: Context, msg: ChatMessage) {
+        val editText = android.widget.EditText(ctx).apply {
+            setText(msg.content)
+            setSelection(text.length)
+            setSingleLine(false)
+            maxLines = 5
+            setPadding(48, 24, 48, 24)
+        }
+        MaterialAlertDialogBuilder(ctx)
+            .setTitle("Редактировать")
+            .setView(editText)
+            .setPositiveButton("Сохранить") { _, _ ->
+                val newContent = editText.text.toString().trim()
+                if (newContent.isNotEmpty() && newContent != msg.content) {
+                    onEditMessage?.invoke(msg, newContent)
+                }
+            }
+            .setNegativeButton("Отмена", null)
+            .show()
     }
 
     // ─── Status indicator ──────────────────────────────────────────────────────

@@ -61,6 +61,9 @@ class ChatViewModel(app: Application) : AndroidViewModel(app) {
     private val _conversations = MutableLiveData<List<Conversation>>(emptyList())
     val conversations: LiveData<List<Conversation>> = _conversations
 
+    private val _editedMessage = MutableLiveData<ChatMessage>()
+    val editedMessage: LiveData<ChatMessage> = _editedMessage
+
     // ==================== ТЕКУЩИЙ ПОЛЬЗОВАТЕЛЬ ====================
 
     var myUserId: Int = -1
@@ -95,7 +98,8 @@ class ChatViewModel(app: Application) : AndroidViewModel(app) {
     fun refreshConversations() {
         viewModelScope.launch(Dispatchers.IO) {
             val allPrivate = dao.getAllPrivateMessages()   // DESC order → newest first per peer
-            val onlineSet  = _onlineUsers.value?.map { it.username }?.toSet() ?: emptySet()
+            val onlineSet  = _onlineUsers.value?.associateBy { it.username } ?: emptyMap()
+            val prefs = getApplication<Application>().getSharedPreferences("MessageOnline", Context.MODE_PRIVATE)
 
             // One entry per peer (first occurrence = most recent due to DESC order)
             val convMap = linkedMapOf<String, Conversation>()
@@ -103,11 +107,15 @@ class ChatViewModel(app: Application) : AndroidViewModel(app) {
                 val peer = if (msg.senderUsername == myUsername) msg.receiverUsername
                            else msg.senderUsername
                 if (peer.isBlank() || convMap.containsKey(peer)) continue
+                val unread = dao.getUnreadCount(peer, myUsername)
+                val avatarUrl = prefs.getString("avatar_$peer", "") ?: ""
                 convMap[peer] = Conversation(
                     peerUsername  = peer,
                     lastMessage   = if (msg.senderUsername == myUsername) "Вы: ${msg.content}" else msg.content,
                     lastTimestamp = msg.timestamp,
-                    isOnline      = onlineSet.contains(peer)
+                    unreadCount   = unread,
+                    isOnline      = onlineSet.containsKey(peer),
+                    avatarUrl     = avatarUrl
                 )
             }
 
@@ -133,6 +141,7 @@ class ChatViewModel(app: Application) : AndroidViewModel(app) {
         SocketManager.onConnected = {
             _connectionStatus.postValue(ConnectionStatus.CONNECTED)
             sendSavedFCMToken()
+            sendSavedAvatar()
         }
         SocketManager.onDisconnected = {
             _connectionStatus.postValue(ConnectionStatus.DISCONNECTED)
@@ -151,6 +160,13 @@ class ChatViewModel(app: Application) : AndroidViewModel(app) {
             .getSharedPreferences("MessageOnline", Context.MODE_PRIVATE)
         val token = prefs.getString("fcm_token", "") ?: ""
         if (token.isNotEmpty()) SocketManager.sendFCMToken(token)
+    }
+
+    private fun sendSavedAvatar() {
+        val prefs = getApplication<Application>()
+            .getSharedPreferences("MessageOnline", Context.MODE_PRIVATE)
+        val avatar = prefs.getString("last_avatar", "") ?: ""
+        if (avatar.isNotEmpty()) SocketManager.sendUpdateAvatar(avatar)
     }
 
     // ==================== ОБРАБОТКА ПАКЕТОВ ====================
@@ -189,6 +205,8 @@ class ChatViewModel(app: Application) : AndroidViewModel(app) {
                     else list.add(msg.copy(status = ChatMessage.STATUS_SENT))
                 } else {
                     list.add(msg)
+                    // Vibrate on new incoming global message
+                    vibrate()
                 }
                 _globalMessages.postValue(list)
                 saveToRoom(msg)
@@ -206,10 +224,41 @@ class ChatViewModel(app: Application) : AndroidViewModel(app) {
                     else list.add(msg.copy(status = ChatMessage.STATUS_SENT))
                 } else {
                     list.add(msg)
+                    // Vibrate on new incoming private message
+                    vibrate()
                 }
                 _privateMessages.postValue(list)
                 saveToRoom(msg)
                 refreshConversations()
+            }
+
+            Packet.EDITED_MESSAGE -> {
+                val sender = json.optString("senderUsername")
+                val timestamp = json.optLong("timestamp")
+                val newContent = json.optString("newContent")
+                val isGlobal = json.optBoolean("isGlobal", true)
+
+                if (isGlobal) {
+                    val list = _globalMessages.value ?: mutableListOf()
+                    val idx = list.indexOfFirst { it.senderUsername == sender && it.timestamp == timestamp }
+                    if (idx >= 0) {
+                        list[idx] = list[idx].copy(content = newContent, isEdited = true)
+                        _globalMessages.postValue(list)
+                        viewModelScope.launch(Dispatchers.IO) {
+                            dao.updateMessageContent(timestamp, sender, newContent)
+                        }
+                    }
+                } else {
+                    val list = _privateMessages.value ?: mutableListOf()
+                    val idx = list.indexOfFirst { it.senderUsername == sender && it.timestamp == timestamp }
+                    if (idx >= 0) {
+                        list[idx] = list[idx].copy(content = newContent, isEdited = true)
+                        _privateMessages.postValue(list)
+                        viewModelScope.launch(Dispatchers.IO) {
+                            dao.updateMessageContent(timestamp, sender, newContent)
+                        }
+                    }
+                }
             }
 
             Packet.MESSAGE_READ -> {
@@ -238,10 +287,20 @@ class ChatViewModel(app: Application) : AndroidViewModel(app) {
                         id = u.optInt("id"),
                         username = u.optString("username"),
                         online = u.optBoolean("online", true),
-                        statusText = u.optString("statusText")
+                        statusText = u.optString("statusText"),
+                        avatarUrl = u.optString("avatarUrl")
                     ))
                 }
                 _onlineUsers.postValue(users)
+
+                // Cache avatar URLs in SharedPreferences
+                val prefs = getApplication<Application>().getSharedPreferences("MessageOnline", Context.MODE_PRIVATE)
+                val editor = prefs.edit()
+                for (user in users) {
+                    if (user.avatarUrl.isNotEmpty()) editor.putString("avatar_${user.username}", user.avatarUrl)
+                }
+                editor.apply()
+
                 refreshConversations()
             }
 
@@ -308,6 +367,21 @@ class ChatViewModel(app: Application) : AndroidViewModel(app) {
                 }
                 _profileUpdated.postValue(Unit)
             }
+        }
+    }
+
+    private fun vibrate() {
+        try {
+            val vibrator = getApplication<Application>()
+                .getSystemService(Context.VIBRATOR_SERVICE) as android.os.Vibrator
+            if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O) {
+                vibrator.vibrate(android.os.VibrationEffect.createOneShot(80, android.os.VibrationEffect.DEFAULT_AMPLITUDE))
+            } else {
+                @Suppress("DEPRECATION")
+                vibrator.vibrate(80)
+            }
+        } catch (e: Exception) {
+            // Ignore vibration errors
         }
     }
 
@@ -411,6 +485,14 @@ class ChatViewModel(app: Application) : AndroidViewModel(app) {
     fun updateProfile(statusText: String) = SocketManager.sendUpdateProfile(statusText)
     fun markRead(peerUsername: String)    = SocketManager.sendMarkRead(peerUsername)
 
+    fun markAllRead(peerUsername: String) {
+        viewModelScope.launch(Dispatchers.IO) {
+            dao.markConversationRead(peerUsername, myUsername)
+            refreshConversations()
+        }
+        markRead(peerUsername) // also send socket notification
+    }
+
     /** Remove a message locally (only from in-memory list + Room). */
     fun deleteLocalMessage(msg: ChatMessage) {
         // Remove from global list
@@ -427,6 +509,40 @@ class ChatViewModel(app: Application) : AndroidViewModel(app) {
         viewModelScope.launch(Dispatchers.IO) {
             dao.deleteByTimestampAndSender(msg.timestamp, msg.senderUsername)
         }
+    }
+
+    /** Edit a message locally and send to server. */
+    fun editMessage(msg: ChatMessage, newContent: String) {
+        val trimmed = newContent.trim()
+        if (trimmed.isBlank()) return
+
+        // Update locally
+        if (msg.isGlobal) {
+            val list = _globalMessages.value ?: mutableListOf()
+            val idx = list.indexOfFirst { it.timestamp == msg.timestamp && it.senderUsername == msg.senderUsername }
+            if (idx >= 0) {
+                list[idx] = list[idx].copy(content = trimmed, isEdited = true)
+                _globalMessages.value = list
+            }
+        } else {
+            val list = _privateMessages.value ?: mutableListOf()
+            val idx = list.indexOfFirst { it.timestamp == msg.timestamp && it.senderUsername == msg.senderUsername }
+            if (idx >= 0) {
+                list[idx] = list[idx].copy(content = trimmed, isEdited = true)
+                _privateMessages.value = list
+            }
+        }
+
+        // Persist locally
+        viewModelScope.launch(Dispatchers.IO) {
+            dao.updateMessageContent(msg.timestamp, msg.senderUsername, trimmed)
+        }
+
+        // Send to server
+        SocketManager.sendEditMessage(
+            msg.timestamp, trimmed, msg.isGlobal,
+            msg.receiverUsername ?: ""
+        )
     }
 
     // ==================== УВЕДОМЛЕНИЯ ====================

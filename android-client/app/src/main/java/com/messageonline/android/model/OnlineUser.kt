@@ -7,5 +7,6 @@ data class OnlineUser(
     val id: Int,
     val username: String,
     val online: Boolean = true,
-    val statusText: String = ""
+    val statusText: String = "",
+    val avatarUrl: String = ""
 )

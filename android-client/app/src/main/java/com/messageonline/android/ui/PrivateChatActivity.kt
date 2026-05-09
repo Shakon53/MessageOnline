@@ -13,6 +13,7 @@ import androidx.core.content.ContextCompat
 import androidx.recyclerview.widget.ItemTouchHelper
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
+import com.google.android.material.dialog.MaterialAlertDialogBuilder
 import com.messageonline.android.R
 import com.messageonline.android.adapter.MessageAdapter
 import com.messageonline.android.databinding.ActivityPrivateChatBinding
@@ -53,14 +54,17 @@ class PrivateChatActivity : AppCompatActivity() {
         setupClickListeners()
 
         viewModel.loadPrivateHistory(peerUsername)
-        viewModel.markRead(peerUsername)   // уведомляем собеседника что мы в чате
+        viewModel.markAllRead(peerUsername)   // mark all as read + update badge
     }
 
     private fun setupRecyclerView() {
         messageAdapter = MessageAdapter(
             mutableListOf(),
             ChatSession.username,
-            onDeleteMessage = { msg -> viewModel.deleteLocalMessage(msg) }
+            onDeleteMessage  = { msg -> viewModel.deleteLocalMessage(msg) },
+            onEditMessage    = { msg, newContent -> viewModel.editMessage(msg, newContent) },
+            onReplyMessage   = { msg -> showReplyBar(msg) },
+            onForwardMessage = { msg -> showForwardDialog(msg) }
         )
         layoutManager = LinearLayoutManager(this).apply { stackFromEnd = true }
         binding.rvMessages.apply {
@@ -147,6 +151,23 @@ class PrivateChatActivity : AppCompatActivity() {
         binding.layoutReplyBar.visibility = View.GONE
     }
 
+    private fun showForwardDialog(msg: ChatMessage) {
+        val conversations = viewModel.conversations.value ?: return
+        val names = conversations.map { it.peerUsername }.toTypedArray()
+        MaterialAlertDialogBuilder(this)
+            .setTitle("Переслать в...")
+            .setItems(names) { _, which ->
+                val target = conversations[which]
+                val fwdText = "🔁 ${msg.senderUsername}:\n${msg.content}"
+                if (target.isGlobal) {
+                    viewModel.sendGlobalMessage(fwdText)
+                } else {
+                    viewModel.sendPrivateMessage(target.peerUsername, fwdText)
+                }
+            }
+            .show()
+    }
+
     // ─── Observers ─────────────────────────────────────────────────────────────
 
     private fun setupObservers() {
@@ -158,6 +179,8 @@ class PrivateChatActivity : AppCompatActivity() {
             messageAdapter.setMessages(filtered)
             if (filtered.isNotEmpty()) {
                 binding.rvMessages.scrollToPosition(filtered.size - 1)
+                // Auto-mark as read when we're looking at the chat
+                viewModel.markAllRead(peerUsername)
             }
         }
 

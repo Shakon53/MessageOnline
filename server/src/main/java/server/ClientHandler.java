@@ -45,6 +45,8 @@ public class ClientHandler {
                 case Packet.UPDATE_PROFILE      -> handleUpdateProfile(packet);
                 case Packet.FCM_TOKEN           -> handleFCMToken(packet);
                 case Packet.MARK_READ           -> handleMarkRead(packet);
+                case Packet.EDIT_MESSAGE        -> handleEditMessage(packet);
+                case Packet.UPDATE_AVATAR       -> handleUpdateAvatar(packet);
                 default -> send(Packet.error("Неизвестный тип пакета: " + type));
             }
 
@@ -172,7 +174,8 @@ public class ClientHandler {
             if (fcmToken != null && !fcmToken.isEmpty()) {
                 sendFCMPush(fcmToken,
                         "💬 " + currentUser.getUsername(),
-                        content.length() > 100 ? content.substring(0, 100) + "..." : content);
+                        content.length() > 100 ? content.substring(0, 100) + "..." : content,
+                        currentUser.getUsername());
             }
             ServerLogger.chat("[PRIVATE→offline] " + currentUser.getUsername() + " -> " + receiverUsername);
             return;
@@ -279,7 +282,52 @@ public class ClientHandler {
         }
     }
 
-    private void sendFCMPush(String token, String title, String body) {
+    private void handleEditMessage(JSONObject p) {
+        if (!checkAuthorized()) return;
+        long timestamp = p.optLong("timestamp", 0);
+        String newContent = p.optString("newContent", "").trim();
+        boolean isGlobal = p.optBoolean("isGlobal", true);
+        String receiverUsername = p.optString("receiverUsername", "");
+
+        if (newContent.isEmpty() || newContent.length() > 2000) {
+            send(Packet.error("Текст сообщения пустой или слишком длинный"));
+            return;
+        }
+
+        boolean updated = DatabaseManager.getInstance().updateMessage(
+                currentUser.getUsername(), timestamp, newContent);
+        if (updated) {
+            String packet = Packet.editedMessage(currentUser.getUsername(), timestamp, newContent, isGlobal, receiverUsername);
+            if (isGlobal) {
+                server.broadcastAll(packet);
+            } else {
+                ClientHandler receiver = server.getClientByUsername(receiverUsername);
+                if (receiver != null) receiver.send(packet);
+                send(packet);
+            }
+            ServerLogger.info("EDIT: " + currentUser.getUsername() + " ts=" + timestamp);
+        } else {
+            send(Packet.error("Не удалось найти сообщение для редактирования"));
+        }
+    }
+
+    private void handleUpdateAvatar(JSONObject p) {
+        if (!checkAuthorized()) return;
+        String avatarUrl = p.optString("avatarUrl", "").trim();
+        if (avatarUrl.length() > 500) {
+            send(Packet.error("URL аватара слишком длинный"));
+            return;
+        }
+        boolean updated = DatabaseManager.getInstance().updateAvatar(currentUser.getId(), avatarUrl);
+        if (updated) {
+            currentUser.setAvatarUrl(avatarUrl);
+            // Broadcast updated user list so all clients see the new avatar
+            server.broadcastAll(buildUserListPacket());
+            ServerLogger.info("AVATAR UPDATE: " + currentUser.getUsername());
+        }
+    }
+
+    private void sendFCMPush(String token, String title, String body, String senderUsername) {
         String serverKey = System.getenv("FCM_SERVER_KEY");
         if (serverKey == null || serverKey.isEmpty()) {
             ServerLogger.info("FCM_SERVER_KEY не задан, push не отправлен");
@@ -297,9 +345,11 @@ public class ClientHandler {
             String safeTitle = title.replace("\\", "\\\\").replace("\"", "\\\"");
             String safeBody  = body .replace("\\", "\\\\").replace("\"", "\\\"");
 
+            String safeSender = senderUsername.replace("\\", "\\\\").replace("\"", "\\\"");
             String json = "{\"to\":\"" + token + "\"," +
                     "\"notification\":{\"title\":\"" + safeTitle + "\",\"body\":\"" + safeBody + "\"}," +
-                    "\"data\":{\"title\":\"" + safeTitle + "\",\"body\":\"" + safeBody + "\"}}";
+                    "\"data\":{\"title\":\"" + safeTitle + "\",\"body\":\"" + safeBody + "\"," +
+                    "\"chatType\":\"private\",\"peerUsername\":\"" + safeSender + "\"}}";
 
             byte[] bytes = json.getBytes(StandardCharsets.UTF_8);
             conn.setRequestProperty("Content-Length", String.valueOf(bytes.length));
@@ -325,6 +375,7 @@ public class ClientHandler {
                         .put("id", client.currentUser.getId())
                         .put("username", client.currentUser.getUsername())
                         .put("statusText", client.currentUser.getStatusText())
+                        .put("avatarUrl", client.currentUser.getAvatarUrl())
                         .put("online", true));
             }
         }

@@ -77,6 +77,8 @@ public class DatabaseManager {
             try { stmt.execute("ALTER TABLE users RENAME COLUMN email TO phone"); ServerLogger.info("Migration: email→phone"); } catch (Exception ignored) {}
             try { stmt.execute("ALTER TABLE users ADD COLUMN status_text TEXT NOT NULL DEFAULT 'Привет, я использую MessageOnline'"); ServerLogger.info("Migration: added status_text"); } catch (Exception ignored) {}
             try { stmt.execute("ALTER TABLE users ADD COLUMN fcm_token TEXT"); ServerLogger.info("Migration: added fcm_token"); } catch (Exception ignored) {}
+            try { stmt.execute("ALTER TABLE users ADD COLUMN avatar_url TEXT NOT NULL DEFAULT ''"); ServerLogger.info("Migration: added avatar_url"); } catch (Exception ignored) {}
+            try { stmt.execute("ALTER TABLE messages ADD COLUMN content_edited TEXT"); ServerLogger.info("Migration: added content_edited"); } catch (Exception ignored) {}
 
             // Таблица сообщений
             stmt.execute("""
@@ -140,7 +142,7 @@ public class DatabaseManager {
      * @return User если данные верны, null если нет
      */
     public synchronized User loginUser(String username, String password) {
-        String sql = "SELECT id, username, phone, password_hash, status_text FROM users WHERE username = ?";
+        String sql = "SELECT id, username, phone, password_hash, status_text, avatar_url FROM users WHERE username = ?";
         try (PreparedStatement ps = connection.prepareStatement(sql)) {
             ps.setString(1, username);
             ResultSet rs = ps.executeQuery();
@@ -151,6 +153,7 @@ public class DatabaseManager {
                     User user = new User(rs.getInt("id"), rs.getString("username"),
                             rs.getString("phone"), storedHash);
                     user.setStatusText(rs.getString("status_text"));
+                    user.setAvatarUrl(rs.getString("avatar_url") != null ? rs.getString("avatar_url") : "");
                     return user;
                 }
             }
@@ -177,7 +180,7 @@ public class DatabaseManager {
      * Используется для загрузки истории личных сообщений, даже если собеседник офлайн.
      */
     public synchronized User getUserByUsername(String username) {
-        String sql = "SELECT id, username, phone, password_hash, status_text FROM users WHERE username = ?";
+        String sql = "SELECT id, username, phone, password_hash, status_text, avatar_url FROM users WHERE username = ?";
         try (PreparedStatement ps = connection.prepareStatement(sql)) {
             ps.setString(1, username);
             ResultSet rs = ps.executeQuery();
@@ -186,6 +189,7 @@ public class DatabaseManager {
                 User user = new User(rs.getInt("id"), rs.getString("username"),
                         rs.getString("phone"), rs.getString("password_hash"));
                 user.setStatusText(rs.getString("status_text"));
+                user.setAvatarUrl(rs.getString("avatar_url") != null ? rs.getString("avatar_url") : "");
                 return user;
             }
         } catch (SQLException e) {
@@ -347,6 +351,34 @@ public class DatabaseManager {
             ServerLogger.error("Ошибка получения FCM токена: " + e.getMessage());
         }
         return null;
+    }
+
+    /** Обновить аватар пользователя */
+    public synchronized boolean updateAvatar(int userId, String avatarUrl) {
+        String sql = "UPDATE users SET avatar_url = ? WHERE id = ?";
+        try (PreparedStatement ps = connection.prepareStatement(sql)) {
+            ps.setString(1, avatarUrl);
+            ps.setInt(2, userId);
+            return ps.executeUpdate() > 0;
+        } catch (SQLException e) {
+            ServerLogger.error("Ошибка обновления аватара: " + e.getMessage());
+            return false;
+        }
+    }
+
+    /** Редактировать сообщение */
+    public synchronized boolean updateMessage(String senderUsername, long timestamp, String newContent) {
+        String sql = "UPDATE messages SET content = ?, content_edited = ? WHERE sender_username = ? AND timestamp = ?";
+        try (PreparedStatement ps = connection.prepareStatement(sql)) {
+            ps.setString(1, newContent);
+            ps.setString(2, newContent);
+            ps.setString(3, senderUsername);
+            ps.setLong(4, timestamp);
+            return ps.executeUpdate() > 0;
+        } catch (SQLException e) {
+            ServerLogger.error("Ошибка редактирования сообщения: " + e.getMessage());
+            return false;
+        }
     }
 
     /** Закрыть соединение с БД */

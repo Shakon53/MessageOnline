@@ -8,7 +8,8 @@ import androidx.core.app.NotificationCompat
 import com.google.firebase.messaging.FirebaseMessagingService
 import com.google.firebase.messaging.RemoteMessage
 import com.messageonline.android.network.SocketManager
-import com.messageonline.android.ui.MainActivity
+import com.messageonline.android.ui.ChatsActivity
+import com.messageonline.android.ui.PrivateChatActivity
 
 class FCMService : FirebaseMessagingService() {
 
@@ -33,17 +34,14 @@ class FCMService : FirebaseMessagingService() {
      * Входящий push когда приложение на переднем плане или фоне.
      */
     override fun onMessageReceived(message: RemoteMessage) {
-        val title = message.data["title"]
-            ?: message.notification?.title
-            ?: "MessageOnline"
-        val body = message.data["body"]
-            ?: message.notification?.body
-            ?: return
-
-        showNotification(title, body)
+        val title = message.data["title"] ?: message.notification?.title ?: "MessageOnline"
+        val body = message.data["body"] ?: message.notification?.body ?: return
+        val chatType = message.data["chatType"] ?: "global"
+        val peerUsername = message.data["peerUsername"] ?: ""
+        showNotification(title, body, chatType, peerUsername)
     }
 
-    private fun showNotification(title: String, body: String) {
+    private fun showNotification(title: String, body: String, chatType: String = "global", peerUsername: String = "") {
         val manager = getSystemService(NOTIFICATION_SERVICE) as NotificationManager
 
         // Создаём канал (Android 8+)
@@ -53,12 +51,20 @@ class FCMService : FirebaseMessagingService() {
         ).apply { description = "Входящие сообщения" }
         manager.createNotificationChannel(channel)
 
-        // Intent при тапе на уведомление
-        val intent = Intent(this, MainActivity::class.java).apply {
-            flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
+        // Intent при тапе на уведомление — открываем правильный чат
+        val intent = if (chatType == "private" && peerUsername.isNotEmpty()) {
+            Intent(this, PrivateChatActivity::class.java).apply {
+                flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
+                putExtra("peer_username", peerUsername)
+            }
+        } else {
+            Intent(this, ChatsActivity::class.java).apply {
+                flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
+            }
         }
+
         val pendingIntent = PendingIntent.getActivity(
-            this, 0, intent,
+            this, System.currentTimeMillis().toInt(), intent,
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
         )
 

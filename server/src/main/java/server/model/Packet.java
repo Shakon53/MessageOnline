@@ -58,6 +58,11 @@ public class Packet {
     public static final String MARK_READ        = "MARK_READ";
     public static final String MESSAGE_READ     = "MESSAGE_READ";
 
+    // Editing & avatars
+    public static final String EDIT_MESSAGE     = "EDIT_MESSAGE";
+    public static final String EDITED_MESSAGE   = "EDITED_MESSAGE";
+    public static final String UPDATE_AVATAR    = "UPDATE_AVATAR";
+
     // ===================== ФАБРИЧНЫЕ МЕТОДЫ =====================
 
     /** Успешная регистрация */
@@ -176,5 +181,17 @@ public class Packet {
                 .put("username", username)
                 .put("statusText", statusText)
                 .toString();
+    }
+
+    /** Сообщение отредактировано */
+    public static String editedMessage(String senderUsername, long timestamp, String newContent, boolean isGlobal, String receiverUsername) {
+        JSONObject obj = new JSONObject()
+                .put("type", EDITED_MESSAGE)
+                .put("senderUsername", senderUsername)
+                .put("timestamp", timestamp)
+                .put("newContent", newContent)
+                .put("isGlobal", isGlobal);
+        if (receiverUsername != null && !receiverUsername.isEmpty()) obj.put("receiverUsername", receiverUsername);
+        return obj.toString();
     }
 }

@@ -35,4 +35,9 @@ object Packet {
     // Read receipts
     const val MARK_READ             = "MARK_READ"
     const val MESSAGE_READ          = "MESSAGE_READ"
+
+    // Editing & avatars
+    const val EDIT_MESSAGE          = "EDIT_MESSAGE"
+    const val EDITED_MESSAGE        = "EDITED_MESSAGE"
+    const val UPDATE_AVATAR         = "UPDATE_AVATAR"
 }

@@ -5,6 +5,7 @@ package com.messageonline.android.model
  * status: PENDING → SENT → READ
  * localId: временный ID для сопоставления с эхом сервера
  * replyToSender / replyToContent: цитируемое сообщение (reply)
+ * isEdited: сообщение было отредактировано
  */
 data class ChatMessage(
     val senderId: Int = 0,
@@ -17,7 +18,8 @@ data class ChatMessage(
     val status: Int = STATUS_SENT,
     val localId: String = "",
     val replyToSender: String = "",
-    val replyToContent: String = ""
+    val replyToContent: String = "",
+    val isEdited: Boolean = false
 ) {
     fun isMine(myUsername: String): Boolean = senderUsername == myUsername
     val hasReply: Boolean get() = replyToContent.isNotEmpty()

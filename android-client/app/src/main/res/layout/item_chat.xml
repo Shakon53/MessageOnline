@@ -27,6 +27,13 @@
             android:textSize="19sp"
             android:textStyle="bold" />
 
+        <ImageView
+            android:id="@+id/ivChatAvatar"
+            android:layout_width="50dp"
+            android:layout_height="50dp"
+            android:scaleType="centerCrop"
+            android:visibility="gone" />
+
         <!-- Online dot (bottom-right) -->
         <View
             android:id="@+id/viewOnlineDot"

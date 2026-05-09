@@ -58,7 +58,10 @@ class MainActivity : AppCompatActivity() {
         messageAdapter = MessageAdapter(
             mutableListOf(),
             viewModel.myUsername,
-            onDeleteMessage = { msg -> viewModel.deleteLocalMessage(msg) }
+            onDeleteMessage  = { msg -> viewModel.deleteLocalMessage(msg) },
+            onEditMessage    = { msg, newContent -> viewModel.editMessage(msg, newContent) },
+            onReplyMessage   = { msg -> showReplyBar(msg) },
+            onForwardMessage = { msg -> showForwardDialog(msg) }
         )
         layoutManager = LinearLayoutManager(this).apply { stackFromEnd = true }
         binding.rvMessages.apply {
@@ -147,6 +150,23 @@ class MainActivity : AppCompatActivity() {
     private fun hideReplyBar() {
         viewModel.replyToMessage = null
         binding.layoutReplyBar.visibility = View.GONE
+    }
+
+    private fun showForwardDialog(msg: ChatMessage) {
+        val conversations = viewModel.conversations.value ?: return
+        val names = conversations.map { it.peerUsername }.toTypedArray()
+        MaterialAlertDialogBuilder(this)
+            .setTitle("Переслать в...")
+            .setItems(names) { _, which ->
+                val target = conversations[which]
+                val fwdText = "🔁 ${msg.senderUsername}:\n${msg.content}"
+                if (target.isGlobal) {
+                    viewModel.sendGlobalMessage(fwdText)
+                } else {
+                    viewModel.sendPrivateMessage(target.peerUsername, fwdText)
+                }
+            }
+            .show()
     }
 
     // ─── Observers ─────────────────────────────────────────────────────────────

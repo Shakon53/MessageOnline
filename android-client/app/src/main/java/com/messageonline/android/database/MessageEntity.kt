@@ -16,7 +16,9 @@ data class MessageEntity(
     val isGlobal: Boolean = true,
     val status: Int = ChatMessage.STATUS_SENT,
     val replyToSender: String = "",
-    val replyToContent: String = ""
+    val replyToContent: String = "",
+    val isRead: Boolean = false,
+    val isEdited: Boolean = false
 ) {
     fun toChatMessage() = ChatMessage(
         senderId = senderId,
@@ -28,7 +30,8 @@ data class MessageEntity(
         isGlobal = isGlobal,
         status = status,
         replyToSender = replyToSender,
-        replyToContent = replyToContent
+        replyToContent = replyToContent,
+        isEdited = isEdited
     )
 
     companion object {
@@ -43,7 +46,8 @@ data class MessageEntity(
             status = if (msg.status == ChatMessage.STATUS_PENDING) ChatMessage.STATUS_SENT
                      else msg.status,
             replyToSender = msg.replyToSender,
-            replyToContent = msg.replyToContent
+            replyToContent = msg.replyToContent,
+            isEdited = msg.isEdited
         )
     }
 }
