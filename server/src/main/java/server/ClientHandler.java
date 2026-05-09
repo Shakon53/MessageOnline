@@ -9,6 +9,11 @@ import server.model.Packet;
 import server.model.User;
 import server.util.ServerLogger;
 
+import java.io.OutputStream;
+import java.net.HttpURLConnection;
+import java.net.URL;
+import java.nio.charset.StandardCharsets;
+
 public class ClientHandler {
 
     private final WebSocket conn;
@@ -38,6 +43,7 @@ public class ClientHandler {
                 case Packet.GET_USERS           -> handleGetUsers();
                 case Packet.TYPING              -> handleTyping(packet);
                 case Packet.UPDATE_PROFILE      -> handleUpdateProfile(packet);
+                case Packet.FCM_TOKEN           -> handleFCMToken(packet);
                 default -> send(Packet.error("Неизвестный тип пакета: " + type));
             }
 
@@ -138,8 +144,28 @@ public class ClientHandler {
         }
 
         ClientHandler receiver = server.getClientByUsername(receiverUsername);
+
+        // Получатель офлайн — пробуем отправить FCM push
         if (receiver == null) {
-            send(Packet.error("Пользователь " + receiverUsername + " не в сети"));
+            User receiverUser = DatabaseManager.getInstance().getUserByUsername(receiverUsername);
+            if (receiverUser == null) {
+                send(Packet.error("Пользователь " + receiverUsername + " не найден"));
+                return;
+            }
+            // Сохраняем сообщение в историю
+            Message msg = new Message(currentUser.getId(), currentUser.getUsername(),
+                    receiverUser.getId(), receiverUsername, content, System.currentTimeMillis());
+            DatabaseManager.getInstance().saveMessage(msg);
+            send(Packet.privateMessage(msg)); // эхо отправителю
+
+            // Отправляем push уведомление
+            String fcmToken = DatabaseManager.getInstance().getFCMToken(receiverUsername);
+            if (fcmToken != null && !fcmToken.isEmpty()) {
+                sendFCMPush(fcmToken,
+                        "💬 " + currentUser.getUsername(),
+                        content.length() > 100 ? content.substring(0, 100) + "..." : content);
+            }
+            ServerLogger.chat("[PRIVATE→offline] " + currentUser.getUsername() + " -> " + receiverUsername);
             return;
         }
 
@@ -198,6 +224,15 @@ public class ClientHandler {
         }
     }
 
+    private void handleFCMToken(JSONObject p) {
+        if (!checkAuthorized()) return;
+        String token = p.optString("token", "").trim();
+        if (!token.isEmpty()) {
+            DatabaseManager.getInstance().updateFCMToken(currentUser.getId(), token);
+            ServerLogger.info("FCM токен обновлён для: " + currentUser.getUsername());
+        }
+    }
+
     private void handleUpdateProfile(JSONObject p) {
         if (!checkAuthorized()) return;
         String statusText = p.optString("statusText", "").trim();
@@ -212,6 +247,42 @@ public class ClientHandler {
                     currentUser.getId(), currentUser.getUsername(), statusText));
         } else {
             send(Packet.error("Не удалось сохранить профиль"));
+        }
+    }
+
+    private void sendFCMPush(String token, String title, String body) {
+        String serverKey = System.getenv("FCM_SERVER_KEY");
+        if (serverKey == null || serverKey.isEmpty()) {
+            ServerLogger.info("FCM_SERVER_KEY не задан, push не отправлен");
+            return;
+        }
+        try {
+            URL url = new URL("https://fcm.googleapis.com/fcm/send");
+            HttpURLConnection conn = (HttpURLConnection) url.openConnection();
+            conn.setDoOutput(true);
+            conn.setRequestMethod("POST");
+            conn.setRequestProperty("Authorization", "key=" + serverKey);
+            conn.setRequestProperty("Content-Type", "application/json; charset=UTF-8");
+
+            // Экранируем спецсимволы JSON
+            String safeTitle = title.replace("\\", "\\\\").replace("\"", "\\\"");
+            String safeBody  = body .replace("\\", "\\\\").replace("\"", "\\\"");
+
+            String json = "{\"to\":\"" + token + "\"," +
+                    "\"notification\":{\"title\":\"" + safeTitle + "\",\"body\":\"" + safeBody + "\"}," +
+                    "\"data\":{\"title\":\"" + safeTitle + "\",\"body\":\"" + safeBody + "\"}}";
+
+            byte[] bytes = json.getBytes(StandardCharsets.UTF_8);
+            conn.setRequestProperty("Content-Length", String.valueOf(bytes.length));
+            try (OutputStream os = conn.getOutputStream()) {
+                os.write(bytes);
+            }
+
+            int code = conn.getResponseCode();
+            ServerLogger.info("FCM push отправлен: HTTP " + code);
+            conn.disconnect();
+        } catch (Exception e) {
+            ServerLogger.error("FCM push ошибка: " + e.getMessage());
         }
     }
 

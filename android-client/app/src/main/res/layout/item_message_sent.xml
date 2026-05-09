@@ -1,50 +1,58 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- Элемент списка: МОЁ сообщение (справа) -->
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
-    xmlns:app="http://schemas.android.com/apk/res-auto"
     android:layout_width="match_parent"
     android:layout_height="wrap_content"
     android:gravity="end"
-    android:padding="4dp"
+    android:paddingHorizontal="6dp"
+    android:paddingVertical="2dp"
     android:orientation="vertical">
 
-    <com.google.android.material.card.MaterialCardView
+    <LinearLayout
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:layout_gravity="end"
-        android:layout_marginStart="64dp"
-        app:cardBackgroundColor="?attr/colorPrimaryContainer"
-        app:cardCornerRadius="18dp"
-        app:cardElevation="1dp">
+        android:layout_marginStart="72dp"
+        android:background="@drawable/bg_bubble_sent"
+        android:elevation="1dp"
+        android:orientation="vertical"
+        android:paddingStart="10dp"
+        android:paddingEnd="10dp"
+        android:paddingTop="6dp"
+        android:paddingBottom="4dp">
+
+        <TextView
+            android:id="@+id/tvMessageContent"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:maxWidth="260dp"
+            android:textColor="#111B21"
+            android:textSize="15sp"
+            android:lineSpacingExtra="1dp" />
 
         <LinearLayout
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:orientation="vertical"
-            android:paddingHorizontal="14dp"
-            android:paddingVertical="8dp">
+            android:layout_gravity="end"
+            android:gravity="center_vertical"
+            android:layout_marginTop="2dp"
+            android:orientation="horizontal">
 
-            <!-- Текст сообщения -->
-            <TextView
-                android:id="@+id/tvMessageContent"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:maxWidth="260dp"
-                android:textColor="?attr/colorOnPrimaryContainer"
-                android:textSize="15sp"
-                android:lineSpacingExtra="2dp" />
-
-            <!-- Время -->
             <TextView
                 android:id="@+id/tvMessageTime"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:layout_gravity="end"
-                android:layout_marginTop="2dp"
-                android:textColor="?attr/colorOnPrimaryContainer"
-                android:textSize="11sp"
-                android:alpha="0.7" />
+                android:textColor="#8696A0"
+                android:textSize="11sp" />
+
+            <TextView
+                android:id="@+id/tvStatus"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="3dp"
+                android:text="✓✓"
+                android:textColor="#8696A0"
+                android:textSize="11sp" />
         </LinearLayout>
-    </com.google.android.material.card.MaterialCardView>
+    </LinearLayout>
 
 </LinearLayout>

@@ -4,23 +4,26 @@
     xmlns:app="http://schemas.android.com/apk/res-auto"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:background="?attr/colorSurface">
+    android:background="#E5DDD5">
 
-    <!-- App Bar с Toolbar -->
+    <!-- ===== HEADER ===== -->
     <com.google.android.material.appbar.AppBarLayout
         android:layout_width="match_parent"
-        android:layout_height="wrap_content">
+        android:layout_height="wrap_content"
+        android:elevation="4dp"
+        app:liftOnScroll="false">
 
         <com.google.android.material.appbar.MaterialToolbar
             android:id="@+id/toolbar"
             android:layout_width="match_parent"
             android:layout_height="?attr/actionBarSize"
-            app:title="Общий чат"
-            app:titleTextColor="?attr/colorOnPrimary"
-            android:background="?attr/colorPrimary" />
+            android:background="#075E54"
+            app:contentInsetStart="16dp"
+            app:titleTextColor="#FFFFFF"
+            app:subtitleTextColor="#FFFFFFB3" />
     </com.google.android.material.appbar.AppBarLayout>
 
-    <!-- Основной контент -->
+    <!-- ===== CONTENT ===== -->
     <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="match_parent"
@@ -33,69 +36,81 @@
             android:layout_width="match_parent"
             android:layout_height="0dp"
             android:layout_weight="1"
-            android:padding="8dp"
-            android:clipToPadding="false" />
+            android:background="#E5DDD5"
+            android:paddingTop="4dp"
+            android:paddingBottom="4dp"
+            android:clipToPadding="false"
+            android:scrollbars="none" />
 
-        <!-- Разделитель -->
-        <View
-            android:layout_width="match_parent"
-            android:layout_height="1dp"
-            android:background="?attr/colorOutlineVariant" />
-
-        <!-- Нижняя панель ввода -->
+        <!-- ===== BOTTOM INPUT BAR ===== -->
         <LinearLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:orientation="vertical"
-            android:padding="8dp"
-            android:background="?attr/colorSurface">
+            android:background="#F0F2F5"
+            android:gravity="center_vertical"
+            android:orientation="horizontal"
+            android:paddingHorizontal="8dp"
+            android:paddingVertical="6dp">
 
-            <!-- Кнопка "Пользователи" -->
-            <com.google.android.material.button.MaterialButton
-                android:id="@+id/btnUsers"
-                android:layout_width="match_parent"
-                android:layout_height="36dp"
-                android:layout_marginBottom="8dp"
-                android:text="Пользователи онлайн"
-                android:textSize="12sp"
-                style="@style/Widget.Material3.Button.OutlinedButton" />
+            <!-- Emoji -->
+            <ImageView
+                android:layout_width="40dp"
+                android:layout_height="40dp"
+                android:padding="8dp"
+                android:src="@drawable/ic_emoji"
+                android:background="?attr/selectableItemBackgroundBorderless"
+                android:contentDescription="@null" />
 
-            <!-- Строка ввода сообщения -->
+            <!-- Input field -->
             <LinearLayout
-                android:layout_width="match_parent"
+                android:layout_width="0dp"
                 android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:layout_marginHorizontal="4dp"
+                android:background="@drawable/shape_input_field"
+                android:elevation="1dp"
                 android:gravity="center_vertical"
+                android:minHeight="42dp"
                 android:orientation="horizontal">
 
-                <com.google.android.material.textfield.TextInputLayout
+                <EditText
+                    android:id="@+id/etMessage"
                     android:layout_width="0dp"
                     android:layout_height="wrap_content"
                     android:layout_weight="1"
-                    android:layout_marginEnd="8dp"
-                    android:hint="Сообщение..."
-                    style="@style/Widget.Material3.TextInputLayout.OutlinedBox.Dense">
+                    android:background="@null"
+                    android:hint="Сообщение"
+                    android:textColorHint="#8696A0"
+                    android:inputType="textMultiLine|textCapSentences"
+                    android:maxLines="5"
+                    android:paddingStart="12dp"
+                    android:paddingEnd="4dp"
+                    android:paddingVertical="10dp"
+                    android:textColor="#111B21"
+                    android:textSize="16sp" />
 
-                    <com.google.android.material.textfield.TextInputEditText
-                        android:id="@+id/etMessage"
-                        android:layout_width="match_parent"
-                        android:layout_height="wrap_content"
-                        android:inputType="textMultiLine|textCapSentences"
-                        android:maxLines="4"
-                        android:imeOptions="actionSend" />
-                </com.google.android.material.textfield.TextInputLayout>
-
-                <!-- Кнопка отправки -->
-                <com.google.android.material.button.MaterialButton
-                    android:id="@+id/btnSend"
-                    android:layout_width="48dp"
-                    android:layout_height="48dp"
-                    android:insetTop="0dp"
-                    android:insetBottom="0dp"
-                    app:icon="@android:drawable/ic_menu_send"
-                    app:iconGravity="textStart"
-                    app:iconPadding="0dp"
-                    style="@style/Widget.Material3.Button.Icon" />
+                <ImageView
+                    android:layout_width="40dp"
+                    android:layout_height="40dp"
+                    android:padding="8dp"
+                    android:src="@drawable/ic_attach"
+                    android:background="?attr/selectableItemBackgroundBorderless"
+                    android:contentDescription="@null" />
             </LinearLayout>
+
+            <!-- Send button (green circle) -->
+            <ImageView
+                android:id="@+id/btnSend"
+                android:layout_width="46dp"
+                android:layout_height="46dp"
+                android:background="@drawable/shape_send_btn"
+                android:padding="12dp"
+                android:src="@drawable/ic_send"
+                android:elevation="2dp"
+                android:clickable="true"
+                android:focusable="true"
+                android:foreground="?attr/selectableItemBackgroundBorderless"
+                android:contentDescription="@null" />
         </LinearLayout>
     </LinearLayout>
 

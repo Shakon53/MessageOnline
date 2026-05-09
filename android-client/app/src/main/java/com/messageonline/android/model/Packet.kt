@@ -1,9 +1,5 @@
 package com.messageonline.android.model
 
-/**
- * Константы типов сетевых пакетов.
- * Должны совпадать с server.model.Packet на сервере.
- */
 object Packet {
     const val REGISTER              = "REGISTER"
     const val LOGIN                 = "LOGIN"
@@ -32,4 +28,7 @@ object Packet {
     const val TYPING                = "TYPING"
     const val UPDATE_PROFILE        = "UPDATE_PROFILE"
     const val PROFILE_UPDATED       = "PROFILE_UPDATED"
+
+    // FCM push-уведомления
+    const val FCM_TOKEN             = "FCM_TOKEN"
 }

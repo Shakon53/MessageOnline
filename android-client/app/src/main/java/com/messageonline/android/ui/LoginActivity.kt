@@ -28,8 +28,11 @@ class LoginActivity : AppCompatActivity() {
     private lateinit var auth: FirebaseAuth
     private lateinit var googleSignInClient: GoogleSignInClient
 
+    // После Google Sign-In сохраняем данные для авто-входа на сервер
     private var pendingUsername: String? = null
-    private var pendingPassword: String? = null
+    private var pendingPassword: String? = null  // Firebase UID используется как пароль
+    private var pendingEmail: String? = null
+    private var isRegisterMode = false  // true = нужна регистрация перед входом
 
     private val googleSignInLauncher = registerForActivityResult(
         ActivityResultContracts.StartActivityForResult()
@@ -37,18 +40,9 @@ class LoginActivity : AppCompatActivity() {
         val task = GoogleSignIn.getSignedInAccountFromIntent(result.data)
         try {
             val account = task.getResult(ApiException::class.java)
-            val credential = GoogleAuthProvider.getCredential(account.idToken, null)
-            auth.signInWithCredential(credential).addOnCompleteListener(this) { authTask ->
-                if (authTask.isSuccessful) {
-                    val email = account.email ?: ""
-                    val intent = Intent(this, RegisterActivity::class.java)
-                    intent.putExtra("verified_phone", email)
-                    startActivity(intent)
-                } else {
-                    showError("Ошибка Google входа: ${authTask.exception?.message}")
-                }
-            }
+            firebaseAuthWithGoogle(account.idToken!!)
         } catch (e: ApiException) {
+            setLoading(false)
             showError("Ошибка Google: ${e.message}")
         }
     }
@@ -59,8 +53,6 @@ class LoginActivity : AppCompatActivity() {
         setContentView(binding.root)
 
         prefs = getSharedPreferences("MessageOnline", MODE_PRIVATE)
-        binding.etUsername.setText(prefs.getString("last_username", ""))
-
         auth = FirebaseAuth.getInstance()
 
         val gso = GoogleSignInOptions.Builder(GoogleSignInOptions.DEFAULT_SIGN_IN)
@@ -70,34 +62,110 @@ class LoginActivity : AppCompatActivity() {
         googleSignInClient = GoogleSignIn.getClient(this, gso)
 
         setupObservers()
-        setupClickListeners()
+
+        binding.btnGoogleSignIn.setOnClickListener {
+            setLoading(true, "Открываем Google...")
+            googleSignInClient.signOut().addOnCompleteListener {
+                googleSignInLauncher.launch(googleSignInClient.signInIntent)
+            }
+        }
+
+        // Авто-вход если уже есть сохранённый Firebase пользователь
+        val currentUser = auth.currentUser
+        if (currentUser != null) {
+            val savedUsername = prefs.getString("last_username", "") ?: ""
+            val savedUid = prefs.getString("last_uid", "") ?: ""
+            if (savedUsername.isNotEmpty() && savedUid.isNotEmpty()) {
+                setLoading(true, "Вход...")
+                connectAndLogin(savedUsername, savedUid, null)
+            }
+        }
+    }
+
+    private fun firebaseAuthWithGoogle(idToken: String) {
+        setLoading(true, "Аутентификация...")
+        val credential = GoogleAuthProvider.getCredential(idToken, null)
+        auth.signInWithCredential(credential).addOnCompleteListener(this) { task ->
+            if (task.isSuccessful) {
+                val user = auth.currentUser!!
+                val username = sanitizeUsername(user.displayName ?: user.email ?: "User")
+                val uid = user.uid
+                val email = user.email ?: ""
+
+                val photoUrl = user.photoUrl?.toString() ?: ""
+                prefs.edit()
+                    .putString("last_username", username)
+                    .putString("last_uid", uid)
+                    .putString("last_avatar", photoUrl)
+                    .apply()
+
+                connectAndLogin(username, uid, email)
+            } else {
+                setLoading(false)
+                showError("Ошибка Firebase: ${task.exception?.message}")
+            }
+        }
+    }
+
+    private fun connectAndLogin(username: String, uid: String, email: String?) {
+        pendingUsername = username
+        pendingPassword = uid
+        pendingEmail = email
+        isRegisterMode = false
+
+        setLoading(true, "Подключение...")
+        SocketManager.disconnect()
+        viewModel.connect()
     }
 
     private fun setupObservers() {
         viewModel.loginResult.observe(this) { result ->
-            setLoading(false)
             if (result.success) {
-                prefs.edit()
-                    .putString("last_username", binding.etUsername.text.toString().trim())
-                    .apply()
+                setLoading(false)
                 startActivity(Intent(this, MainActivity::class.java))
                 finish()
             } else {
-                showError(result.message.ifEmpty { "Неверное имя пользователя или пароль" })
+                // Вход не удался — возможно пользователь не зарегистрирован, попробуем регистрацию
+                if (!isRegisterMode) {
+                    val user = pendingUsername
+                    val pass = pendingPassword
+                    val email = pendingEmail
+                    if (user != null && pass != null && email != null) {
+                        isRegisterMode = true
+                        setLoading(true, "Регистрация...")
+                        viewModel.register(user, email, pass)
+                    } else {
+                        setLoading(false)
+                        showError(result.message.ifEmpty { "Ошибка входа" })
+                    }
+                } else {
+                    setLoading(false)
+                    showError(result.message.ifEmpty { "Ошибка входа" })
+                }
+            }
+        }
+
+        viewModel.registerResult.observe(this) { result ->
+            if (result.success) {
+                // Регистрация прошла, теперь входим
+                val user = pendingUsername
+                val pass = pendingPassword
+                if (user != null && pass != null) {
+                    setLoading(true, "Вход...")
+                    viewModel.login(user, pass)
+                }
+            } else {
+                setLoading(false)
+                showError(result.message.ifEmpty { "Ошибка регистрации" })
             }
         }
 
         viewModel.connectionStatus.observe(this) { status ->
             when (status) {
-                ChatViewModel.ConnectionStatus.CONNECTING ->
-                    setLoading(true, "Подключение...")
-
                 ChatViewModel.ConnectionStatus.CONNECTED -> {
                     val user = pendingUsername
                     val pass = pendingPassword
-                    if (user != null && pass != null) {
-                        pendingUsername = null
-                        pendingPassword = null
+                    if (user != null && pass != null && !isRegisterMode) {
                         setLoading(true, "Вход...")
                         viewModel.login(user, pass)
                     }
@@ -106,45 +174,31 @@ class LoginActivity : AppCompatActivity() {
                 ChatViewModel.ConnectionStatus.ERROR -> {
                     pendingUsername = null
                     pendingPassword = null
+                    pendingEmail = null
+                    isRegisterMode = false
                     setLoading(false)
-                    showError("Сервер недоступен. Проверьте интернет-соединение.")
                 }
 
                 else -> {}
             }
         }
+
+        viewModel.notification.observe(this) { msg ->
+            if (!msg.isNullOrEmpty() && binding.progressBar.visibility == View.GONE) {
+                showError(msg)
+            }
+        }
     }
 
-    private fun setupClickListeners() {
-        binding.btnLogin.setOnClickListener {
-            val username = binding.etUsername.text.toString().trim()
-            val password = binding.etPassword.text.toString()
-
-            if (username.isEmpty() || password.isEmpty()) {
-                showError("Введите логин и пароль")
-                return@setOnClickListener
-            }
-
-            setLoading(true, "Подключение...")
-
-            // Всегда переподключаемся — старое соединение могло устареть
-            pendingUsername = username
-            pendingPassword = password
-            SocketManager.disconnect()
-            viewModel.connect()
-        }
-
-        binding.tvRegister.setOnClickListener {
-            // Сначала выходим из предыдущего Google аккаунта чтобы показать выбор
-            googleSignInClient.signOut().addOnCompleteListener {
-                googleSignInLauncher.launch(googleSignInClient.signInIntent)
-            }
-        }
+    private fun sanitizeUsername(name: String): String {
+        // Убираем пробелы и спецсимволы, оставляем буквы/цифры/подчёркивание
+        val clean = name.replace(Regex("[^a-zA-Zа-яА-ЯёЁ0-9_]"), "").take(20)
+        return if (clean.length >= 3) clean else "user_${System.currentTimeMillis() % 100000}"
     }
 
     private fun setLoading(loading: Boolean, message: String = "") {
         binding.progressBar.visibility = if (loading) View.VISIBLE else View.GONE
-        binding.btnLogin.isEnabled = !loading
+        binding.btnGoogleSignIn.isEnabled = !loading
         binding.tvStatus.text = message
         binding.tvStatus.visibility = if (message.isNotEmpty() && loading) View.VISIBLE else View.GONE
     }

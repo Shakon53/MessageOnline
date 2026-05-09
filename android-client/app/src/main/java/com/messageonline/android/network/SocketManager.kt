@@ -3,6 +3,7 @@ package com.messageonline.android.network
 import android.util.Log
 import com.messageonline.android.model.Packet
 import okhttp3.*
+import okhttp3.Protocol
 import org.json.JSONObject
 import java.util.concurrent.TimeUnit
 
@@ -14,6 +15,7 @@ object SocketManager {
         .readTimeout(0, TimeUnit.MILLISECONDS)
         .connectTimeout(10, TimeUnit.SECONDS)
         .pingInterval(20, TimeUnit.SECONDS)
+        .protocols(listOf(Protocol.HTTP_1_1))
         .build()
 
     private var webSocket: WebSocket? = null
@@ -82,8 +84,9 @@ object SocketManager {
 
         override fun onFailure(webSocket: WebSocket, t: Throwable, response: Response?) {
             isConnected = false
-            Log.e(TAG, "WebSocket ошибка: ${t.message}")
-            onError?.invoke("Не удалось подключиться: ${t.message}")
+            val errorMsg = "${t.javaClass.simpleName}: ${t.message}"
+            Log.e(TAG, "WebSocket ошибка: $errorMsg")
+            onError?.invoke(errorMsg)
         }
     }
 
@@ -156,6 +159,13 @@ object SocketManager {
         send(JSONObject().apply {
             put("type", Packet.UPDATE_PROFILE)
             put("statusText", statusText)
+        })
+    }
+
+    fun sendFCMToken(token: String) {
+        send(JSONObject().apply {
+            put("type", Packet.FCM_TOKEN)
+            put("token", token)
         })
     }
 }

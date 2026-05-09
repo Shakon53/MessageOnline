@@ -2,17 +2,25 @@ package com.messageonline.android.model
 
 /**
  * Модель сообщения чата.
- * Используется как в глобальном чате, так и в личных переписках.
+ * status: PENDING → SENT → READ
+ * localId: временный ID для сопоставления с эхом сервера
  */
 data class ChatMessage(
-    val senderId: Int,
-    val senderUsername: String,
-    val receiverId: Int? = null,       // null для глобального чата
+    val senderId: Int = 0,
+    val senderUsername: String = "",
+    val receiverId: Int? = null,
     val receiverUsername: String? = null,
-    val content: String,
-    val timestamp: Long,
-    val isGlobal: Boolean = true
+    val content: String = "",
+    val timestamp: Long = 0L,
+    val isGlobal: Boolean = true,
+    val status: Int = STATUS_SENT,
+    val localId: String = ""
 ) {
-    /** Было ли сообщение отправлено мной? */
     fun isMine(myUsername: String): Boolean = senderUsername == myUsername
+
+    companion object {
+        const val STATUS_PENDING = 0   // ⏱ отправляется
+        const val STATUS_SENT    = 1   // ✓✓ серые — дошло до сервера
+        const val STATUS_READ    = 2   // ✓✓ синие — прочитано
+    }
 }

@@ -11,11 +11,6 @@ import com.messageonline.android.databinding.ActivityPrivateChatBinding
 import com.messageonline.android.model.ChatSession
 import com.messageonline.android.viewmodel.ChatViewModel
 
-/**
- * Экран личного диалога между двумя пользователями.
- *
- * Принимает Intent с параметром "peer_username" — имя собеседника.
- */
 class PrivateChatActivity : AppCompatActivity() {
 
     private lateinit var binding: ActivityPrivateChatBinding
@@ -35,10 +30,14 @@ class PrivateChatActivity : AppCompatActivity() {
 
         setSupportActionBar(binding.toolbar)
         supportActionBar?.apply {
-            title = peerUsername
-            subtitle = "Личный чат"
+            title = ""
             setDisplayHomeAsUpEnabled(true)
         }
+
+        // Custom toolbar header
+        binding.tvPeerName.text = peerUsername
+        binding.tvPeerInitial.text = peerUsername.first().uppercaseChar().toString()
+        binding.tvTypingStatus.text = "В сети"
 
         viewModel.currentPrivatePeer = peerUsername
 
@@ -46,7 +45,6 @@ class PrivateChatActivity : AppCompatActivity() {
         setupObservers()
         setupClickListeners()
 
-        // Загружаем историю личных сообщений
         viewModel.loadPrivateHistory(peerUsername)
     }
 
@@ -64,7 +62,7 @@ class PrivateChatActivity : AppCompatActivity() {
         viewModel.privateMessages.observe(this) { allMessages ->
             val filtered = allMessages.filter { msg ->
                 (msg.senderUsername == peerUsername && msg.receiverUsername == ChatSession.username)
-                || (msg.senderUsername == ChatSession.username && msg.receiverUsername == peerUsername)
+                        || (msg.senderUsername == ChatSession.username && msg.receiverUsername == peerUsername)
             }
             messageAdapter.setMessages(filtered)
             if (filtered.isNotEmpty()) {
@@ -74,7 +72,7 @@ class PrivateChatActivity : AppCompatActivity() {
 
         viewModel.typing.observe(this) { (sender, isTyping) ->
             if (sender == peerUsername) {
-                supportActionBar?.subtitle = if (isTyping) "печатает..." else "Личный чат"
+                binding.tvTypingStatus.text = if (isTyping) "печатает..." else "В сети"
             }
         }
     }

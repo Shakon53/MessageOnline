@@ -29,7 +29,7 @@
                 app:titleTextColor="#FFFFFF"
                 app:navigationIconTint="#FFFFFF" />
 
-            <!-- Цветной круг с инициалами -->
+            <!-- Аватар: фото Google или инициалы -->
             <FrameLayout
                 android:layout_width="90dp"
                 android:layout_height="90dp"
@@ -40,6 +40,16 @@
                     android:layout_width="90dp"
                     android:layout_height="90dp"
                     android:background="@drawable/avatar_circle_bg" />
+
+                <!-- Фото из Google (скрыто если нет URL) -->
+                <ImageView
+                    android:id="@+id/ivAvatar"
+                    android:layout_width="90dp"
+                    android:layout_height="90dp"
+                    android:scaleType="centerCrop"
+                    android:background="@drawable/avatar_circle_bg"
+                    android:visibility="gone"
+                    android:contentDescription="@null" />
 
                 <TextView
                     android:id="@+id/tvAvatarInitial"

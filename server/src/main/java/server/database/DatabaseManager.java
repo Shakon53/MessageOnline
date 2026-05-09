@@ -76,6 +76,7 @@ public class DatabaseManager {
             // Миграции
             try { stmt.execute("ALTER TABLE users RENAME COLUMN email TO phone"); ServerLogger.info("Migration: email→phone"); } catch (Exception ignored) {}
             try { stmt.execute("ALTER TABLE users ADD COLUMN status_text TEXT NOT NULL DEFAULT 'Привет, я использую MessageOnline'"); ServerLogger.info("Migration: added status_text"); } catch (Exception ignored) {}
+            try { stmt.execute("ALTER TABLE users ADD COLUMN fcm_token TEXT"); ServerLogger.info("Migration: added fcm_token"); } catch (Exception ignored) {}
 
             // Таблица сообщений
             stmt.execute("""
@@ -321,6 +322,31 @@ public class DatabaseManager {
             ServerLogger.error("Ошибка обновления профиля: " + e.getMessage());
             return false;
         }
+    }
+
+    /** Сохранить FCM токен пользователя */
+    public synchronized void updateFCMToken(int userId, String token) {
+        String sql = "UPDATE users SET fcm_token = ? WHERE id = ?";
+        try (PreparedStatement ps = connection.prepareStatement(sql)) {
+            ps.setString(1, token);
+            ps.setInt(2, userId);
+            ps.executeUpdate();
+        } catch (SQLException e) {
+            ServerLogger.error("Ошибка сохранения FCM токена: " + e.getMessage());
+        }
+    }
+
+    /** Получить FCM токен пользователя по username */
+    public synchronized String getFCMToken(String username) {
+        String sql = "SELECT fcm_token FROM users WHERE username = ?";
+        try (PreparedStatement ps = connection.prepareStatement(sql)) {
+            ps.setString(1, username);
+            ResultSet rs = ps.executeQuery();
+            if (rs.next()) return rs.getString("fcm_token");
+        } catch (SQLException e) {
+            ServerLogger.error("Ошибка получения FCM токена: " + e.getMessage());
+        }
+        return null;
     }
 
     /** Закрыть соединение с БД */

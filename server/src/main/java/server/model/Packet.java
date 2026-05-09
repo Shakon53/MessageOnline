@@ -52,6 +52,8 @@ public class Packet {
     public static final String UPDATE_PROFILE   = "UPDATE_PROFILE";
     public static final String PROFILE_UPDATED  = "PROFILE_UPDATED";
 
+    public static final String FCM_TOKEN        = "FCM_TOKEN";
+
     // ===================== ФАБРИЧНЫЕ МЕТОДЫ =====================
 
     /** Успешная регистрация */

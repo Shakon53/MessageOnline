@@ -1,16 +1,38 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <!-- Светлая тема — WhatsApp-палитра -->
-    <color name="primaryColor">#075E54</color>
-    <color name="onPrimaryColor">#FFFFFF</color>
-    <color name="primaryContainerColor">#DCF8C6</color>
-    <color name="onPrimaryContainerColor">#111B21</color>
+    <!-- WhatsApp colour palette -->
+    <color name="wa_header">#075E54</color>
+    <color name="wa_dark_green">#075E54</color>
+    <color name="wa_light_green">#25D366</color>
+    <color name="wa_teal">#128C7E</color>
+    <color name="wa_chat_bg">#E5DDD5</color>
+    <color name="wa_bubble_sent">#DCF8C6</color>
+    <color name="wa_bubble_received">#FFFFFF</color>
+    <color name="wa_bottom_bar">#F0F2F5</color>
+    <color name="wa_input_bg">#FFFFFF</color>
+    <color name="wa_text_dark">#111B21</color>
+    <color name="wa_text_secondary">#667781</color>
+    <color name="wa_time_text">#8696A0</color>
+    <color name="wa_sender_name">#075E54</color>
+    <color name="wa_online_green">#25D366</color>
+    <color name="wa_icon_gray">#8696A0</color>
+    <color name="wa_divider">#E9EDEF</color>
+    <color name="wa_white">#FFFFFF</color>
+    <color name="wa_avatar_1">#AB47BC</color>
+    <color name="wa_avatar_2">#1565C0</color>
+    <color name="wa_avatar_3">#00838F</color>
+    <color name="wa_avatar_4">#E65100</color>
+    <color name="wa_avatar_5">#4CAF50</color>
 
-    <color name="secondaryColor">#25D366</color>
-    <color name="onSecondaryColor">#FFFFFF</color>
-    <color name="secondaryContainerColor">#FFFFFF</color>
-    <color name="onSecondaryContainerColor">#111B21</color>
-
-    <color name="surfaceColor">#ECE5DD</color>
-    <color name="onSurfaceColor">#111B21</color>
+    <!-- Legacy aliases (used by other layouts) -->
+    <color name="primaryColor">@color/wa_dark_green</color>
+    <color name="onPrimaryColor">@color/wa_white</color>
+    <color name="primaryContainerColor">@color/wa_bubble_sent</color>
+    <color name="onPrimaryContainerColor">@color/wa_text_dark</color>
+    <color name="secondaryColor">@color/wa_light_green</color>
+    <color name="onSecondaryColor">@color/wa_white</color>
+    <color name="secondaryContainerColor">@color/wa_bubble_received</color>
+    <color name="onSecondaryContainerColor">@color/wa_text_dark</color>
+    <color name="surfaceColor">@color/wa_white</color>
+    <color name="onSurfaceColor">@color/wa_text_dark</color>
 </resources>

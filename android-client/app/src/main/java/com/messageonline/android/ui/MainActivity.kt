@@ -4,31 +4,24 @@ import android.content.Intent
 import android.os.Bundle
 import android.view.Menu
 import android.view.MenuItem
+import android.view.View
 import android.widget.Toast
 import androidx.activity.viewModels
-import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
 import androidx.recyclerview.widget.LinearLayoutManager
+import com.google.android.material.dialog.MaterialAlertDialogBuilder
 import com.messageonline.android.R
 import com.messageonline.android.adapter.MessageAdapter
 import com.messageonline.android.databinding.ActivityMainBinding
 import com.messageonline.android.viewmodel.ChatViewModel
 
-/**
- * Главный экран — глобальный чат.
- *
- * Показывает:
- *  - Список сообщений глобального чата
- *  - Поле ввода + кнопка отправки
- *  - Кнопка перехода к списку пользователей
- *  - Меню с выходом
- */
 class MainActivity : AppCompatActivity() {
 
     private lateinit var binding: ActivityMainBinding
     private val viewModel: ChatViewModel by viewModels()
     private lateinit var messageAdapter: MessageAdapter
     private lateinit var layoutManager: LinearLayoutManager
+    private var wasConnected = false
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -36,23 +29,22 @@ class MainActivity : AppCompatActivity() {
         setContentView(binding.root)
 
         setSupportActionBar(binding.toolbar)
-        supportActionBar?.title = "Общий чат"
-        supportActionBar?.subtitle = "Подключено: ${viewModel.myUsername}"
+        supportActionBar?.apply {
+            title = "Общий чат"
+            subtitle = viewModel.myUsername
+        }
 
         setupRecyclerView()
         setupObservers()
         setupClickListeners()
 
-        // Загружаем историю при входе
         viewModel.loadGlobalHistory()
         viewModel.refreshUsers()
     }
 
     private fun setupRecyclerView() {
         messageAdapter = MessageAdapter(mutableListOf(), viewModel.myUsername)
-        layoutManager = LinearLayoutManager(this).apply {
-            stackFromEnd = true // Новые сообщения снизу
-        }
+        layoutManager = LinearLayoutManager(this).apply { stackFromEnd = true }
         binding.rvMessages.apply {
             adapter = messageAdapter
             this.layoutManager = this@MainActivity.layoutManager
@@ -60,42 +52,41 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun setupObservers() {
-        // Наблюдаем за сообщениями
         viewModel.globalMessages.observe(this) { messages ->
             messageAdapter.setMessages(messages)
-            // Прокручиваем к последнему сообщению
             if (messages.isNotEmpty()) {
                 binding.rvMessages.scrollToPosition(messages.size - 1)
             }
         }
 
-        // Наблюдаем за статусом подключения
         viewModel.connectionStatus.observe(this) { status ->
             when (status) {
-                ChatViewModel.ConnectionStatus.DISCONNECTED -> {
-                    binding.toolbar.subtitle = "Отключено"
-                    showReconnectDialog()
+                ChatViewModel.ConnectionStatus.CONNECTED -> {
+                    wasConnected = true
+                    supportActionBar?.subtitle = viewModel.myUsername
                 }
-                ChatViewModel.ConnectionStatus.CONNECTED ->
-                    binding.toolbar.subtitle = viewModel.myUsername
+                ChatViewModel.ConnectionStatus.DISCONNECTED -> {
+                    if (wasConnected) {
+                        supportActionBar?.subtitle = "Нет соединения"
+                        showReconnectDialog()
+                    }
+                }
                 else -> {}
             }
         }
 
-        // Наблюдаем за уведомлениями
         viewModel.notification.observe(this) { msg ->
             if (msg.isNotBlank()) {
                 Toast.makeText(this, msg, Toast.LENGTH_SHORT).show()
-                // Показываем системное уведомление для личных сообщений
                 if (msg.startsWith("Новое сообщение")) {
                     viewModel.showNotification(this, "MessageOnline", msg)
                 }
             }
         }
 
-        // Обновляем счётчик онлайн пользователей
         viewModel.onlineUsers.observe(this) { users ->
-            binding.btnUsers.text = "Пользователи (${users.size})"
+            val onlineCount = users.count { it.online }
+            supportActionBar?.subtitle = if (onlineCount > 0) "$onlineCount в сети" else viewModel.myUsername
         }
     }
 
@@ -107,10 +98,6 @@ class MainActivity : AppCompatActivity() {
                 binding.etMessage.text?.clear()
             }
         }
-
-        binding.btnUsers.setOnClickListener {
-            startActivity(Intent(this, UsersActivity::class.java))
-        }
     }
 
     override fun onCreateOptionsMenu(menu: Menu): Boolean {
@@ -120,6 +107,14 @@ class MainActivity : AppCompatActivity() {
 
     override fun onOptionsItemSelected(item: MenuItem): Boolean {
         return when (item.itemId) {
+            R.id.menu_users -> {
+                startActivity(Intent(this, UsersActivity::class.java))
+                true
+            }
+            R.id.menu_search -> {
+                Toast.makeText(this, "Поиск скоро", Toast.LENGTH_SHORT).show()
+                true
+            }
             R.id.menu_profile -> {
                 startActivity(Intent(this, ProfileActivity::class.java))
                 true
@@ -133,7 +128,7 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun confirmLogout() {
-        AlertDialog.Builder(this)
+        MaterialAlertDialogBuilder(this)
             .setTitle("Выход")
             .setMessage("Вы хотите выйти из аккаунта?")
             .setPositiveButton("Выйти") { _, _ ->
@@ -147,10 +142,13 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun showReconnectDialog() {
-        AlertDialog.Builder(this)
-            .setTitle("Соединение разорвано")
-            .setMessage("Связь с сервером потеряна. Войти снова?")
-            .setPositiveButton("Войти") { _, _ ->
+        MaterialAlertDialogBuilder(this)
+            .setTitle("Соединение потеряно")
+            .setMessage("Проверьте интернет и попробуйте снова")
+            .setPositiveButton("Повторить") { _, _ ->
+                viewModel.connect()
+            }
+            .setNegativeButton("Выйти") { _, _ ->
                 startActivity(Intent(this, LoginActivity::class.java).apply {
                     flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK
                 })

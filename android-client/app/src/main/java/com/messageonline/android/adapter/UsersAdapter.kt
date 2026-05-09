@@ -21,6 +21,7 @@ class UsersAdapter(
         val tvInitial: TextView = view.findViewById(R.id.tvUserInitial)
         val tvUsername: TextView = view.findViewById(R.id.tvUsername)
         val tvStatus: TextView = view.findViewById(R.id.tvStatus)
+        val vOnlineDot: View = view.findViewById(R.id.vOnlineDot)
     }
 
     override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): UserViewHolder {
@@ -37,6 +38,7 @@ class UsersAdapter(
         holder.tvUsername.text = if (user.username == myUsername)
             "${user.username} (Вы)" else user.username
         holder.tvStatus.text = if (user.online) "онлайн" else "офлайн"
+        holder.vOnlineDot.visibility = if (user.online) View.VISIBLE else View.GONE
 
         // Нельзя кликнуть на себя
         if (user.username != myUsername) {

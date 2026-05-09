@@ -3,9 +3,12 @@ package com.messageonline.android.ui
 import android.os.Bundle
 import android.text.Editable
 import android.text.TextWatcher
+import android.view.View
 import android.widget.Toast
 import androidx.activity.viewModels
 import androidx.appcompat.app.AppCompatActivity
+import coil.load
+import coil.transform.CircleCropTransformation
 import com.messageonline.android.databinding.ActivityProfileBinding
 import com.messageonline.android.model.ChatSession
 import com.messageonline.android.viewmodel.ChatViewModel
@@ -33,13 +36,26 @@ class ProfileActivity : AppCompatActivity() {
 
     private fun populateProfile() {
         val username = ChatSession.username
-        val initial = username.firstOrNull()?.uppercaseChar()?.toString() ?: "?"
+        val initial  = username.firstOrNull()?.uppercaseChar()?.toString() ?: "?"
 
         binding.tvAvatarInitial.text = initial
-        binding.tvUsername.text = username
-        binding.tvPhone.text = ChatSession.phone.ifBlank { "Не указан" }
+        binding.tvUsername.text      = username
+        binding.tvPhone.text         = ChatSession.phone.ifBlank { "Не указан" }
         binding.etStatusText.setText(ChatSession.statusText)
-        binding.tvCharCount.text = "${ChatSession.statusText.length}/140"
+        binding.tvCharCount.text     = "${ChatSession.statusText.length}/140"
+
+        // Загружаем фото Google если есть
+        val avatarUrl = getSharedPreferences("MessageOnline", MODE_PRIVATE)
+            .getString("last_avatar", "") ?: ""
+        if (avatarUrl.isNotEmpty()) {
+            binding.ivAvatar.visibility = View.VISIBLE
+            binding.tvAvatarInitial.visibility = View.GONE
+            binding.ivAvatar.load(avatarUrl) {
+                crossfade(true)
+                transformations(CircleCropTransformation())
+                error(android.R.drawable.ic_menu_myplaces)
+            }
+        }
     }
 
     private fun setupStatusTextWatcher() {

@@ -1,15 +1,16 @@
 package com.messageonline.android.viewmodel
 
+import android.app.Application
 import android.app.NotificationChannel
 import android.app.NotificationManager
 import android.content.Context
-import android.os.Build
 import androidx.core.app.NotificationCompat
+import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.LiveData
 import androidx.lifecycle.MutableLiveData
-import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.messageonline.android.R
+import com.messageonline.android.database.AppDatabase
+import com.messageonline.android.database.MessageEntity
 import com.messageonline.android.model.ChatMessage
 import com.messageonline.android.model.ChatSession
 import com.messageonline.android.model.OnlineUser
@@ -18,20 +19,13 @@ import com.messageonline.android.network.SocketManager
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import org.json.JSONObject
+import java.util.UUID
 
-/**
- * ViewModel для управления состоянием чата.
- *
- * Хранит:
- *  - Список сообщений глобального чата
- *  - Список личных сообщений (по собеседнику)
- *  - Список онлайн-пользователей
- *  - Состояние подключения
- *  - Данные текущего пользователя
- *
- * LiveData позволяет Activity автоматически обновлять UI при изменениях.
- */
-class ChatViewModel : ViewModel() {
+class ChatViewModel(app: Application) : AndroidViewModel(app) {
+
+    // ==================== ROOM ====================
+
+    private val dao = AppDatabase.getInstance(app).messageDao()
 
     // ==================== LIVE DATA ====================
 
@@ -56,7 +50,6 @@ class ChatViewModel : ViewModel() {
     private val _notification = MutableLiveData<String>()
     val notification: LiveData<String> = _notification
 
-    // typing: Pair(senderUsername, isTyping)
     private val _typing = MutableLiveData<Pair<String, Boolean>>()
     val typing: LiveData<Pair<String, Boolean>> = _typing
 
@@ -69,14 +62,9 @@ class ChatViewModel : ViewModel() {
         private set
     var myUsername: String = ""
         private set
-
-    // Текущий собеседник для личного чата
     var currentPrivatePeer: String = ""
 
-    // ==================== СОСТОЯНИЕ ПОДКЛЮЧЕНИЯ ====================
-
     enum class ConnectionStatus { CONNECTING, CONNECTED, DISCONNECTED, ERROR }
-
     data class AuthResult(val success: Boolean, val message: String = "")
 
     // ==================== ИНИЦИАЛИЗАЦИЯ ====================
@@ -85,34 +73,44 @@ class ChatViewModel : ViewModel() {
         myUserId = ChatSession.userId
         myUsername = ChatSession.username
         setupSocketCallbacks()
+        loadCachedGlobalMessages()
     }
 
-    /**
-     * Настраивает callback-функции SocketManager.
-     * Все входящие пакеты обрабатываются здесь.
-     */
+    private fun loadCachedGlobalMessages() {
+        viewModelScope.launch(Dispatchers.IO) {
+            val cached = dao.getGlobalMessages().map { it.toChatMessage() }
+            if (cached.isNotEmpty()) _globalMessages.postValue(cached.toMutableList())
+        }
+    }
+
+    // ==================== SOCKET CALLBACKS ====================
+
     private fun setupSocketCallbacks() {
         SocketManager.onConnected = {
             _connectionStatus.postValue(ConnectionStatus.CONNECTED)
+            sendSavedFCMToken()
         }
-
         SocketManager.onDisconnected = {
             _connectionStatus.postValue(ConnectionStatus.DISCONNECTED)
         }
-
         SocketManager.onError = { msg ->
             _connectionStatus.postValue(ConnectionStatus.ERROR)
             _notification.postValue(msg)
         }
-
         SocketManager.onPacketReceived = { json ->
             handleIncomingPacket(json)
         }
     }
 
-    /**
-     * Разбирает входящий пакет и обновляет LiveData.
-     */
+    private fun sendSavedFCMToken() {
+        val prefs = getApplication<Application>()
+            .getSharedPreferences("MessageOnline", Context.MODE_PRIVATE)
+        val token = prefs.getString("fcm_token", "") ?: ""
+        if (token.isNotEmpty()) SocketManager.sendFCMToken(token)
+    }
+
+    // ==================== ОБРАБОТКА ПАКЕТОВ ====================
+
     private fun handleIncomingPacket(json: JSONObject) {
         when (json.optString("type")) {
 
@@ -127,35 +125,51 @@ class ChatViewModel : ViewModel() {
                 _loginResult.postValue(AuthResult(true))
             }
 
-            Packet.LOGIN_FAIL -> {
+            Packet.LOGIN_FAIL ->
                 _loginResult.postValue(AuthResult(false, json.optString("message")))
-            }
 
-            Packet.REGISTER_SUCCESS -> {
+            Packet.REGISTER_SUCCESS ->
                 _registerResult.postValue(AuthResult(true))
-            }
 
-            Packet.REGISTER_FAIL -> {
+            Packet.REGISTER_FAIL ->
                 _registerResult.postValue(AuthResult(false, json.optString("message")))
-            }
 
             Packet.GLOBAL_MESSAGE -> {
                 val msg = parseGlobalMessage(json)
                 val list = _globalMessages.value ?: mutableListOf()
-                list.add(msg)
+                if (msg.senderUsername == myUsername) {
+                    // Заменяем PENDING на SENT
+                    val idx = list.indexOfLast {
+                        it.status == ChatMessage.STATUS_PENDING && it.content == msg.content
+                    }
+                    if (idx >= 0) list[idx] = msg.copy(status = ChatMessage.STATUS_SENT)
+                    else list.add(msg.copy(status = ChatMessage.STATUS_SENT))
+                } else {
+                    list.add(msg)
+                }
                 _globalMessages.postValue(list)
+                saveToRoom(msg)
             }
 
             Packet.PRIVATE_MESSAGE -> {
                 val msg = parsePrivateMessage(json)
                 val list = _privateMessages.value ?: mutableListOf()
-                list.add(msg)
+                if (msg.senderUsername == myUsername) {
+                    val idx = list.indexOfLast {
+                        it.status == ChatMessage.STATUS_PENDING && it.content == msg.content
+                    }
+                    if (idx >= 0) list[idx] = msg.copy(status = ChatMessage.STATUS_SENT)
+                    else list.add(msg.copy(status = ChatMessage.STATUS_SENT))
+                } else {
+                    list.add(msg)
+                }
                 _privateMessages.postValue(list)
+                saveToRoom(msg)
             }
 
             Packet.USER_LIST -> {
-                val users = mutableListOf<OnlineUser>()
                 val arr = json.optJSONArray("users") ?: return
+                val users = mutableListOf<OnlineUser>()
                 for (i in 0 until arr.length()) {
                     val u = arr.getJSONObject(i)
                     users.add(OnlineUser(
@@ -169,16 +183,12 @@ class ChatViewModel : ViewModel() {
             }
 
             Packet.USER_JOINED -> {
-                val user = OnlineUser(
-                    id = json.optInt("userId"),
-                    username = json.optString("username")
-                )
+                val user = OnlineUser(json.optInt("userId"), json.optString("username"))
                 val list = _onlineUsers.value ?: mutableListOf()
                 if (list.none { it.username == user.username }) {
-                    list.add(user)
-                    _onlineUsers.postValue(list)
+                    list.add(user); _onlineUsers.postValue(list)
                 }
-                _notification.postValue("${user.username} присоединился к чату")
+                _notification.postValue("${user.username} присоединился")
             }
 
             Packet.USER_LEFT -> {
@@ -191,46 +201,42 @@ class ChatViewModel : ViewModel() {
 
             Packet.HISTORY_RESPONSE -> {
                 val chatType = json.optString("chatType")
-                val messagesArr = json.optJSONArray("messages") ?: return
+                val arr = json.optJSONArray("messages") ?: return
                 val messages = mutableListOf<ChatMessage>()
-
-                for (i in 0 until messagesArr.length()) {
-                    val m = messagesArr.getJSONObject(i)
-                    val isGlobal = m.optBoolean("isGlobal", true)
+                for (i in 0 until arr.length()) {
+                    val m = arr.getJSONObject(i)
                     messages.add(
-                        if (isGlobal) parseGlobalMessage(m)
+                        if (m.optBoolean("isGlobal", true)) parseGlobalMessage(m)
                         else parsePrivateMessage(m)
                     )
                 }
-
                 if (chatType == "global") {
-                    _globalMessages.postValue(messages)
+                    _globalMessages.postValue(messages.toMutableList())
+                    viewModelScope.launch(Dispatchers.IO) {
+                        dao.clearGlobal()
+                        dao.insertAll(messages.map { MessageEntity.from(it) })
+                    }
                 } else {
-                    _privateMessages.postValue(messages)
+                    _privateMessages.postValue(messages.toMutableList())
+                    viewModelScope.launch(Dispatchers.IO) {
+                        dao.insertAll(messages.map { MessageEntity.from(it) })
+                    }
                 }
             }
 
-            Packet.NOTIFICATION -> {
-                _notification.postValue(json.optString("content"))
-            }
+            Packet.NOTIFICATION -> _notification.postValue(json.optString("content"))
+            Packet.ERROR        -> _notification.postValue(json.optString("message"))
 
-            Packet.ERROR -> {
-                _notification.postValue(json.optString("message"))
-            }
-
-            Packet.TYPING -> {
+            Packet.TYPING ->
                 _typing.postValue(Pair(
                     json.optString("senderUsername"),
                     json.optBoolean("isTyping")
                 ))
-            }
 
             Packet.PROFILE_UPDATED -> {
                 val updatedUsername = json.optString("username")
                 val updatedStatus = json.optString("statusText")
-                if (updatedUsername == myUsername) {
-                    ChatSession.statusText = updatedStatus
-                }
+                if (updatedUsername == myUsername) ChatSession.statusText = updatedStatus
                 val list = _onlineUsers.value ?: mutableListOf()
                 val idx = list.indexOfFirst { it.username == updatedUsername }
                 if (idx >= 0) {
@@ -242,12 +248,15 @@ class ChatViewModel : ViewModel() {
         }
     }
 
+    private fun saveToRoom(msg: ChatMessage) {
+        viewModelScope.launch(Dispatchers.IO) { dao.insert(MessageEntity.from(msg)) }
+    }
+
     // ==================== ПОДКЛЮЧЕНИЕ ====================
 
     fun connect() {
         _connectionStatus.value = ConnectionStatus.CONNECTING
         SocketManager.connect()
-        // Таймаут 12 секунд — если не подключился, показываем ошибку
         viewModelScope.launch {
             kotlinx.coroutines.delay(12_000)
             if (_connectionStatus.value == ConnectionStatus.CONNECTING) {
@@ -260,94 +269,104 @@ class ChatViewModel : ViewModel() {
 
     // ==================== АВТОРИЗАЦИЯ ====================
 
-    fun login(username: String, password: String) {
-        SocketManager.sendLogin(username, password)
-    }
-
-    fun register(username: String, phone: String, password: String) {
+    fun login(username: String, password: String) = SocketManager.sendLogin(username, password)
+    fun register(username: String, phone: String, password: String) =
         SocketManager.sendRegister(username, phone, password)
-    }
 
     fun logout() {
         SocketManager.sendLogout()
         SocketManager.disconnect()
-        myUserId = -1
-        myUsername = ""
+        myUserId = -1; myUsername = ""
         ChatSession.logout()
         _globalMessages.value = mutableListOf()
         _privateMessages.value = mutableListOf()
         _onlineUsers.value = mutableListOf()
+        viewModelScope.launch(Dispatchers.IO) { dao.clearAll() }
     }
 
     // ==================== СООБЩЕНИЯ ====================
 
     fun sendGlobalMessage(content: String) {
-        if (content.isNotBlank()) {
-            SocketManager.sendGlobalMessage(content.trim())
-        }
+        if (content.isBlank()) return
+        val trimmed = content.trim()
+        // Показываем сразу как PENDING
+        val pending = ChatMessage(
+            senderId = myUserId, senderUsername = myUsername,
+            content = trimmed, timestamp = System.currentTimeMillis(),
+            isGlobal = true, status = ChatMessage.STATUS_PENDING,
+            localId = UUID.randomUUID().toString()
+        )
+        val list = _globalMessages.value ?: mutableListOf()
+        list.add(pending)
+        _globalMessages.value = list
+        SocketManager.sendGlobalMessage(trimmed)
     }
 
     fun sendPrivateMessage(receiverUsername: String, content: String) {
-        if (content.isNotBlank() && receiverUsername.isNotBlank()) {
-            SocketManager.sendPrivateMessage(receiverUsername, content.trim())
-        }
+        if (content.isBlank() || receiverUsername.isBlank()) return
+        val trimmed = content.trim()
+        val pending = ChatMessage(
+            senderId = myUserId, senderUsername = myUsername,
+            receiverUsername = receiverUsername, content = trimmed,
+            timestamp = System.currentTimeMillis(), isGlobal = false,
+            status = ChatMessage.STATUS_PENDING,
+            localId = UUID.randomUUID().toString()
+        )
+        val list = _privateMessages.value ?: mutableListOf()
+        list.add(pending)
+        _privateMessages.value = list
+        SocketManager.sendPrivateMessage(receiverUsername, trimmed)
     }
 
     fun loadGlobalHistory() {
-        SocketManager.requestGlobalHistory(50)
+        viewModelScope.launch(Dispatchers.IO) {
+            val cached = dao.getGlobalMessages().map { it.toChatMessage() }
+            if (cached.isNotEmpty()) _globalMessages.postValue(cached.toMutableList())
+        }
+        SocketManager.requestGlobalHistory(100)
     }
 
     fun loadPrivateHistory(otherUsername: String) {
-        _privateMessages.value = mutableListOf() // Очищаем перед загрузкой
-        SocketManager.requestPrivateHistory(otherUsername, 50)
+        _privateMessages.value = mutableListOf()
+        viewModelScope.launch(Dispatchers.IO) {
+            val cached = dao.getPrivateMessages(myUsername, otherUsername)
+                .map { it.toChatMessage() }
+            if (cached.isNotEmpty()) _privateMessages.postValue(cached.toMutableList())
+        }
+        SocketManager.requestPrivateHistory(otherUsername, 100)
     }
 
-    fun refreshUsers() {
-        SocketManager.requestUserList()
-    }
+    fun refreshUsers() = SocketManager.requestUserList()
+    fun sendTyping(r: String, t: Boolean) = SocketManager.sendTyping(r, t)
+    fun updateProfile(statusText: String) = SocketManager.sendUpdateProfile(statusText)
 
-    fun sendTyping(receiverUsername: String, isTyping: Boolean) {
-        SocketManager.sendTyping(receiverUsername, isTyping)
-    }
-
-    fun updateProfile(statusText: String) {
-        SocketManager.sendUpdateProfile(statusText)
-    }
-
-    // ==================== СИСТЕМНЫЕ УВЕДОМЛЕНИЯ ====================
+    // ==================== УВЕДОМЛЕНИЯ ====================
 
     fun showNotification(context: Context, title: String, text: String) {
         val channelId = "chat_notifications"
-        val manager = context.getSystemService(Context.NOTIFICATION_SERVICE)
-                as NotificationManager
-
-        // Создаём канал уведомлений (Android 8+)
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            val channel = NotificationChannel(
-                channelId, "Сообщения чата",
-                NotificationManager.IMPORTANCE_DEFAULT
+        val manager = context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
+        if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O) {
+            manager.createNotificationChannel(
+                NotificationChannel(channelId, "Сообщения чата",
+                    NotificationManager.IMPORTANCE_DEFAULT)
             )
-            manager.createNotificationChannel(channel)
         }
-
-        val notification = NotificationCompat.Builder(context, channelId)
-            .setSmallIcon(android.R.drawable.ic_dialog_email)
-            .setContentTitle(title)
-            .setContentText(text)
-            .setAutoCancel(true)
-            .build()
-
-        manager.notify(System.currentTimeMillis().toInt(), notification)
+        manager.notify(System.currentTimeMillis().toInt(),
+            NotificationCompat.Builder(context, channelId)
+                .setSmallIcon(android.R.drawable.ic_dialog_email)
+                .setContentTitle(title).setContentText(text)
+                .setAutoCancel(true).build()
+        )
     }
 
-    // ==================== ВСПОМОГАТЕЛЬНЫЕ МЕТОДЫ ====================
+    // ==================== ПАРСИНГ ====================
 
     private fun parseGlobalMessage(json: JSONObject) = ChatMessage(
         senderId = json.optInt("senderId"),
         senderUsername = json.optString("senderUsername"),
         content = json.optString("content"),
         timestamp = json.optLong("timestamp"),
-        isGlobal = true
+        isGlobal = true, status = ChatMessage.STATUS_SENT
     )
 
     private fun parsePrivateMessage(json: JSONObject) = ChatMessage(
@@ -357,7 +376,6 @@ class ChatViewModel : ViewModel() {
         receiverUsername = json.optString("receiverUsername"),
         content = json.optString("content"),
         timestamp = json.optLong("timestamp"),
-        isGlobal = false
+        isGlobal = false, status = ChatMessage.STATUS_SENT
     )
-
 }
