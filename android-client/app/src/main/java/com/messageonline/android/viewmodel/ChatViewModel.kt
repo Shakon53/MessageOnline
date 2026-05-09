@@ -247,6 +247,15 @@ class ChatViewModel : ViewModel() {
     fun connect() {
         _connectionStatus.value = ConnectionStatus.CONNECTING
         SocketManager.connect()
+        // Таймаут 12 секунд — если не подключился, показываем ошибку
+        viewModelScope.launch {
+            kotlinx.coroutines.delay(12_000)
+            if (_connectionStatus.value == ConnectionStatus.CONNECTING) {
+                SocketManager.disconnect()
+                _connectionStatus.postValue(ConnectionStatus.ERROR)
+                _notification.postValue("Сервер не отвечает. Проверьте интернет.")
+            }
+        }
     }
 
     // ==================== АВТОРИЗАЦИЯ ====================
