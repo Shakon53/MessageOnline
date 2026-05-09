@@ -28,4 +28,7 @@ interface MessageDao {
 
     @Query("DELETE FROM messages")
     suspend fun clearAll()
+
+    @Query("DELETE FROM messages WHERE timestamp = :ts AND senderUsername = :sender")
+    suspend fun deleteByTimestampAndSender(ts: Long, sender: String)
 }

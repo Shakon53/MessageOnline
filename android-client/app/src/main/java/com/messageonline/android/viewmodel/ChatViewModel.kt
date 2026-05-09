@@ -340,6 +340,24 @@ class ChatViewModel(app: Application) : AndroidViewModel(app) {
     fun sendTyping(r: String, t: Boolean) = SocketManager.sendTyping(r, t)
     fun updateProfile(statusText: String) = SocketManager.sendUpdateProfile(statusText)
 
+    /** Remove a message locally (only from in-memory list + Room). */
+    fun deleteLocalMessage(msg: ChatMessage) {
+        // Remove from global list
+        val gList = _globalMessages.value
+        if (gList != null && gList.remove(msg)) {
+            _globalMessages.value = gList
+        }
+        // Remove from private list
+        val pList = _privateMessages.value
+        if (pList != null && pList.remove(msg)) {
+            _privateMessages.value = pList
+        }
+        // Remove from Room by timestamp + senderUsername (best-effort)
+        viewModelScope.launch(Dispatchers.IO) {
+            dao.deleteByTimestampAndSender(msg.timestamp, msg.senderUsername)
+        }
+    }
+
     // ==================== УВЕДОМЛЕНИЯ ====================
 
     fun showNotification(context: Context, title: String, text: String) {

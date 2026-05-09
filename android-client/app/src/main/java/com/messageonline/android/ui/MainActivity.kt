@@ -5,11 +5,13 @@ import android.os.Bundle
 import android.view.Menu
 import android.view.MenuItem
 import android.view.View
+import android.view.animation.AnimationUtils
 import android.widget.Toast
 import androidx.activity.viewModels
 import androidx.appcompat.app.AppCompatActivity
-import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.appcompat.app.AppCompatDelegate
+import androidx.recyclerview.widget.LinearLayoutManager
+import androidx.recyclerview.widget.RecyclerView
 import com.google.android.material.dialog.MaterialAlertDialogBuilder
 import com.messageonline.android.R
 import com.messageonline.android.adapter.MessageAdapter
@@ -25,7 +27,6 @@ class MainActivity : AppCompatActivity() {
     private var wasConnected = false
 
     override fun onCreate(savedInstanceState: Bundle?) {
-        // Force dark mode (FinanceTracker premium style)
         AppCompatDelegate.setDefaultNightMode(AppCompatDelegate.MODE_NIGHT_YES)
         super.onCreate(savedInstanceState)
         binding = ActivityMainBinding.inflate(layoutInflater)
@@ -46,12 +47,31 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun setupRecyclerView() {
-        messageAdapter = MessageAdapter(mutableListOf(), viewModel.myUsername)
+        messageAdapter = MessageAdapter(
+            mutableListOf(),
+            viewModel.myUsername,
+            onDeleteMessage = { msg -> viewModel.deleteLocalMessage(msg) }
+        )
         layoutManager = LinearLayoutManager(this).apply { stackFromEnd = true }
         binding.rvMessages.apply {
             adapter = messageAdapter
             this.layoutManager = this@MainActivity.layoutManager
         }
+
+        // FAB: show when not at bottom, hide when scrolled to bottom
+        binding.rvMessages.addOnScrollListener(object : RecyclerView.OnScrollListener() {
+            override fun onScrolled(recyclerView: RecyclerView, dx: Int, dy: Int) {
+                val lastVisible = layoutManager.findLastCompletelyVisibleItemPosition()
+                val total       = messageAdapter.itemCount - 1
+                val showFab     = lastVisible < total - 2
+
+                if (showFab && binding.fabScrollDown.visibility != View.VISIBLE) {
+                    binding.fabScrollDown.show()
+                } else if (!showFab && binding.fabScrollDown.visibility == View.VISIBLE) {
+                    binding.fabScrollDown.hide()
+                }
+            }
+        })
     }
 
     private fun setupObservers() {
@@ -97,12 +117,20 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun setupClickListeners() {
-        binding.btnSend.setOnClickListener {
+        binding.btnSend.setOnClickListener { v ->
             val text = binding.etMessage.text.toString().trim()
             if (text.isNotEmpty()) {
+                // Pulse animation
+                v.startAnimation(AnimationUtils.loadAnimation(this, R.anim.pulse_scale))
                 viewModel.sendGlobalMessage(text)
                 binding.etMessage.text?.clear()
+                // Scroll to new message
+                binding.rvMessages.scrollToPosition(messageAdapter.itemCount - 1)
             }
+        }
+
+        binding.fabScrollDown.setOnClickListener {
+            binding.rvMessages.smoothScrollToPosition(messageAdapter.itemCount - 1)
         }
     }
 
@@ -151,9 +179,7 @@ class MainActivity : AppCompatActivity() {
         MaterialAlertDialogBuilder(this)
             .setTitle("Соединение потеряно")
             .setMessage("Проверьте интернет и попробуйте снова")
-            .setPositiveButton("Повторить") { _, _ ->
-                viewModel.connect()
-            }
+            .setPositiveButton("Повторить") { _, _ -> viewModel.connect() }
             .setNegativeButton("Выйти") { _, _ ->
                 startActivity(Intent(this, LoginActivity::class.java).apply {
                     flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK

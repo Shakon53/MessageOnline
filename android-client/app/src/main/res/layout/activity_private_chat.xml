@@ -128,16 +128,36 @@
         android:orientation="vertical"
         app:layout_behavior="@string/appbar_scrolling_view_behavior">
 
-        <androidx.recyclerview.widget.RecyclerView
-            android:id="@+id/rvMessages"
+        <FrameLayout
             android:layout_width="match_parent"
             android:layout_height="0dp"
             android:layout_weight="1"
-            android:background="@drawable/bg_chat_wallpaper"
-            android:paddingTop="8dp"
-            android:paddingBottom="8dp"
-            android:clipToPadding="false"
-            android:scrollbars="none" />
+            android:background="@drawable/bg_chat_wallpaper">
+
+            <androidx.recyclerview.widget.RecyclerView
+                android:id="@+id/rvMessages"
+                android:layout_width="match_parent"
+                android:layout_height="match_parent"
+                android:paddingTop="8dp"
+                android:paddingBottom="8dp"
+                android:clipToPadding="false"
+                android:scrollbars="none" />
+
+            <!-- Scroll-to-bottom FAB -->
+            <com.google.android.material.floatingactionbutton.FloatingActionButton
+                android:id="@+id/fabScrollDown"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_gravity="bottom|end"
+                android:layout_margin="12dp"
+                android:src="@drawable/ic_arrow_down"
+                android:contentDescription="@null"
+                android:visibility="gone"
+                app:backgroundTint="#6366F1"
+                app:fabSize="mini"
+                app:elevation="6dp" />
+
+        </FrameLayout>
 
         <!-- Bottom Input Bar -->
         <LinearLayout
