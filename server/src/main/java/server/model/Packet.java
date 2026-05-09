@@ -54,6 +54,10 @@ public class Packet {
 
     public static final String FCM_TOKEN        = "FCM_TOKEN";
 
+    // Read receipts
+    public static final String MARK_READ        = "MARK_READ";
+    public static final String MESSAGE_READ     = "MESSAGE_READ";
+
     // ===================== ФАБРИЧНЫЕ МЕТОДЫ =====================
 
     /** Успешная регистрация */

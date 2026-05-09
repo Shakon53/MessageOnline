@@ -5,5 +5,6 @@ data class Conversation(
     val lastMessage: String,
     val lastTimestamp: Long,
     val unreadCount: Int = 0,
-    val isGlobal: Boolean = false
+    val isGlobal: Boolean = false,
+    val isOnline: Boolean = false
 )

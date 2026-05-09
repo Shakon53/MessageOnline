@@ -44,6 +44,7 @@ public class ClientHandler {
                 case Packet.TYPING              -> handleTyping(packet);
                 case Packet.UPDATE_PROFILE      -> handleUpdateProfile(packet);
                 case Packet.FCM_TOKEN           -> handleFCMToken(packet);
+                case Packet.MARK_READ           -> handleMarkRead(packet);
                 default -> send(Packet.error("Неизвестный тип пакета: " + type));
             }
 
@@ -124,7 +125,15 @@ public class ClientHandler {
         Message msg = new Message(currentUser.getId(), currentUser.getUsername(),
                 content, System.currentTimeMillis());
         DatabaseManager.getInstance().saveMessage(msg);
-        server.broadcastAll(Packet.globalMessage(msg));
+
+        // Build packet, passthrough optional reply fields
+        JSONObject out = new JSONObject(Packet.globalMessage(msg));
+        String replyToSender  = p.optString("replyToSender", "");
+        String replyToContent = p.optString("replyToContent", "");
+        if (!replyToSender.isEmpty())  out.put("replyToSender",  replyToSender);
+        if (!replyToContent.isEmpty()) out.put("replyToContent", replyToContent);
+
+        server.broadcastAll(out.toString());
         ServerLogger.chat("[GLOBAL] " + currentUser.getUsername() + ": " + content);
     }
 
@@ -173,7 +182,14 @@ public class ClientHandler {
                 receiver.currentUser.getId(), receiverUsername, content, System.currentTimeMillis());
         DatabaseManager.getInstance().saveMessage(msg);
 
-        String packet = Packet.privateMessage(msg);
+        // Build packet, passthrough optional reply fields
+        JSONObject out = new JSONObject(Packet.privateMessage(msg));
+        String replyToSender  = p.optString("replyToSender", "");
+        String replyToContent = p.optString("replyToContent", "");
+        if (!replyToSender.isEmpty())  out.put("replyToSender",  replyToSender);
+        if (!replyToContent.isEmpty()) out.put("replyToContent", replyToContent);
+
+        String packet = out.toString();
         receiver.send(packet);
         send(packet);
         receiver.send(Packet.notification("Новое сообщение от " + currentUser.getUsername()));
@@ -230,6 +246,19 @@ public class ClientHandler {
         if (!token.isEmpty()) {
             DatabaseManager.getInstance().updateFCMToken(currentUser.getId(), token);
             ServerLogger.info("FCM токен обновлён для: " + currentUser.getUsername());
+        }
+    }
+
+    private void handleMarkRead(JSONObject p) {
+        if (!checkAuthorized()) return;
+        String peerUsername = p.optString("peerUsername", "").trim();
+        ClientHandler peer = server.getClientByUsername(peerUsername);
+        if (peer != null) {
+            peer.send(new JSONObject()
+                    .put("type", Packet.MESSAGE_READ)
+                    .put("readerUsername", currentUser.getUsername())
+                    .toString());
+            ServerLogger.info("READ RECEIPT: " + currentUser.getUsername() + " прочитал чат с " + peerUsername);
         }
     }
 

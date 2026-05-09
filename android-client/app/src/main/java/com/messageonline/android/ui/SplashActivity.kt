@@ -62,7 +62,7 @@ class SplashActivity : AppCompatActivity() {
     private fun navigateNext() {
         val dest = if (ChatSession.isLoggedIn()) {
             SocketManager.connect()
-            Intent(this, MainActivity::class.java)
+            Intent(this, ChatsActivity::class.java)
         } else {
             Intent(this, LoginActivity::class.java)
         }

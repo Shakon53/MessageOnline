@@ -166,6 +166,13 @@ object SocketManager {
         })
     }
 
+    fun sendMarkRead(peerUsername: String) {
+        send(JSONObject().apply {
+            put("type", Packet.MARK_READ)
+            put("peerUsername", peerUsername)
+        })
+    }
+
     fun sendFCMToken(token: String) {
         send(JSONObject().apply {
             put("type", Packet.FCM_TOKEN)

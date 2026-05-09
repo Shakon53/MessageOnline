@@ -4,26 +4,24 @@ import android.content.Intent
 import android.os.Bundle
 import android.text.Editable
 import android.text.TextWatcher
+import android.view.Menu
+import android.view.MenuItem
 import android.view.View
+import android.widget.Toast
+import androidx.activity.viewModels
 import androidx.appcompat.app.AppCompatActivity
 import androidx.appcompat.app.AppCompatDelegate
-import androidx.lifecycle.lifecycleScope
-import androidx.recyclerview.widget.DividerItemDecoration
 import androidx.recyclerview.widget.LinearLayoutManager
+import com.messageonline.android.R
 import com.messageonline.android.adapter.ChatsAdapter
-import com.messageonline.android.database.AppDatabase
 import com.messageonline.android.databinding.ActivityChatsBinding
-import com.messageonline.android.model.ChatSession
-import com.messageonline.android.model.Conversation
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.launch
-import kotlinx.coroutines.withContext
+import com.messageonline.android.viewmodel.ChatViewModel
 
 class ChatsActivity : AppCompatActivity() {
 
     private lateinit var binding: ActivityChatsBinding
+    private val viewModel: ChatViewModel by viewModels()
     private lateinit var chatsAdapter: ChatsAdapter
-    private var allConversations = listOf<Conversation>()
 
     override fun onCreate(savedInstanceState: Bundle?) {
         AppCompatDelegate.setDefaultNightMode(AppCompatDelegate.MODE_NIGHT_YES)
@@ -32,26 +30,21 @@ class ChatsActivity : AppCompatActivity() {
         setContentView(binding.root)
 
         setSupportActionBar(binding.toolbar)
-        supportActionBar?.setDisplayHomeAsUpEnabled(true)
+        supportActionBar?.title = "Сообщения"
 
         chatsAdapter = ChatsAdapter { conv ->
-            startActivity(Intent(this, PrivateChatActivity::class.java).apply {
-                putExtra("peer_username", conv.peerUsername)
-            })
+            if (conv.isGlobal) {
+                startActivity(Intent(this, MainActivity::class.java))
+            } else {
+                startActivity(Intent(this, PrivateChatActivity::class.java).apply {
+                    putExtra("peer_username", conv.peerUsername)
+                })
+            }
         }
 
         binding.rvChats.apply {
-            adapter = chatsAdapter
+            adapter       = chatsAdapter
             layoutManager = LinearLayoutManager(this@ChatsActivity)
-            addItemDecoration(object : DividerItemDecoration(this@ChatsActivity, VERTICAL) {
-                override fun getItemOffsets(
-                    outRect: android.graphics.Rect, view: View,
-                    parent: androidx.recyclerview.widget.RecyclerView,
-                    state: androidx.recyclerview.widget.RecyclerView.State
-                ) {
-                    outRect.set(0, 0, 0, 0)  // no divider, use padding
-                }
-            })
         }
 
         // Search filter
@@ -59,59 +52,80 @@ class ChatsActivity : AppCompatActivity() {
             override fun beforeTextChanged(s: CharSequence?, start: Int, count: Int, after: Int) {}
             override fun onTextChanged(s: CharSequence?, start: Int, before: Int, count: Int) {}
             override fun afterTextChanged(s: Editable?) {
-                applyFilter(s.toString().trim())
+                chatsAdapter.applyFilter(s.toString().trim())
             }
         })
 
-        loadConversations()
-    }
+        setupObservers()
 
-    private fun loadConversations() {
-        val dao = AppDatabase.getInstance(this).messageDao()
-        lifecycleScope.launch {
-            val messages = withContext(Dispatchers.IO) { dao.getAllPrivateMessages() }
-
-            // Group by peer, take most recent message per conversation
-            val myUsername = ChatSession.username
-            val convMap = mutableMapOf<String, Conversation>()
-
-            for (msg in messages) {
-                val peer = if (msg.senderUsername == myUsername) msg.receiverUsername
-                           else msg.senderUsername
-                if (peer.isBlank()) continue
-                if (!convMap.containsKey(peer)) {
-                    convMap[peer] = Conversation(
-                        peerUsername  = peer,
-                        lastMessage   = msg.content,
-                        lastTimestamp = msg.timestamp
-                    )
-                }
-            }
-
-            allConversations = convMap.values.sortedByDescending { it.lastTimestamp }
-            applyFilter(binding.etSearch.text.toString().trim())
-
-            binding.layoutEmpty.visibility = if (allConversations.isEmpty()) View.VISIBLE else View.GONE
+        // Connect and load data on first open
+        if (!com.messageonline.android.network.SocketManager.isConnected) {
+            viewModel.connect()
         }
+        viewModel.refreshConversations()
+        viewModel.refreshUsers()
     }
 
-    private fun applyFilter(query: String) {
-        val filtered = if (query.isBlank()) allConversations
-                       else allConversations.filter {
-                           it.peerUsername.contains(query, ignoreCase = true) ||
-                           it.lastMessage.contains(query, ignoreCase = true)
-                       }
-        chatsAdapter.setItems(filtered)
-        binding.layoutEmpty.visibility = if (filtered.isEmpty()) View.VISIBLE else View.GONE
+    private fun setupObservers() {
+        // Main list of chats — live updates
+        viewModel.conversations.observe(this) { convList ->
+            chatsAdapter.setItems(convList)
+            binding.layoutEmpty.visibility = if (convList.isEmpty()) View.VISIBLE else View.GONE
+        }
+
+        viewModel.connectionStatus.observe(this) { status ->
+            val subtitle = when (status) {
+                ChatViewModel.ConnectionStatus.CONNECTED    -> null  // clear
+                ChatViewModel.ConnectionStatus.CONNECTING  -> "Подключение..."
+                ChatViewModel.ConnectionStatus.DISCONNECTED -> "Нет соединения"
+                ChatViewModel.ConnectionStatus.ERROR        -> "Ошибка соединения"
+            }
+            supportActionBar?.subtitle = subtitle
+        }
+
+        viewModel.notification.observe(this) { msg ->
+            if (!msg.isNullOrBlank()) {
+                Toast.makeText(this, msg, Toast.LENGTH_SHORT).show()
+            }
+        }
+
+        viewModel.onlineUsers.observe(this) { users ->
+            val onlineCount = users.size
+            if (onlineCount > 0) supportActionBar?.subtitle = "$onlineCount в сети"
+        }
     }
 
     override fun onResume() {
         super.onResume()
-        loadConversations()  // refresh when returning from a chat
+        viewModel.refreshConversations()
     }
 
-    override fun onSupportNavigateUp(): Boolean {
-        onBackPressedDispatcher.onBackPressed()
+    override fun onCreateOptionsMenu(menu: Menu): Boolean {
+        menuInflater.inflate(R.menu.chats_menu, menu)
         return true
+    }
+
+    override fun onOptionsItemSelected(item: MenuItem): Boolean {
+        return when (item.itemId) {
+            R.id.menu_contacts -> { startActivity(Intent(this, UsersActivity::class.java)); true }
+            R.id.menu_profile  -> { startActivity(Intent(this, ProfileActivity::class.java)); true }
+            R.id.menu_settings -> { startActivity(Intent(this, SettingsActivity::class.java)); true }
+            R.id.menu_logout   -> { confirmLogout(); true }
+            else               -> super.onOptionsItemSelected(item)
+        }
+    }
+
+    private fun confirmLogout() {
+        com.google.android.material.dialog.MaterialAlertDialogBuilder(this)
+            .setTitle("Выход")
+            .setMessage("Вы хотите выйти из аккаунта?")
+            .setPositiveButton("Выйти") { _, _ ->
+                viewModel.logout()
+                startActivity(Intent(this, LoginActivity::class.java).apply {
+                    flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK
+                })
+            }
+            .setNegativeButton("Отмена", null)
+            .show()
     }
 }

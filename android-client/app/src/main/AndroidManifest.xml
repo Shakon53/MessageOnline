@@ -36,36 +36,38 @@
             android:exported="false"
             android:windowSoftInputMode="adjustResize" />
 
+        <!-- ChatsActivity = главный экран после логина -->
+        <activity
+            android:name=".ui.ChatsActivity"
+            android:exported="false" />
+
+        <!-- Global chat -->
         <activity
             android:name=".ui.MainActivity"
-            android:exported="false" />
+            android:exported="false"
+            android:parentActivityName=".ui.ChatsActivity" />
 
         <activity
             android:name=".ui.PrivateChatActivity"
             android:exported="false"
             android:windowSoftInputMode="adjustResize"
-            android:parentActivityName=".ui.MainActivity" />
+            android:parentActivityName=".ui.ChatsActivity" />
 
         <activity
             android:name=".ui.UsersActivity"
             android:exported="false"
-            android:parentActivityName=".ui.MainActivity" />
+            android:parentActivityName=".ui.ChatsActivity" />
 
         <activity
             android:name=".ui.ProfileActivity"
             android:exported="false"
             android:windowSoftInputMode="adjustResize"
-            android:parentActivityName=".ui.MainActivity" />
+            android:parentActivityName=".ui.ChatsActivity" />
 
         <activity
             android:name=".ui.SettingsActivity"
             android:exported="false"
-            android:parentActivityName=".ui.MainActivity" />
-
-        <activity
-            android:name=".ui.ChatsActivity"
-            android:exported="false"
-            android:parentActivityName=".ui.MainActivity" />
+            android:parentActivityName=".ui.ChatsActivity" />
 
         <!-- FCM push-уведомления -->
         <service

@@ -53,6 +53,7 @@ class PrivateChatActivity : AppCompatActivity() {
         setupClickListeners()
 
         viewModel.loadPrivateHistory(peerUsername)
+        viewModel.markRead(peerUsername)   // уведомляем собеседника что мы в чате
     }
 
     private fun setupRecyclerView() {

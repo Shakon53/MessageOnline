@@ -31,4 +31,8 @@ object Packet {
 
     // FCM push-уведомления
     const val FCM_TOKEN             = "FCM_TOKEN"
+
+    // Read receipts
+    const val MARK_READ             = "MARK_READ"
+    const val MESSAGE_READ          = "MESSAGE_READ"
 }

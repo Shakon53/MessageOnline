@@ -6,7 +6,7 @@
     android:background="@color/ft_chat_bg"
     android:orientation="vertical">
 
-    <!-- Toolbar -->
+    <!-- Toolbar (main screen — no back button) -->
     <com.google.android.material.appbar.AppBarLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
@@ -18,9 +18,8 @@
             android:layout_width="match_parent"
             android:layout_height="?attr/actionBarSize"
             android:background="@color/ft_surface"
-            app:navigationIcon="@drawable/ic_back"
-            app:navigationIconTint="#FFFFFF"
-            app:title="Чаты"
+            app:contentInsetStart="20dp"
+            app:title="Сообщения"
             app:titleTextColor="#FFFFFF"
             app:subtitleTextColor="#94A3B8" />
 
@@ -41,10 +40,10 @@
         android:paddingVertical="8dp">
 
         <ImageView
-            android:layout_width="20dp"
-            android:layout_height="20dp"
+            android:layout_width="18dp"
+            android:layout_height="18dp"
             android:src="@drawable/ic_search"
-            android:tint="#64748B"
+            android:tint="#4B5563"
             android:contentDescription="@null" />
 
         <EditText
@@ -94,28 +93,28 @@
             android:visibility="gone">
 
             <ImageView
-                android:layout_width="64dp"
-                android:layout_height="64dp"
+                android:layout_width="72dp"
+                android:layout_height="72dp"
                 android:src="@drawable/ic_chat_logo"
                 android:tint="#2B6366F1"
-                android:layout_marginBottom="16dp"
+                android:layout_marginBottom="20dp"
                 android:contentDescription="@null" />
 
             <TextView
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:text="Нет личных чатов"
+                android:text="Нет сообщений"
                 android:textColor="#FFFFFF"
-                android:textSize="18sp"
+                android:textSize="20sp"
                 android:textStyle="bold" />
 
             <TextView
-                android:layout_width="200dp"
+                android:layout_width="220dp"
                 android:layout_height="wrap_content"
                 android:layout_marginTop="8dp"
-                android:text="Перейдите в «Контакты» чтобы начать разговор"
+                android:text="Нажмите «Контакты» чтобы начать разговор"
                 android:textColor="#64748B"
-                android:textSize="13sp"
+                android:textSize="14sp"
                 android:gravity="center" />
         </LinearLayout>
     </FrameLayout>

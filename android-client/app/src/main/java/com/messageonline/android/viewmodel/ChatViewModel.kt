@@ -13,6 +13,7 @@ import com.messageonline.android.database.AppDatabase
 import com.messageonline.android.database.MessageEntity
 import com.messageonline.android.model.ChatMessage
 import com.messageonline.android.model.ChatSession
+import com.messageonline.android.model.Conversation
 import com.messageonline.android.model.OnlineUser
 import com.messageonline.android.model.Packet
 import com.messageonline.android.network.SocketManager
@@ -56,6 +57,10 @@ class ChatViewModel(app: Application) : AndroidViewModel(app) {
     private val _profileUpdated = MutableLiveData<Unit>()
     val profileUpdated: LiveData<Unit> = _profileUpdated
 
+    // List of all conversations (global + private) for the main ChatsActivity
+    private val _conversations = MutableLiveData<List<Conversation>>(emptyList())
+    val conversations: LiveData<List<Conversation>> = _conversations
+
     // ==================== ТЕКУЩИЙ ПОЛЬЗОВАТЕЛЬ ====================
 
     var myUserId: Int = -1
@@ -83,6 +88,42 @@ class ChatViewModel(app: Application) : AndroidViewModel(app) {
         viewModelScope.launch(Dispatchers.IO) {
             val cached = dao.getGlobalMessages().map { it.toChatMessage() }
             if (cached.isNotEmpty()) _globalMessages.postValue(cached.toMutableList())
+            refreshConversations()
+        }
+    }
+
+    fun refreshConversations() {
+        viewModelScope.launch(Dispatchers.IO) {
+            val allPrivate = dao.getAllPrivateMessages()   // DESC order → newest first per peer
+            val onlineSet  = _onlineUsers.value?.map { it.username }?.toSet() ?: emptySet()
+
+            // One entry per peer (first occurrence = most recent due to DESC order)
+            val convMap = linkedMapOf<String, Conversation>()
+            for (msg in allPrivate) {
+                val peer = if (msg.senderUsername == myUsername) msg.receiverUsername
+                           else msg.senderUsername
+                if (peer.isBlank() || convMap.containsKey(peer)) continue
+                convMap[peer] = Conversation(
+                    peerUsername  = peer,
+                    lastMessage   = if (msg.senderUsername == myUsername) "Вы: ${msg.content}" else msg.content,
+                    lastTimestamp = msg.timestamp,
+                    isOnline      = onlineSet.contains(peer)
+                )
+            }
+
+            // Global chat at the top
+            val globalLast = dao.getGlobalMessages().lastOrNull()
+            val globalConv = Conversation(
+                peerUsername  = "Общий чат",
+                lastMessage   = globalLast?.let { "${it.senderUsername}: ${it.content}" }
+                                ?: "Нажмите чтобы присоединиться",
+                lastTimestamp = globalLast?.timestamp ?: 0L,
+                isGlobal      = true
+            )
+
+            val list = mutableListOf(globalConv)
+            list.addAll(convMap.values)
+            _conversations.postValue(list)
         }
     }
 
@@ -141,7 +182,6 @@ class ChatViewModel(app: Application) : AndroidViewModel(app) {
                 val msg = parseGlobalMessage(json)
                 val list = _globalMessages.value ?: mutableListOf()
                 if (msg.senderUsername == myUsername) {
-                    // Заменяем PENDING на SENT
                     val idx = list.indexOfLast {
                         it.status == ChatMessage.STATUS_PENDING && it.content == msg.content
                     }
@@ -152,6 +192,7 @@ class ChatViewModel(app: Application) : AndroidViewModel(app) {
                 }
                 _globalMessages.postValue(list)
                 saveToRoom(msg)
+                refreshConversations()
             }
 
             Packet.PRIVATE_MESSAGE -> {
@@ -168,6 +209,24 @@ class ChatViewModel(app: Application) : AndroidViewModel(app) {
                 }
                 _privateMessages.postValue(list)
                 saveToRoom(msg)
+                refreshConversations()
+            }
+
+            Packet.MESSAGE_READ -> {
+                // Peer has read our messages — mark all sent messages to them as READ
+                val reader = json.optString("readerUsername")
+                val list   = _privateMessages.value ?: mutableListOf()
+                var changed = false
+                for (i in list.indices) {
+                    val m = list[i]
+                    if (m.senderUsername == myUsername &&
+                        m.receiverUsername == reader &&
+                        m.status != ChatMessage.STATUS_READ) {
+                        list[i] = m.copy(status = ChatMessage.STATUS_READ)
+                        changed = true
+                    }
+                }
+                if (changed) _privateMessages.postValue(list)
             }
 
             Packet.USER_LIST -> {
@@ -183,6 +242,7 @@ class ChatViewModel(app: Application) : AndroidViewModel(app) {
                     ))
                 }
                 _onlineUsers.postValue(users)
+                refreshConversations()
             }
 
             Packet.USER_JOINED -> {
@@ -349,6 +409,7 @@ class ChatViewModel(app: Application) : AndroidViewModel(app) {
     fun refreshUsers() = SocketManager.requestUserList()
     fun sendTyping(r: String, t: Boolean) = SocketManager.sendTyping(r, t)
     fun updateProfile(statusText: String) = SocketManager.sendUpdateProfile(statusText)
+    fun markRead(peerUsername: String)    = SocketManager.sendMarkRead(peerUsername)
 
     /** Remove a message locally (only from in-memory list + Room). */
     fun deleteLocalMessage(msg: ChatMessage) {

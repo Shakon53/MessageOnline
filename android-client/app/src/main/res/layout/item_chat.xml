@@ -7,15 +7,15 @@
     android:paddingHorizontal="16dp"
     android:background="?attr/selectableItemBackground">
 
-    <!-- Avatar -->
+    <!-- Avatar with online dot -->
     <FrameLayout
-        android:layout_width="48dp"
-        android:layout_height="48dp"
+        android:layout_width="50dp"
+        android:layout_height="50dp"
         android:layout_marginEnd="14dp">
 
         <View
-            android:layout_width="48dp"
-            android:layout_height="48dp"
+            android:layout_width="50dp"
+            android:layout_height="50dp"
             android:background="@drawable/avatar_circle_bg" />
 
         <TextView
@@ -24,8 +24,17 @@
             android:layout_height="match_parent"
             android:gravity="center"
             android:textColor="#FFFFFF"
-            android:textSize="18sp"
+            android:textSize="19sp"
             android:textStyle="bold" />
+
+        <!-- Online dot (bottom-right) -->
+        <View
+            android:id="@+id/viewOnlineDot"
+            android:layout_width="13dp"
+            android:layout_height="13dp"
+            android:layout_gravity="bottom|end"
+            android:background="@drawable/shape_online_dot"
+            android:visibility="gone" />
     </FrameLayout>
 
     <!-- Name + last message -->
@@ -47,7 +56,7 @@
 
         <TextView
             android:id="@+id/tvLastMessage"
-            android:layout_width="wrap_content"
+            android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:layout_marginTop="2dp"
             android:textColor="#64748B"
@@ -73,8 +82,8 @@
 
         <TextView
             android:id="@+id/tvUnreadBadge"
-            android:layout_width="20dp"
-            android:layout_height="20dp"
+            android:layout_width="22dp"
+            android:layout_height="22dp"
             android:layout_marginTop="4dp"
             android:background="@drawable/bg_unread_badge"
             android:gravity="center"
