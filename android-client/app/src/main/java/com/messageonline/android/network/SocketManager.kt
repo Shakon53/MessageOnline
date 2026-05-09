@@ -109,18 +109,22 @@ object SocketManager {
         })
     }
 
-    fun sendGlobalMessage(content: String) {
+    fun sendGlobalMessage(content: String, replyToSender: String = "", replyToContent: String = "") {
         send(JSONObject().apply {
             put("type", Packet.GLOBAL_MESSAGE)
             put("content", content)
+            if (replyToSender.isNotEmpty()) put("replyToSender", replyToSender)
+            if (replyToContent.isNotEmpty()) put("replyToContent", replyToContent)
         })
     }
 
-    fun sendPrivateMessage(receiverUsername: String, content: String) {
+    fun sendPrivateMessage(receiverUsername: String, content: String, replyToSender: String = "", replyToContent: String = "") {
         send(JSONObject().apply {
             put("type", Packet.PRIVATE_MESSAGE)
             put("receiverUsername", receiverUsername)
             put("content", content)
+            if (replyToSender.isNotEmpty()) put("replyToSender", replyToSender)
+            if (replyToContent.isNotEmpty()) put("replyToContent", replyToContent)
         })
     }
 

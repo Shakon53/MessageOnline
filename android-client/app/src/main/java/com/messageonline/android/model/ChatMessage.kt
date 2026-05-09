@@ -4,6 +4,7 @@ package com.messageonline.android.model
  * Модель сообщения чата.
  * status: PENDING → SENT → READ
  * localId: временный ID для сопоставления с эхом сервера
+ * replyToSender / replyToContent: цитируемое сообщение (reply)
  */
 data class ChatMessage(
     val senderId: Int = 0,
@@ -14,9 +15,12 @@ data class ChatMessage(
     val timestamp: Long = 0L,
     val isGlobal: Boolean = true,
     val status: Int = STATUS_SENT,
-    val localId: String = ""
+    val localId: String = "",
+    val replyToSender: String = "",
+    val replyToContent: String = ""
 ) {
     fun isMine(myUsername: String): Boolean = senderUsername == myUsername
+    val hasReply: Boolean get() = replyToContent.isNotEmpty()
 
     companion object {
         const val STATUS_PENDING = 0   // ⏱ отправляется

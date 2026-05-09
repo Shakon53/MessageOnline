@@ -3,7 +3,7 @@
     android:layout_width="match_parent"
     android:layout_height="wrap_content"
     android:gravity="end"
-    android:paddingHorizontal="12dp"
+    android:paddingHorizontal="8dp"
     android:paddingTop="2dp"
     android:paddingBottom="2dp"
     android:orientation="vertical">
@@ -21,6 +21,51 @@
         android:paddingTop="9dp"
         android:paddingBottom="7dp">
 
+        <!-- Reply quote block (hidden when no reply) -->
+        <LinearLayout
+            android:id="@+id/llReplyQuote"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginBottom="7dp"
+            android:background="@drawable/bg_reply_quote"
+            android:orientation="horizontal"
+            android:visibility="gone">
+
+            <!-- Left accent line -->
+            <View
+                android:layout_width="3dp"
+                android:layout_height="match_parent"
+                android:background="#818CF8"
+                android:layout_marginEnd="8dp" />
+
+            <LinearLayout
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:orientation="vertical"
+                android:paddingTop="6dp"
+                android:paddingEnd="10dp"
+                android:paddingBottom="6dp">
+
+                <TextView
+                    android:id="@+id/tvReplyToSender"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:textColor="#818CF8"
+                    android:textSize="11sp"
+                    android:textStyle="bold" />
+
+                <TextView
+                    android:id="@+id/tvReplyToContent"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:maxWidth="200dp"
+                    android:textColor="#A5B4FC"
+                    android:textSize="12sp"
+                    android:maxLines="2"
+                    android:ellipsize="end" />
+            </LinearLayout>
+        </LinearLayout>
+
         <TextView
             android:id="@+id/tvMessageContent"
             android:layout_width="wrap_content"
@@ -28,7 +73,10 @@
             android:maxWidth="260dp"
             android:textColor="#FFFFFF"
             android:textSize="15sp"
-            android:lineSpacingExtra="2dp" />
+            android:lineSpacingExtra="2dp"
+            android:autoLink="web"
+            android:linksClickable="true"
+            android:textColorLink="#C7D2FE" />
 
         <LinearLayout
             android:layout_width="wrap_content"

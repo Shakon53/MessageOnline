@@ -57,17 +57,23 @@ class MessageAdapter(
     // ─── ViewHolders ───────────────────────────────────────────────────────────
 
     inner class SentViewHolder(view: View) : RecyclerView.ViewHolder(view) {
-        val tvContent: TextView = view.findViewById(R.id.tvMessageContent)
-        val tvTime:    TextView = view.findViewById(R.id.tvMessageTime)
-        val tvStatus:  TextView = view.findViewById(R.id.tvStatus)
+        val tvContent:      TextView = view.findViewById(R.id.tvMessageContent)
+        val tvTime:         TextView = view.findViewById(R.id.tvMessageTime)
+        val tvStatus:       TextView = view.findViewById(R.id.tvStatus)
+        val llReplyQuote:   View     = view.findViewById(R.id.llReplyQuote)
+        val tvReplySender:  TextView = view.findViewById(R.id.tvReplyToSender)
+        val tvReplyContent: TextView = view.findViewById(R.id.tvReplyToContent)
     }
 
     inner class ReceivedViewHolder(view: View) : RecyclerView.ViewHolder(view) {
-        val flAvatar:  View     = view.findViewById(R.id.flAvatar)
-        val tvInitial: TextView = view.findViewById(R.id.tvAvatarInitial)
-        val tvSender:  TextView = view.findViewById(R.id.tvSenderName)
-        val tvContent: TextView = view.findViewById(R.id.tvMessageContent)
-        val tvTime:    TextView = view.findViewById(R.id.tvMessageTime)
+        val flAvatar:       View     = view.findViewById(R.id.flAvatar)
+        val tvInitial:      TextView = view.findViewById(R.id.tvAvatarInitial)
+        val tvSender:       TextView = view.findViewById(R.id.tvSenderName)
+        val tvContent:      TextView = view.findViewById(R.id.tvMessageContent)
+        val tvTime:         TextView = view.findViewById(R.id.tvMessageTime)
+        val llReplyQuote:   View     = view.findViewById(R.id.llReplyQuote)
+        val tvReplySender:  TextView = view.findViewById(R.id.tvReplyToSender)
+        val tvReplyContent: TextView = view.findViewById(R.id.tvReplyToContent)
     }
 
     inner class DateViewHolder(view: View) : RecyclerView.ViewHolder(view) {
@@ -116,6 +122,7 @@ class MessageAdapter(
                 holder.tvContent.text = msg.content
                 holder.tvTime.text    = timeFormat.format(Date(msg.timestamp))
                 bindStatus(holder.tvStatus, msg.status)
+                bindReplyQuote(holder.llReplyQuote, holder.tvReplySender, holder.tvReplyContent, msg)
 
                 // Group spacing
                 val lp = holder.itemView.layoutParams as? ViewGroup.MarginLayoutParams
@@ -129,6 +136,7 @@ class MessageAdapter(
                 val msg = item.msg
                 holder.tvContent.text = msg.content
                 holder.tvTime.text    = timeFormat.format(Date(msg.timestamp))
+                bindReplyQuote(holder.llReplyQuote, holder.tvReplySender, holder.tvReplyContent, msg)
 
                 // Avatar — visible only on last message of group (bottom of bubble stack)
                 if (item.isLastInGroup) {
@@ -153,6 +161,23 @@ class MessageAdapter(
 
                 setupLongPress(holder.itemView, msg)
             }
+        }
+    }
+
+    // ─── Reply quote binding ───────────────────────────────────────────────────
+
+    private fun bindReplyQuote(
+        container: View,
+        tvSender: TextView,
+        tvContent: TextView,
+        msg: com.messageonline.android.model.ChatMessage
+    ) {
+        if (msg.hasReply) {
+            container.visibility = View.VISIBLE
+            tvSender.text  = msg.replyToSender
+            tvContent.text = msg.replyToContent
+        } else {
+            container.visibility = View.GONE
         }
     }
 
@@ -204,6 +229,12 @@ class MessageAdapter(
         lastAnimatedPos = -1        // reset so history items don't all animate
         rebuildDisplayList()
         notifyDataSetChanged()
+    }
+
+    /** Return the ChatMessage at a given adapter position, or null for date separators. */
+    fun getMessageAt(position: Int): ChatMessage? {
+        val item = displayList.getOrNull(position) ?: return null
+        return if (item is DisplayItem.MessageItem) item.msg else null
     }
 
     fun updateMessageStatus(localId: String, newStatus: Int) {

@@ -1,6 +1,7 @@
 package com.messageonline.android.ui
 
 import android.content.Intent
+import android.graphics.Canvas
 import android.os.Bundle
 import android.view.Menu
 import android.view.MenuItem
@@ -10,12 +11,15 @@ import android.widget.Toast
 import androidx.activity.viewModels
 import androidx.appcompat.app.AppCompatActivity
 import androidx.appcompat.app.AppCompatDelegate
+import androidx.core.content.ContextCompat
+import androidx.recyclerview.widget.ItemTouchHelper
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
 import com.google.android.material.dialog.MaterialAlertDialogBuilder
 import com.messageonline.android.R
 import com.messageonline.android.adapter.MessageAdapter
 import com.messageonline.android.databinding.ActivityMainBinding
+import com.messageonline.android.model.ChatMessage
 import com.messageonline.android.viewmodel.ChatViewModel
 
 class MainActivity : AppCompatActivity() {
@@ -58,21 +62,90 @@ class MainActivity : AppCompatActivity() {
             this.layoutManager = this@MainActivity.layoutManager
         }
 
-        // FAB: show when not at bottom, hide when scrolled to bottom
+        // Swipe-to-reply
+        val swipeHelper = buildSwipeHelper()
+        ItemTouchHelper(swipeHelper).attachToRecyclerView(binding.rvMessages)
+
+        // FAB: show when not at bottom
         binding.rvMessages.addOnScrollListener(object : RecyclerView.OnScrollListener() {
             override fun onScrolled(recyclerView: RecyclerView, dx: Int, dy: Int) {
-                val lastVisible = layoutManager.findLastCompletelyVisibleItemPosition()
-                val total       = messageAdapter.itemCount - 1
-                val showFab     = lastVisible < total - 2
-
-                if (showFab && binding.fabScrollDown.visibility != View.VISIBLE) {
-                    binding.fabScrollDown.show()
-                } else if (!showFab && binding.fabScrollDown.visibility == View.VISIBLE) {
-                    binding.fabScrollDown.hide()
-                }
+                val last  = layoutManager.findLastCompletelyVisibleItemPosition()
+                val total = messageAdapter.itemCount - 1
+                if (last < total - 2) binding.fabScrollDown.show() else binding.fabScrollDown.hide()
             }
         })
     }
+
+    // ─── Swipe-to-reply ────────────────────────────────────────────────────────
+
+    private fun buildSwipeHelper(): ItemTouchHelper.SimpleCallback {
+        return object : ItemTouchHelper.SimpleCallback(0, ItemTouchHelper.RIGHT) {
+            private var replyTriggered = false
+            private val triggerDx = 180f
+            private val icon by lazy {
+                ContextCompat.getDrawable(this@MainActivity, R.drawable.ic_reply)!!
+                    .apply { setTint(0xFFFFFFFF.toInt()) }
+            }
+            private val iconSize = (42 * resources.displayMetrics.density).toInt()
+
+            override fun onMove(rv: RecyclerView, vh: RecyclerView.ViewHolder, t: RecyclerView.ViewHolder) = false
+
+            override fun onSwiped(viewHolder: RecyclerView.ViewHolder, direction: Int) {
+                messageAdapter.notifyItemChanged(viewHolder.adapterPosition)
+            }
+
+            // Never auto-dismiss — snap back always
+            override fun getSwipeThreshold(viewHolder: RecyclerView.ViewHolder) = 10f
+            override fun getSwipeEscapeVelocity(defaultValue: Float) = Float.MAX_VALUE
+
+            override fun onChildDraw(
+                c: Canvas, rv: RecyclerView, vh: RecyclerView.ViewHolder,
+                dX: Float, dY: Float, actionState: Int, isCurrentlyActive: Boolean
+            ) {
+                if (actionState != ItemTouchHelper.ACTION_STATE_SWIPE) {
+                    super.onChildDraw(c, rv, vh, dX, dY, actionState, isCurrentlyActive)
+                    return
+                }
+                // Trigger reply once when threshold crossed
+                if (dX >= triggerDx && !replyTriggered) {
+                    replyTriggered = true
+                    val msg = messageAdapter.getMessageAt(vh.adapterPosition)
+                    if (msg != null) showReplyBar(msg)
+                }
+                if (!isCurrentlyActive) replyTriggered = false
+
+                val cappedDx = minOf(dX, triggerDx + 20f)
+                val itemView = vh.itemView
+
+                // Draw reply icon
+                val alpha = (cappedDx / triggerDx).coerceIn(0f, 1f)
+                icon.alpha = (alpha * 255).toInt()
+                val iconTop  = itemView.top + (itemView.height - iconSize) / 2
+                val iconLeft = itemView.left + dpToPx(16)
+                icon.setBounds(iconLeft, iconTop, iconLeft + iconSize, iconTop + iconSize)
+                icon.draw(c)
+
+                super.onChildDraw(c, rv, vh, cappedDx, dY, actionState, isCurrentlyActive)
+            }
+
+            private fun dpToPx(dp: Int) = (dp * resources.displayMetrics.density).toInt()
+        }
+    }
+
+    private fun showReplyBar(msg: ChatMessage) {
+        viewModel.replyToMessage = msg
+        binding.layoutReplyBar.visibility = View.VISIBLE
+        binding.tvReplyToName.text = msg.senderUsername
+        binding.tvReplyToText.text = msg.content
+        binding.etMessage.requestFocus()
+    }
+
+    private fun hideReplyBar() {
+        viewModel.replyToMessage = null
+        binding.layoutReplyBar.visibility = View.GONE
+    }
+
+    // ─── Observers ─────────────────────────────────────────────────────────────
 
     private fun setupObservers() {
         viewModel.globalMessages.observe(this) { messages ->
@@ -116,23 +189,28 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
+    // ─── Click listeners ───────────────────────────────────────────────────────
+
     private fun setupClickListeners() {
         binding.btnSend.setOnClickListener { v ->
             val text = binding.etMessage.text.toString().trim()
             if (text.isNotEmpty()) {
-                // Pulse animation
                 v.startAnimation(AnimationUtils.loadAnimation(this, R.anim.pulse_scale))
                 viewModel.sendGlobalMessage(text)
                 binding.etMessage.text?.clear()
-                // Scroll to new message
+                hideReplyBar()
                 binding.rvMessages.scrollToPosition(messageAdapter.itemCount - 1)
             }
         }
+
+        binding.btnCancelReply.setOnClickListener { hideReplyBar() }
 
         binding.fabScrollDown.setOnClickListener {
             binding.rvMessages.smoothScrollToPosition(messageAdapter.itemCount - 1)
         }
     }
+
+    // ─── Menu ──────────────────────────────────────────────────────────────────
 
     override fun onCreateOptionsMenu(menu: Menu): Boolean {
         menuInflater.inflate(R.menu.main_menu, menu)
@@ -141,23 +219,12 @@ class MainActivity : AppCompatActivity() {
 
     override fun onOptionsItemSelected(item: MenuItem): Boolean {
         return when (item.itemId) {
-            R.id.menu_users -> {
-                startActivity(Intent(this, UsersActivity::class.java))
-                true
-            }
-            R.id.menu_search -> {
-                Toast.makeText(this, "Поиск скоро", Toast.LENGTH_SHORT).show()
-                true
-            }
-            R.id.menu_profile -> {
-                startActivity(Intent(this, ProfileActivity::class.java))
-                true
-            }
-            R.id.menu_logout -> {
-                confirmLogout()
-                true
-            }
-            else -> super.onOptionsItemSelected(item)
+            R.id.menu_users    -> { startActivity(Intent(this, UsersActivity::class.java)); true }
+            R.id.menu_search   -> { Toast.makeText(this, "Поиск скоро", Toast.LENGTH_SHORT).show(); true }
+            R.id.menu_profile  -> { startActivity(Intent(this, ProfileActivity::class.java)); true }
+            R.id.menu_settings -> { startActivity(Intent(this, SettingsActivity::class.java)); true }
+            R.id.menu_logout   -> { confirmLogout(); true }
+            else              -> super.onOptionsItemSelected(item)
         }
     }
 

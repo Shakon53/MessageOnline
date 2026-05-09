@@ -64,6 +64,9 @@ class ChatViewModel(app: Application) : AndroidViewModel(app) {
         private set
     var currentPrivatePeer: String = ""
 
+    /** Currently replying to this message (set by UI, cleared after send). */
+    var replyToMessage: ChatMessage? = null
+
     enum class ConnectionStatus { CONNECTING, CONNECTED, DISCONNECTED, ERROR }
     data class AuthResult(val success: Boolean, val message: String = "")
 
@@ -289,33 +292,40 @@ class ChatViewModel(app: Application) : AndroidViewModel(app) {
     fun sendGlobalMessage(content: String) {
         if (content.isBlank()) return
         val trimmed = content.trim()
-        // Показываем сразу как PENDING
+        val reply = replyToMessage
+        replyToMessage = null
         val pending = ChatMessage(
             senderId = myUserId, senderUsername = myUsername,
             content = trimmed, timestamp = System.currentTimeMillis(),
             isGlobal = true, status = ChatMessage.STATUS_PENDING,
-            localId = UUID.randomUUID().toString()
+            localId = UUID.randomUUID().toString(),
+            replyToSender = reply?.senderUsername ?: "",
+            replyToContent = reply?.content ?: ""
         )
         val list = _globalMessages.value ?: mutableListOf()
         list.add(pending)
         _globalMessages.value = list
-        SocketManager.sendGlobalMessage(trimmed)
+        SocketManager.sendGlobalMessage(trimmed, pending.replyToSender, pending.replyToContent)
     }
 
     fun sendPrivateMessage(receiverUsername: String, content: String) {
         if (content.isBlank() || receiverUsername.isBlank()) return
         val trimmed = content.trim()
+        val reply = replyToMessage
+        replyToMessage = null
         val pending = ChatMessage(
             senderId = myUserId, senderUsername = myUsername,
             receiverUsername = receiverUsername, content = trimmed,
             timestamp = System.currentTimeMillis(), isGlobal = false,
             status = ChatMessage.STATUS_PENDING,
-            localId = UUID.randomUUID().toString()
+            localId = UUID.randomUUID().toString(),
+            replyToSender = reply?.senderUsername ?: "",
+            replyToContent = reply?.content ?: ""
         )
         val list = _privateMessages.value ?: mutableListOf()
         list.add(pending)
         _privateMessages.value = list
-        SocketManager.sendPrivateMessage(receiverUsername, trimmed)
+        SocketManager.sendPrivateMessage(receiverUsername, trimmed, pending.replyToSender, pending.replyToContent)
     }
 
     fun loadGlobalHistory() {
@@ -384,7 +394,9 @@ class ChatViewModel(app: Application) : AndroidViewModel(app) {
         senderUsername = json.optString("senderUsername"),
         content = json.optString("content"),
         timestamp = json.optLong("timestamp"),
-        isGlobal = true, status = ChatMessage.STATUS_SENT
+        isGlobal = true, status = ChatMessage.STATUS_SENT,
+        replyToSender = json.optString("replyToSender"),
+        replyToContent = json.optString("replyToContent")
     )
 
     private fun parsePrivateMessage(json: JSONObject) = ChatMessage(
@@ -394,6 +406,8 @@ class ChatViewModel(app: Application) : AndroidViewModel(app) {
         receiverUsername = json.optString("receiverUsername"),
         content = json.optString("content"),
         timestamp = json.optLong("timestamp"),
-        isGlobal = false, status = ChatMessage.STATUS_SENT
+        isGlobal = false, status = ChatMessage.STATUS_SENT,
+        replyToSender = json.optString("replyToSender"),
+        replyToContent = json.optString("replyToContent")
     )
 }
