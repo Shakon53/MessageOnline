@@ -51,7 +51,7 @@ dependencies {
     // ConstraintLayout
     implementation 'androidx.constraintlayout:constraintlayout:2.2.0'
 
-    // ViewModel + LiveData (MVVM)
+    // ViewModel + LiveData
     implementation 'androidx.lifecycle:lifecycle-viewmodel-ktx:2.8.7'
     implementation 'androidx.lifecycle:lifecycle-livedata-ktx:2.8.7'
 
@@ -77,12 +77,12 @@ dependencies {
     // OkHttp WebSocket
     implementation 'com.squareup.okhttp3:okhttp:4.12.0'
 
-    // Room — локальное хранение сообщений (KSP вместо kapt)
+    // Room (KSP)
     def room_version = "2.6.1"
     implementation "androidx.room:room-runtime:$room_version"
     implementation "androidx.room:room-ktx:$room_version"
     ksp "androidx.room:room-compiler:$room_version"
 
-    // Coil — загрузка аватара Google
+    // Coil
     implementation "io.coil-kt:coil:2.7.0"
 }
