@@ -9,6 +9,7 @@ import android.widget.Toast
 import androidx.activity.viewModels
 import androidx.appcompat.app.AppCompatActivity
 import androidx.recyclerview.widget.LinearLayoutManager
+import androidx.appcompat.app.AppCompatDelegate
 import com.google.android.material.dialog.MaterialAlertDialogBuilder
 import com.messageonline.android.R
 import com.messageonline.android.adapter.MessageAdapter
@@ -24,6 +25,8 @@ class MainActivity : AppCompatActivity() {
     private var wasConnected = false
 
     override fun onCreate(savedInstanceState: Bundle?) {
+        // Force dark mode (FinanceTracker premium style)
+        AppCompatDelegate.setDefaultNightMode(AppCompatDelegate.MODE_NIGHT_YES)
         super.onCreate(savedInstanceState)
         binding = ActivityMainBinding.inflate(layoutInflater)
         setContentView(binding.root)

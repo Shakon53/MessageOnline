@@ -1,38 +1,84 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <!-- WhatsApp colour palette -->
-    <color name="wa_header">#075E54</color>
-    <color name="wa_dark_green">#075E54</color>
-    <color name="wa_light_green">#25D366</color>
-    <color name="wa_teal">#128C7E</color>
-    <color name="wa_chat_bg">#E5DDD5</color>
-    <color name="wa_bubble_sent">#DCF8C6</color>
-    <color name="wa_bubble_received">#FFFFFF</color>
-    <color name="wa_bottom_bar">#F0F2F5</color>
-    <color name="wa_input_bg">#FFFFFF</color>
-    <color name="wa_text_dark">#111B21</color>
-    <color name="wa_text_secondary">#667781</color>
-    <color name="wa_time_text">#8696A0</color>
-    <color name="wa_sender_name">#075E54</color>
-    <color name="wa_online_green">#25D366</color>
-    <color name="wa_icon_gray">#8696A0</color>
-    <color name="wa_divider">#E9EDEF</color>
-    <color name="wa_white">#FFFFFF</color>
-    <color name="wa_avatar_1">#AB47BC</color>
-    <color name="wa_avatar_2">#1565C0</color>
-    <color name="wa_avatar_3">#00838F</color>
-    <color name="wa_avatar_4">#E65100</color>
-    <color name="wa_avatar_5">#4CAF50</color>
+    <!-- === FinanceTracker × MessageOnline Design System === -->
 
-    <!-- Legacy aliases (used by other layouts) -->
-    <color name="primaryColor">@color/wa_dark_green</color>
-    <color name="onPrimaryColor">@color/wa_white</color>
-    <color name="primaryContainerColor">@color/wa_bubble_sent</color>
-    <color name="onPrimaryContainerColor">@color/wa_text_dark</color>
-    <color name="secondaryColor">@color/wa_light_green</color>
-    <color name="onSecondaryColor">@color/wa_white</color>
-    <color name="secondaryContainerColor">@color/wa_bubble_received</color>
-    <color name="onSecondaryContainerColor">@color/wa_text_dark</color>
-    <color name="surfaceColor">@color/wa_white</color>
-    <color name="onSurfaceColor">@color/wa_text_dark</color>
+    <!-- Primary Brand: Indigo -->
+    <color name="ft_primary">#6366F1</color>
+    <color name="ft_primary_light">#818CF8</color>
+    <color name="ft_primary_dark">#4F52C9</color>
+    <color name="ft_gradient_start">#4338CA</color>
+    <color name="ft_gradient_end">#3B82F6</color>
+    <color name="ft_gradient_mid">#7C3AED</color>
+
+    <!-- Secondary: Teal -->
+    <color name="ft_secondary">#06D6A0</color>
+
+    <!-- Backgrounds (Dark) -->
+    <color name="ft_bg">#080C18</color>
+    <color name="ft_surface">#111827</color>
+    <color name="ft_card">#1A2236</color>
+    <color name="ft_card2">#162032</color>
+    <color name="ft_chat_bg">#0D1221</color>
+    <color name="ft_input_bg">#1A2236</color>
+    <color name="ft_bottom_bar">#0F172A</color>
+
+    <!-- Text Colors -->
+    <color name="ft_text_primary">#FFFFFF</color>
+    <color name="ft_text_secondary">#94A3B8</color>
+    <color name="ft_text_tertiary">#64748B</color>
+    <color name="ft_text_hint">#4B5563</color>
+
+    <!-- Bubble Colors -->
+    <color name="ft_bubble_sent_start">#4338CA</color>
+    <color name="ft_bubble_sent_end">#6366F1</color>
+    <color name="ft_bubble_received">#1A2236</color>
+    <color name="ft_bubble_text_received">#E2E8F0</color>
+    <color name="ft_bubble_time_sent">#A5B4FC</color>
+    <color name="ft_bubble_time_received">#64748B</color>
+
+    <!-- Status/Semantic -->
+    <color name="ft_online">#06D6A0</color>
+    <color name="ft_error">#FF5C8D</color>
+    <color name="ft_success">#10D9A0</color>
+    <color name="ft_warning">#FFD166</color>
+
+    <!-- UI Elements -->
+    <color name="ft_divider">#1AFFFFFF</color>
+    <color name="ft_glass_border">#26FFFFFF</color>
+    <color name="ft_glass_bg">#0DFFFFFF</color>
+    <color name="ft_badge">#6366F1</color>
+    <color name="ft_sender_name">#818CF8</color>
+    <color name="ft_check_sent">#A5B4FC</color>
+    <color name="ft_check_read">#06D6A0</color>
+
+    <!-- Legacy aliases (keep for compatibility) -->
+    <color name="wa_white">#FFFFFF</color>
+    <color name="wa_header">#111827</color>
+    <color name="wa_dark_green">#6366F1</color>
+    <color name="wa_light_green">#06D6A0</color>
+    <color name="wa_chat_bg">#0D1221</color>
+    <color name="wa_bubble_sent">#4338CA</color>
+    <color name="wa_bubble_received">#1A2236</color>
+    <color name="wa_bottom_bar">#0F172A</color>
+    <color name="wa_text_dark">#FFFFFF</color>
+    <color name="wa_text_secondary">#94A3B8</color>
+    <color name="wa_time_text">#64748B</color>
+    <color name="wa_sender_name">#818CF8</color>
+    <color name="wa_online_green">#06D6A0</color>
+    <color name="wa_divider">#1AFFFFFF</color>
+    <color name="wa_teal">#4338CA</color>
+    <color name="wa_input_bg">#1A2236</color>
+    <color name="wa_icon_gray">#64748B</color>
+
+    <!-- Material aliases -->
+    <color name="primaryColor">#6366F1</color>
+    <color name="onPrimaryColor">#FFFFFF</color>
+    <color name="primaryContainerColor">#4F52C9</color>
+    <color name="onPrimaryContainerColor">#FFFFFF</color>
+    <color name="secondaryColor">#06D6A0</color>
+    <color name="onSecondaryColor">#FFFFFF</color>
+    <color name="secondaryContainerColor">#1A2236</color>
+    <color name="onSecondaryContainerColor">#FFFFFF</color>
+    <color name="surfaceColor">#111827</color>
+    <color name="onSurfaceColor">#FFFFFF</color>
 </resources>

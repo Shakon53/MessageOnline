@@ -4,22 +4,28 @@
     xmlns:app="http://schemas.android.com/apk/res-auto"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:background="#FFFFFF">
+    android:background="@color/ft_bg">
 
     <com.google.android.material.appbar.AppBarLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:elevation="4dp">
+        android:background="@color/ft_surface"
+        android:elevation="0dp">
 
         <com.google.android.material.appbar.MaterialToolbar
             android:id="@+id/toolbar"
             android:layout_width="match_parent"
             android:layout_height="?attr/actionBarSize"
-            android:background="#075E54"
+            android:background="@color/ft_surface"
             app:navigationIcon="@drawable/ic_back"
             app:navigationIconTint="#FFFFFF"
             app:titleTextColor="#FFFFFF"
-            app:subtitleTextColor="#FFFFFFB3" />
+            app:subtitleTextColor="#94A3B8" />
+
+        <View
+            android:layout_width="match_parent"
+            android:layout_height="1dp"
+            android:background="#1AFFFFFF" />
     </com.google.android.material.appbar.AppBarLayout>
 
     <androidx.swiperefreshlayout.widget.SwipeRefreshLayout
@@ -32,7 +38,11 @@
             android:id="@+id/rvUsers"
             android:layout_width="match_parent"
             android:layout_height="match_parent"
-            android:background="#FFFFFF"
+            android:background="@color/ft_bg"
+            android:paddingTop="8dp"
+            android:paddingBottom="8dp"
+            android:clipToPadding="false"
             android:scrollbars="none" />
     </androidx.swiperefreshlayout.widget.SwipeRefreshLayout>
+
 </androidx.coordinatorlayout.widget.CoordinatorLayout>

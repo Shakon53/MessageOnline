@@ -1,157 +1,194 @@
 <?xml version="1.0" encoding="utf-8"?>
-<ScrollView xmlns:android="http://schemas.android.com/apk/res/android"
+<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:background="#ECE5DD"
-    android:fillViewport="true">
+    android:background="@drawable/bg_login_gradient">
 
-    <LinearLayout
+    <ScrollView
         android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:orientation="vertical">
-
-        <LinearLayout
-            android:layout_width="match_parent"
-            android:layout_height="92dp"
-            android:background="#075E54"
-            android:gravity="bottom|center_vertical"
-            android:orientation="horizontal"
-            android:paddingStart="12dp"
-            android:paddingEnd="16dp"
-            android:paddingBottom="14dp">
-
-            <com.google.android.material.button.MaterialButton
-                android:id="@+id/btnBack"
-                style="@style/Widget.Material3.Button.TextButton"
-                android:layout_width="wrap_content"
-                android:layout_height="44dp"
-                android:text="‹ Назад"
-                android:textColor="#FFFFFF" />
-
-            <TextView
-                android:layout_width="0dp"
-                android:layout_height="wrap_content"
-                android:layout_weight="1"
-                android:gravity="center"
-                android:text="Регистрация"
-                android:textColor="#FFFFFF"
-                android:textSize="22sp"
-                android:textStyle="bold" />
-
-            <ImageView
-                android:id="@+id/ivRegisterLogo"
-                android:layout_width="42dp"
-                android:layout_height="42dp"
-                android:src="@drawable/ic_chat_logo"
-                app:tint="#FFFFFF" />
-        </LinearLayout>
+        android:layout_height="match_parent"
+        android:fillViewport="true">
 
         <LinearLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:orientation="vertical"
-            android:padding="20dp">
+            android:orientation="vertical">
 
-            <com.google.android.material.card.MaterialCardView
+            <!-- Header with back button -->
+            <LinearLayout
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                app:cardBackgroundColor="#FFFFFF"
-                app:cardCornerRadius="22dp"
-                app:cardElevation="2dp"
-                app:strokeWidth="0dp">
+                android:background="@color/ft_surface"
+                android:gravity="center_vertical"
+                android:orientation="horizontal"
+                android:paddingStart="4dp"
+                android:paddingEnd="16dp"
+                android:paddingTop="48dp"
+                android:paddingBottom="16dp">
+
+                <com.google.android.material.button.MaterialButton
+                    android:id="@+id/btnBack"
+                    style="@style/Widget.Material3.Button.TextButton"
+                    android:layout_width="wrap_content"
+                    android:layout_height="48dp"
+                    android:text="← Назад"
+                    android:textColor="#818CF8"
+                    android:textSize="15sp" />
+
+                <TextView
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:gravity="center"
+                    android:text="Создать аккаунт"
+                    android:textColor="#FFFFFF"
+                    android:textSize="20sp"
+                    android:textStyle="bold" />
+
+                <ImageView
+                    android:id="@+id/ivRegisterLogo"
+                    android:layout_width="36dp"
+                    android:layout_height="36dp"
+                    android:src="@drawable/ic_chat_logo"
+                    android:tint="#818CF8"
+                    android:contentDescription="@null" />
+            </LinearLayout>
+
+            <!-- Form Card -->
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="vertical"
+                android:padding="20dp">
 
                 <LinearLayout
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
+                    android:background="@drawable/bg_glass_card"
                     android:orientation="vertical"
-                    android:padding="18dp">
+                    android:padding="20dp">
 
+                    <!-- Username -->
                     <com.google.android.material.textfield.TextInputLayout
                         style="@style/Widget.Material3.TextInputLayout.OutlinedBox"
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
-                        android:layout_marginBottom="12dp"
-                        android:hint="Имя пользователя">
-
+                        android:layout_marginBottom="14dp"
+                        android:hint="Имя пользователя"
+                        app:boxBackgroundColor="#1A2236"
+                        app:boxStrokeColor="#26FFFFFF"
+                        app:boxStrokeWidth="1dp"
+                        app:hintTextColor="#94A3B8"
+                        app:boxCornerRadiusTopStart="14dp"
+                        app:boxCornerRadiusTopEnd="14dp"
+                        app:boxCornerRadiusBottomStart="14dp"
+                        app:boxCornerRadiusBottomEnd="14dp">
                         <com.google.android.material.textfield.TextInputEditText
                             android:id="@+id/etUsername"
                             android:layout_width="match_parent"
                             android:layout_height="wrap_content"
                             android:inputType="textPersonName"
-                            android:textColor="#111B21" />
+                            android:textColor="#FFFFFF" />
                     </com.google.android.material.textfield.TextInputLayout>
 
+                    <!-- Email -->
                     <com.google.android.material.textfield.TextInputLayout
                         style="@style/Widget.Material3.TextInputLayout.OutlinedBox"
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
-                        android:layout_marginBottom="12dp"
+                        android:layout_marginBottom="14dp"
                         android:hint="Email (Google)"
-                        app:startIconDrawable="@android:drawable/ic_dialog_email">
-
+                        app:boxBackgroundColor="#1A2236"
+                        app:boxStrokeColor="#26FFFFFF"
+                        app:boxStrokeWidth="1dp"
+                        app:hintTextColor="#94A3B8"
+                        app:boxCornerRadiusTopStart="14dp"
+                        app:boxCornerRadiusTopEnd="14dp"
+                        app:boxCornerRadiusBottomStart="14dp"
+                        app:boxCornerRadiusBottomEnd="14dp">
                         <com.google.android.material.textfield.TextInputEditText
                             android:id="@+id/etPhone"
                             android:layout_width="match_parent"
                             android:layout_height="wrap_content"
                             android:enabled="false"
                             android:inputType="textEmailAddress"
-                            android:textColor="#111B21" />
+                            android:textColor="#94A3B8" />
                     </com.google.android.material.textfield.TextInputLayout>
 
+                    <!-- Password -->
                     <com.google.android.material.textfield.TextInputLayout
                         style="@style/Widget.Material3.TextInputLayout.OutlinedBox"
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
-                        android:layout_marginBottom="12dp"
+                        android:layout_marginBottom="14dp"
                         android:hint="Пароль"
-                        app:endIconMode="password_toggle">
-
+                        app:boxBackgroundColor="#1A2236"
+                        app:boxStrokeColor="#26FFFFFF"
+                        app:boxStrokeWidth="1dp"
+                        app:hintTextColor="#94A3B8"
+                        app:endIconMode="password_toggle"
+                        app:endIconTint="#64748B"
+                        app:boxCornerRadiusTopStart="14dp"
+                        app:boxCornerRadiusTopEnd="14dp"
+                        app:boxCornerRadiusBottomStart="14dp"
+                        app:boxCornerRadiusBottomEnd="14dp">
                         <com.google.android.material.textfield.TextInputEditText
                             android:id="@+id/etPassword"
                             android:layout_width="match_parent"
                             android:layout_height="wrap_content"
                             android:inputType="textPassword"
-                            android:textColor="#111B21" />
+                            android:textColor="#FFFFFF" />
                     </com.google.android.material.textfield.TextInputLayout>
 
+                    <!-- Confirm Password -->
                     <com.google.android.material.textfield.TextInputLayout
                         style="@style/Widget.Material3.TextInputLayout.OutlinedBox"
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
                         android:layout_marginBottom="20dp"
                         android:hint="Повторите пароль"
-                        app:endIconMode="password_toggle">
-
+                        app:boxBackgroundColor="#1A2236"
+                        app:boxStrokeColor="#26FFFFFF"
+                        app:boxStrokeWidth="1dp"
+                        app:hintTextColor="#94A3B8"
+                        app:endIconMode="password_toggle"
+                        app:endIconTint="#64748B"
+                        app:boxCornerRadiusTopStart="14dp"
+                        app:boxCornerRadiusTopEnd="14dp"
+                        app:boxCornerRadiusBottomStart="14dp"
+                        app:boxCornerRadiusBottomEnd="14dp">
                         <com.google.android.material.textfield.TextInputEditText
                             android:id="@+id/etPasswordConfirm"
                             android:layout_width="match_parent"
                             android:layout_height="wrap_content"
                             android:inputType="textPassword"
-                            android:textColor="#111B21" />
+                            android:textColor="#FFFFFF" />
                     </com.google.android.material.textfield.TextInputLayout>
 
                     <ProgressBar
                         android:id="@+id/progressBar"
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
+                        android:layout_width="36dp"
+                        android:layout_height="36dp"
                         android:layout_gravity="center"
                         android:layout_marginBottom="12dp"
+                        android:indeterminateTint="#6366F1"
                         android:visibility="gone" />
 
+                    <!-- Register button -->
                     <com.google.android.material.button.MaterialButton
                         android:id="@+id/btnRegister"
-                        style="@style/Widget.Material3.Button"
                         android:layout_width="match_parent"
                         android:layout_height="56dp"
                         android:text="Зарегистрироваться"
-                        android:textColor="#063B2F"
+                        android:textColor="#FFFFFF"
                         android:textSize="16sp"
                         android:textStyle="bold"
-                        app:backgroundTint="#25D366"
-                        app:cornerRadius="28dp" />
+                        app:backgroundTint="#6366F1"
+                        app:cornerRadius="16dp" />
+
                 </LinearLayout>
-            </com.google.android.material.card.MaterialCardView>
+            </LinearLayout>
         </LinearLayout>
-    </LinearLayout>
-</ScrollView>
+    </ScrollView>
+</FrameLayout>

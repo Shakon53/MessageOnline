@@ -1,26 +1,58 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <style name="Theme.MessageOnline" parent="Theme.Material3.Light.NoActionBar">
-        <item name="colorPrimary">@color/wa_dark_green</item>
-        <item name="colorOnPrimary">@color/wa_white</item>
-        <item name="colorPrimaryContainer">@color/wa_bubble_sent</item>
-        <item name="colorOnPrimaryContainer">@color/wa_text_dark</item>
-        <item name="colorSecondary">@color/wa_light_green</item>
-        <item name="colorOnSecondary">@color/wa_white</item>
-        <item name="colorSecondaryContainer">@color/wa_bubble_received</item>
-        <item name="colorOnSecondaryContainer">@color/wa_text_dark</item>
-        <item name="colorSurface">@color/wa_white</item>
-        <item name="colorOnSurface">@color/wa_text_dark</item>
-        <item name="android:colorBackground">@color/wa_white</item>
-        <item name="android:statusBarColor">@color/wa_header</item>
-        <item name="android:navigationBarColor">@color/wa_bottom_bar</item>
+
+    <!-- === Premium Dark Theme (FinanceTracker style) === -->
+    <style name="Theme.MessageOnline" parent="Theme.Material3.DayNight.NoActionBar">
+        <item name="colorPrimary">#6366F1</item>
+        <item name="colorOnPrimary">#FFFFFF</item>
+        <item name="colorPrimaryContainer">#4F52C9</item>
+        <item name="colorOnPrimaryContainer">#FFFFFF</item>
+        <item name="colorSecondary">#06D6A0</item>
+        <item name="colorOnSecondary">#FFFFFF</item>
+        <item name="colorSecondaryContainer">#1A2236</item>
+        <item name="colorOnSecondaryContainer">#FFFFFF</item>
+        <item name="colorTertiary">#818CF8</item>
+        <item name="colorOnTertiary">#FFFFFF</item>
+        <item name="colorBackground">#080C18</item>
+        <item name="colorOnBackground">#FFFFFF</item>
+        <item name="colorSurface">#111827</item>
+        <item name="colorOnSurface">#FFFFFF</item>
+        <item name="colorSurfaceVariant">#1A2236</item>
+        <item name="colorOnSurfaceVariant">#94A3B8</item>
+        <item name="colorOutline">#26FFFFFF</item>
+        <item name="colorOutlineVariant">#1AFFFFFF</item>
+        <item name="colorError">#FF5C8D</item>
+        <item name="colorOnError">#FFFFFF</item>
+        <item name="android:colorBackground">#080C18</item>
+        <item name="android:statusBarColor">#111827</item>
+        <item name="android:navigationBarColor">#0F172A</item>
         <item name="android:windowLightStatusBar">false</item>
+        <item name="android:windowLightNavigationBar">false</item>
+        <item name="android:textColorPrimary">#FFFFFF</item>
+        <item name="android:textColorSecondary">#94A3B8</item>
+        <item name="android:textColorHint">#4B5563</item>
+        <item name="elevationOverlayEnabled">true</item>
         <item name="materialAlertDialogTheme">@style/ThemeOverlay.MessageOnline.Dialog</item>
     </style>
 
     <style name="ThemeOverlay.MessageOnline.Dialog" parent="ThemeOverlay.Material3.MaterialAlertDialog">
-        <item name="colorPrimary">@color/wa_dark_green</item>
-        <item name="colorSurface">@color/wa_white</item>
-        <item name="android:colorBackground">@color/wa_white</item>
+        <item name="colorPrimary">#6366F1</item>
+        <item name="colorSurface">#1A2236</item>
+        <item name="colorOnSurface">#FFFFFF</item>
+        <item name="android:colorBackground">#1A2236</item>
+        <item name="colorOnBackground">#FFFFFF</item>
     </style>
+
+    <!-- Toolbar title text appearance -->
+    <style name="TextAppearance.MessageOnline.ToolbarTitle" parent="TextAppearance.Material3.TitleLarge">
+        <item name="android:textSize">20sp</item>
+        <item name="android:textStyle">bold</item>
+        <item name="android:textColor">#FFFFFF</item>
+    </style>
+
+    <style name="TextAppearance.MessageOnline.ToolbarSubtitle" parent="TextAppearance.Material3.BodyMedium">
+        <item name="android:textSize">13sp</item>
+        <item name="android:textColor">#94A3B8</item>
+    </style>
+
 </resources>

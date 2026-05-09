@@ -14,6 +14,7 @@ import com.google.android.gms.auth.api.signin.GoogleSignInOptions
 import com.google.android.gms.common.api.ApiException
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.auth.GoogleAuthProvider
+import androidx.appcompat.app.AppCompatDelegate
 import com.messageonline.android.R
 import com.messageonline.android.databinding.ActivityLoginBinding
 import com.messageonline.android.network.SocketManager
@@ -48,6 +49,7 @@ class LoginActivity : AppCompatActivity() {
     }
 
     override fun onCreate(savedInstanceState: Bundle?) {
+        AppCompatDelegate.setDefaultNightMode(AppCompatDelegate.MODE_NIGHT_YES)
         super.onCreate(savedInstanceState)
         binding = ActivityLoginBinding.inflate(layoutInflater)
         setContentView(binding.root)
