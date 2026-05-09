@@ -3,10 +3,14 @@ package com.messageonline.android.ui
 import android.content.Intent
 import android.graphics.Canvas
 import android.os.Bundle
+import android.text.Editable
+import android.text.TextWatcher
 import android.view.Menu
 import android.view.MenuItem
 import android.view.View
 import android.view.animation.AnimationUtils
+import android.view.inputmethod.EditorInfo
+import android.view.inputmethod.InputMethodManager
 import android.widget.Toast
 import androidx.activity.viewModels
 import androidx.appcompat.app.AppCompatActivity
@@ -91,7 +95,7 @@ class MainActivity : AppCompatActivity() {
             override fun onMove(rv: RecyclerView, vh: RecyclerView.ViewHolder, t: RecyclerView.ViewHolder) = false
 
             override fun onSwiped(viewHolder: RecyclerView.ViewHolder, direction: Int) {
-                messageAdapter.notifyItemChanged(viewHolder.adapterPosition)
+                messageAdapter.notifyItemChanged(viewHolder.bindingAdapterPosition)
             }
 
             // Never auto-dismiss — snap back always
@@ -109,7 +113,7 @@ class MainActivity : AppCompatActivity() {
                 // Trigger reply once when threshold crossed
                 if (dX >= triggerDx && !replyTriggered) {
                     replyTriggered = true
-                    val msg = messageAdapter.getMessageAt(vh.adapterPosition)
+                    val msg = messageAdapter.getMessageAt(vh.bindingAdapterPosition)
                     if (msg != null) showReplyBar(msg)
                 }
                 if (!isCurrentlyActive) replyTriggered = false
@@ -208,6 +212,47 @@ class MainActivity : AppCompatActivity() {
         binding.fabScrollDown.setOnClickListener {
             binding.rvMessages.smoothScrollToPosition(messageAdapter.itemCount - 1)
         }
+
+        // Search
+        binding.btnCloseSearch.setOnClickListener { closeSearch() }
+        binding.etSearch.addTextChangedListener(object : TextWatcher {
+            override fun beforeTextChanged(s: CharSequence?, start: Int, count: Int, after: Int) {}
+            override fun onTextChanged(s: CharSequence?, start: Int, before: Int, count: Int) {}
+            override fun afterTextChanged(s: Editable?) {
+                val query = s.toString().trim()
+                messageAdapter.setSearchQuery(query)
+                val count = messageAdapter.getMatchCount()
+                binding.tvSearchCount.text = if (query.isBlank()) "" else "$count совп."
+            }
+        })
+        binding.etSearch.setOnEditorActionListener { _, actionId, _ ->
+            if (actionId == EditorInfo.IME_ACTION_SEARCH) {
+                hideKeyboard()
+                true
+            } else false
+        }
+    }
+
+    private fun openSearch() {
+        binding.layoutSearch.visibility  = View.VISIBLE
+        binding.searchDivider.visibility = View.VISIBLE
+        binding.etSearch.requestFocus()
+        val imm = getSystemService(INPUT_METHOD_SERVICE) as InputMethodManager
+        imm.showSoftInput(binding.etSearch, InputMethodManager.SHOW_IMPLICIT)
+    }
+
+    private fun closeSearch() {
+        binding.layoutSearch.visibility  = View.GONE
+        binding.searchDivider.visibility = View.GONE
+        binding.etSearch.text?.clear()
+        messageAdapter.setSearchQuery("")
+        binding.tvSearchCount.text = ""
+        hideKeyboard()
+    }
+
+    private fun hideKeyboard() {
+        val imm = getSystemService(INPUT_METHOD_SERVICE) as InputMethodManager
+        imm.hideSoftInputFromWindow(binding.root.windowToken, 0)
     }
 
     // ─── Menu ──────────────────────────────────────────────────────────────────
@@ -220,7 +265,8 @@ class MainActivity : AppCompatActivity() {
     override fun onOptionsItemSelected(item: MenuItem): Boolean {
         return when (item.itemId) {
             R.id.menu_users    -> { startActivity(Intent(this, UsersActivity::class.java)); true }
-            R.id.menu_search   -> { Toast.makeText(this, "Поиск скоро", Toast.LENGTH_SHORT).show(); true }
+            R.id.menu_chats    -> { startActivity(Intent(this, ChatsActivity::class.java)); true }
+            R.id.menu_search   -> { openSearch(); true }
             R.id.menu_profile  -> { startActivity(Intent(this, ProfileActivity::class.java)); true }
             R.id.menu_settings -> { startActivity(Intent(this, SettingsActivity::class.java)); true }
             R.id.menu_logout   -> { confirmLogout(); true }

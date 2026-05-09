@@ -4,6 +4,9 @@ import android.content.ClipData
 import android.content.ClipboardManager
 import android.content.Context
 import android.graphics.Color
+import android.text.SpannableString
+import android.text.Spanned
+import android.text.style.BackgroundColorSpan
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
@@ -53,6 +56,9 @@ class MessageAdapter(
 
     // Last position that had a slide-in animation (avoid re-animating on rebind)
     private var lastAnimatedPos = -1
+
+    // Search query for text highlighting
+    private var searchQuery = ""
 
     // ─── ViewHolders ───────────────────────────────────────────────────────────
 
@@ -119,7 +125,7 @@ class MessageAdapter(
 
             holder is SentViewHolder && item is DisplayItem.MessageItem -> {
                 val msg = item.msg
-                holder.tvContent.text = msg.content
+                highlightText(holder.tvContent, msg.content)
                 holder.tvTime.text    = timeFormat.format(Date(msg.timestamp))
                 bindStatus(holder.tvStatus, msg.status)
                 bindReplyQuote(holder.llReplyQuote, holder.tvReplySender, holder.tvReplyContent, msg)
@@ -134,7 +140,7 @@ class MessageAdapter(
 
             holder is ReceivedViewHolder && item is DisplayItem.MessageItem -> {
                 val msg = item.msg
-                holder.tvContent.text = msg.content
+                highlightText(holder.tvContent, msg.content)
                 holder.tvTime.text    = timeFormat.format(Date(msg.timestamp))
                 bindReplyQuote(holder.llReplyQuote, holder.tvReplySender, holder.tvReplyContent, msg)
 
@@ -237,6 +243,39 @@ class MessageAdapter(
         return if (item is DisplayItem.MessageItem) item.msg else null
     }
 
+    // ─── Search ───────────────────────────────────────────────────────────────
+
+    fun setSearchQuery(query: String) {
+        searchQuery = query.trim()
+        rebuildDisplayList()
+        notifyDataSetChanged()
+    }
+
+    fun getMatchCount(): Int {
+        if (searchQuery.isBlank()) return 0
+        return messages.count { it.content.contains(searchQuery, ignoreCase = true) }
+    }
+
+    private fun highlightText(tv: TextView, text: String) {
+        if (searchQuery.isBlank()) {
+            tv.text = text
+            return
+        }
+        val lowerText  = text.lowercase()
+        val lowerQuery = searchQuery.lowercase()
+        val spannable  = SpannableString(text)
+        var start = lowerText.indexOf(lowerQuery)
+        while (start >= 0) {
+            val end = start + lowerQuery.length
+            spannable.setSpan(
+                BackgroundColorSpan(Color.parseColor("#4D6366F1")),
+                start, end, Spanned.SPAN_EXCLUSIVE_EXCLUSIVE
+            )
+            start = lowerText.indexOf(lowerQuery, end)
+        }
+        tv.text = spannable
+    }
+
     fun updateMessageStatus(localId: String, newStatus: Int) {
         val idx = messages.indexOfFirst { it.localId == localId }
         if (idx >= 0) {
@@ -252,8 +291,11 @@ class MessageAdapter(
         displayList.clear()
         var lastDayKey = ""
 
-        for (i in messages.indices) {
-            val msg = messages[i]
+        val source = if (searchQuery.isBlank()) messages
+                     else messages.filter { it.content.contains(searchQuery, ignoreCase = true) }
+
+        for (i in source.indices) {
+            val msg = source[i]
 
             // Insert date chip when day changes
             val dayKey = dayFormat.format(Date(msg.timestamp))
@@ -263,8 +305,8 @@ class MessageAdapter(
             }
 
             // Grouping flags
-            val prevMsg = if (i > 0) messages[i - 1] else null
-            val nextMsg = if (i < messages.size - 1) messages[i + 1] else null
+            val prevMsg = if (i > 0) source[i - 1] else null
+            val nextMsg = if (i < source.size - 1) source[i + 1] else null
 
             val prevDay = prevMsg?.let { dayFormat.format(Date(it.timestamp)) }
             val nextDay = nextMsg?.let { dayFormat.format(Date(it.timestamp)) }

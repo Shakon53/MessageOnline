@@ -95,7 +95,7 @@ class PrivateChatActivity : AppCompatActivity() {
             override fun onMove(rv: RecyclerView, vh: RecyclerView.ViewHolder, t: RecyclerView.ViewHolder) = false
 
             override fun onSwiped(viewHolder: RecyclerView.ViewHolder, direction: Int) {
-                messageAdapter.notifyItemChanged(viewHolder.adapterPosition)
+                messageAdapter.notifyItemChanged(viewHolder.bindingAdapterPosition)
             }
 
             override fun getSwipeThreshold(viewHolder: RecyclerView.ViewHolder) = 10f
@@ -112,7 +112,7 @@ class PrivateChatActivity : AppCompatActivity() {
 
                 if (dX >= triggerDx && !replyTriggered) {
                     replyTriggered = true
-                    val msg = messageAdapter.getMessageAt(vh.adapterPosition)
+                    val msg = messageAdapter.getMessageAt(vh.bindingAdapterPosition)
                     if (msg != null) showReplyBar(msg)
                 }
                 if (!isCurrentlyActive) replyTriggered = false

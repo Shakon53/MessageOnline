@@ -36,6 +36,64 @@
         android:orientation="vertical"
         app:layout_behavior="@string/appbar_scrolling_view_behavior">
 
+        <!-- Search bar (hidden by default) -->
+        <LinearLayout
+            android:id="@+id/layoutSearch"
+            android:layout_width="match_parent"
+            android:layout_height="52dp"
+            android:background="@color/ft_surface"
+            android:gravity="center_vertical"
+            android:orientation="horizontal"
+            android:paddingHorizontal="16dp"
+            android:visibility="gone">
+
+            <ImageView
+                android:layout_width="20dp"
+                android:layout_height="20dp"
+                android:src="@drawable/ic_search"
+                android:tint="#6366F1"
+                android:contentDescription="@null" />
+
+            <EditText
+                android:id="@+id/etSearch"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:layout_marginHorizontal="12dp"
+                android:background="@null"
+                android:hint="Поиск в чате..."
+                android:textColorHint="#4B5563"
+                android:textColor="#FFFFFF"
+                android:textSize="15sp"
+                android:singleLine="true"
+                android:imeOptions="actionSearch" />
+
+            <TextView
+                android:id="@+id/tvSearchCount"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginEnd="8dp"
+                android:textColor="#64748B"
+                android:textSize="12sp" />
+
+            <ImageView
+                android:id="@+id/btnCloseSearch"
+                android:layout_width="32dp"
+                android:layout_height="32dp"
+                android:padding="6dp"
+                android:src="@drawable/ic_close"
+                android:tint="#64748B"
+                android:background="?attr/selectableItemBackgroundBorderless"
+                android:contentDescription="@null" />
+        </LinearLayout>
+
+        <View
+            android:id="@+id/searchDivider"
+            android:layout_width="match_parent"
+            android:layout_height="1dp"
+            android:background="@color/ft_divider"
+            android:visibility="gone" />
+
         <!-- Messages area -->
         <FrameLayout
             android:layout_width="match_parent"

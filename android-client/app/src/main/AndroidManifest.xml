@@ -62,6 +62,11 @@
             android:exported="false"
             android:parentActivityName=".ui.MainActivity" />
 
+        <activity
+            android:name=".ui.ChatsActivity"
+            android:exported="false"
+            android:parentActivityName=".ui.MainActivity" />
+
         <!-- FCM push-уведомления -->
         <service
             android:name=".service.FCMService"

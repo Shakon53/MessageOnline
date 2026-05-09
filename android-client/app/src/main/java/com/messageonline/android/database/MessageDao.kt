@@ -31,4 +31,7 @@ interface MessageDao {
 
     @Query("DELETE FROM messages WHERE timestamp = :ts AND senderUsername = :sender")
     suspend fun deleteByTimestampAndSender(ts: Long, sender: String)
+
+    @Query("SELECT * FROM messages WHERE isGlobal = 0 ORDER BY timestamp DESC LIMIT 1000")
+    suspend fun getAllPrivateMessages(): List<MessageEntity>
 }

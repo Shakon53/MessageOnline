@@ -15,6 +15,11 @@
         app:showAsAction="always" />
 
     <item
+        android:id="@+id/menu_chats"
+        android:title="Личные чаты"
+        app:showAsAction="never" />
+
+    <item
         android:id="@+id/menu_profile"
         android:title="Мой профиль"
         app:showAsAction="never" />
