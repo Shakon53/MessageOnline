@@ -9,96 +9,113 @@
     app:cardBackgroundColor="#1A2236"
     app:cardCornerRadius="16dp"
     app:cardElevation="0dp"
-    app:strokeColor="#26FFFFFF"
+    app:strokeColor="#3D6366F1"
     app:strokeWidth="1dp">
 
     <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:gravity="center_vertical"
-        android:orientation="horizontal"
+        android:orientation="vertical"
         android:paddingHorizontal="16dp"
-        android:paddingVertical="12dp">
+        android:paddingTop="14dp"
+        android:paddingBottom="12dp">
 
-        <!-- Avatar -->
-        <FrameLayout
-            android:layout_width="50dp"
-            android:layout_height="50dp"
-            android:layout_marginEnd="14dp">
-
-            <View
-                android:layout_width="50dp"
-                android:layout_height="50dp"
-                android:background="@drawable/avatar_circle_bg" />
-
-            <TextView
-                android:id="@+id/tvFriendInitial"
-                android:layout_width="match_parent"
-                android:layout_height="match_parent"
-                android:gravity="center"
-                android:textColor="#FFFFFF"
-                android:textSize="20sp"
-                android:textStyle="bold" />
-
-            <ImageView
-                android:id="@+id/ivFriendAvatar"
-                android:layout_width="50dp"
-                android:layout_height="50dp"
-                android:scaleType="centerCrop"
-                android:visibility="gone" />
-        </FrameLayout>
-
-        <!-- Name + status -->
+        <!-- Header row: avatar + name -->
         <LinearLayout
-            android:layout_width="0dp"
+            android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:layout_weight="1"
-            android:orientation="vertical">
+            android:orientation="horizontal"
+            android:gravity="center_vertical">
 
-            <TextView
-                android:id="@+id/tvFriendName"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:textColor="#FFFFFF"
-                android:textSize="15sp"
-                android:textStyle="bold" />
+            <!-- Avatar -->
+            <FrameLayout
+                android:layout_width="46dp"
+                android:layout_height="46dp"
+                android:layout_marginEnd="12dp">
 
-            <TextView
-                android:id="@+id/tvFriendStatus"
-                android:layout_width="match_parent"
+                <View
+                    android:layout_width="46dp"
+                    android:layout_height="46dp"
+                    android:background="@drawable/avatar_circle_bg" />
+
+                <TextView
+                    android:id="@+id/tvFriendInitial"
+                    android:layout_width="match_parent"
+                    android:layout_height="match_parent"
+                    android:gravity="center"
+                    android:textColor="#FFFFFF"
+                    android:textSize="18sp"
+                    android:textStyle="bold" />
+
+                <ImageView
+                    android:id="@+id/ivFriendAvatar"
+                    android:layout_width="46dp"
+                    android:layout_height="46dp"
+                    android:scaleType="centerCrop"
+                    android:visibility="gone" />
+            </FrameLayout>
+
+            <LinearLayout
+                android:layout_width="0dp"
                 android:layout_height="wrap_content"
-                android:layout_marginTop="2dp"
-                android:textColor="#94A3B8"
-                android:textSize="12sp"
-                android:maxLines="1"
-                android:ellipsize="end" />
+                android:layout_weight="1"
+                android:orientation="vertical">
+
+                <TextView
+                    android:id="@+id/tvFriendName"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:textColor="#FFFFFF"
+                    android:textSize="15sp"
+                    android:textStyle="bold" />
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="Хочет добавить вас в друзья"
+                    android:textColor="#818CF8"
+                    android:textSize="12sp"
+                    android:layout_marginTop="2dp" />
+
+                <TextView
+                    android:id="@+id/tvFriendStatus"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:textColor="#64748B"
+                    android:textSize="11sp"
+                    android:visibility="gone" />
+            </LinearLayout>
         </LinearLayout>
 
-        <!-- Accept / Decline buttons -->
+        <!-- Action buttons -->
         <LinearLayout
-            android:layout_width="wrap_content"
+            android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:orientation="horizontal">
+            android:orientation="horizontal"
+            android:layout_marginTop="12dp">
 
             <com.google.android.material.button.MaterialButton
                 android:id="@+id/btnAccept"
-                style="@style/Widget.Material3.Button.TonalButton"
-                android:layout_width="wrap_content"
-                android:layout_height="36dp"
-                android:text="✓"
-                android:textSize="16sp"
-                android:layout_marginEnd="6dp"
-                app:backgroundTint="#1A6366F1"
+                style="@style/Widget.Material3.Button"
+                android:layout_width="0dp"
+                android:layout_height="40dp"
+                android:layout_weight="1"
+                android:layout_marginEnd="8dp"
+                android:text="Принять"
+                android:textSize="13sp"
+                app:backgroundTint="#6366F1"
                 app:cornerRadius="10dp" />
 
             <com.google.android.material.button.MaterialButton
                 android:id="@+id/btnDecline"
-                style="@style/Widget.Material3.Button.TonalButton"
-                android:layout_width="wrap_content"
-                android:layout_height="36dp"
-                android:text="✕"
-                android:textSize="16sp"
-                app:backgroundTint="#1AEF4444"
+                style="@style/Widget.Material3.Button.OutlinedButton"
+                android:layout_width="0dp"
+                android:layout_height="40dp"
+                android:layout_weight="1"
+                android:text="Отклонить"
+                android:textSize="13sp"
+                android:textColor="#94A3B8"
+                app:strokeColor="#334155"
                 app:cornerRadius="10dp" />
         </LinearLayout>
 

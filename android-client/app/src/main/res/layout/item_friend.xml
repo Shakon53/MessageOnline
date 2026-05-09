@@ -22,13 +22,13 @@
 
         <!-- Avatar with online dot -->
         <FrameLayout
-            android:layout_width="50dp"
-            android:layout_height="50dp"
-            android:layout_marginEnd="14dp">
+            android:layout_width="46dp"
+            android:layout_height="46dp"
+            android:layout_marginEnd="12dp">
 
             <View
-                android:layout_width="50dp"
-                android:layout_height="50dp"
+                android:layout_width="46dp"
+                android:layout_height="46dp"
                 android:background="@drawable/avatar_circle_bg" />
 
             <TextView
@@ -37,20 +37,20 @@
                 android:layout_height="match_parent"
                 android:gravity="center"
                 android:textColor="#FFFFFF"
-                android:textSize="20sp"
+                android:textSize="18sp"
                 android:textStyle="bold" />
 
             <ImageView
                 android:id="@+id/ivFriendAvatar"
-                android:layout_width="50dp"
-                android:layout_height="50dp"
+                android:layout_width="46dp"
+                android:layout_height="46dp"
                 android:scaleType="centerCrop"
                 android:visibility="gone" />
 
             <View
                 android:id="@+id/vOnlineDot"
-                android:layout_width="13dp"
-                android:layout_height="13dp"
+                android:layout_width="12dp"
+                android:layout_height="12dp"
                 android:layout_gravity="bottom|end"
                 android:background="@drawable/shape_online_dot"
                 android:visibility="gone" />
@@ -83,27 +83,30 @@
         </LinearLayout>
 
         <!-- Chat button -->
-        <ImageView
+        <com.google.android.material.button.MaterialButton
             android:id="@+id/btnStartChat"
-            android:layout_width="38dp"
-            android:layout_height="38dp"
-            android:padding="7dp"
-            android:src="@drawable/ic_send"
-            android:tint="#6366F1"
-            android:background="?attr/selectableItemBackgroundBorderless"
-            android:contentDescription="@null"
-            android:layout_marginEnd="4dp" />
+            style="@style/Widget.Material3.Button.TonalButton"
+            android:layout_width="wrap_content"
+            android:layout_height="36dp"
+            android:text="Чат"
+            android:textSize="12sp"
+            android:layout_marginEnd="8dp"
+            app:backgroundTint="#1A6366F1"
+            app:cornerRadius="10dp"
+            app:icon="@drawable/ic_message"
+            app:iconSize="14dp"
+            app:iconPadding="4dp" />
 
         <!-- Remove button -->
         <ImageView
             android:id="@+id/btnRemoveFriend"
-            android:layout_width="38dp"
-            android:layout_height="38dp"
-            android:padding="9dp"
+            android:layout_width="36dp"
+            android:layout_height="36dp"
+            android:padding="8dp"
             android:src="@drawable/ic_close"
-            android:tint="#64748B"
+            android:tint="#475569"
             android:background="?attr/selectableItemBackgroundBorderless"
-            android:contentDescription="@null" />
+            android:contentDescription="Удалить" />
 
     </LinearLayout>
 </com.google.android.material.card.MaterialCardView>

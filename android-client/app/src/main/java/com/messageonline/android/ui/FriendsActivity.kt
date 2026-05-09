@@ -4,6 +4,7 @@ import android.content.ClipData
 import android.content.ClipboardManager
 import android.content.Intent
 import android.os.Bundle
+import android.view.View
 import android.widget.EditText
 import android.widget.Toast
 import androidx.activity.viewModels
@@ -29,27 +30,31 @@ class FriendsActivity : AppCompatActivity() {
         setContentView(binding.root)
 
         setSupportActionBar(binding.toolbar)
+        supportActionBar?.setDisplayShowTitleEnabled(true)
         binding.toolbar.setNavigationOnClickListener { onBackPressedDispatcher.onBackPressed() }
 
-        // Show own ID
+        // Show own ID — entire card is clickable to copy
         val myId = ChatSession.userId
-        binding.tvMyId.text = "Ваш ID: #$myId"
-        binding.tvMyId.setOnClickListener {
-            val cm = getSystemService(CLIPBOARD_SERVICE) as ClipboardManager
-            cm.setPrimaryClip(ClipData.newPlainText("id", "#$myId"))
-            Toast.makeText(this, "ID скопирован", Toast.LENGTH_SHORT).show()
-        }
+        binding.tvMyId.text = "#$myId"
+        // Make the whole ID card clickable
+        (binding.tvMyId.parent.parent as? View)?.setOnClickListener { copyMyId(myId) }
+        binding.tvMyId.setOnClickListener { copyMyId(myId) }
 
         setupRecyclerView()
         setupObservers()
 
         binding.btnAddFriend.setOnClickListener { showAddFriendDialog() }
 
-        binding.swipeRefresh.setOnRefreshListener {
-            viewModel.refreshFriends()
-        }
+        binding.swipeRefresh.setColorSchemeColors(0xFF6366F1.toInt())
+        binding.swipeRefresh.setOnRefreshListener { viewModel.refreshFriends() }
 
         viewModel.refreshFriends()
+    }
+
+    private fun copyMyId(id: Int) {
+        val cm = getSystemService(CLIPBOARD_SERVICE) as ClipboardManager
+        cm.setPrimaryClip(ClipData.newPlainText("id", "$id"))
+        Toast.makeText(this, "ID #$id скопирован", Toast.LENGTH_SHORT).show()
     }
 
     private fun setupRecyclerView() {
@@ -61,7 +66,7 @@ class FriendsActivity : AppCompatActivity() {
             },
             onAccept = { friend ->
                 viewModel.acceptFriend(friend.userId)
-                Toast.makeText(this, "Принято!", Toast.LENGTH_SHORT).show()
+                Toast.makeText(this, "✓ Запрос принят", Toast.LENGTH_SHORT).show()
             },
             onDecline = { friend ->
                 viewModel.declineFriend(friend.userId)
@@ -70,9 +75,7 @@ class FriendsActivity : AppCompatActivity() {
                 MaterialAlertDialogBuilder(this)
                     .setTitle("Удалить из друзей")
                     .setMessage("Убрать ${friend.username} из списка друзей?")
-                    .setPositiveButton("Удалить") { _, _ ->
-                        viewModel.removeFriend(friend.userId)
-                    }
+                    .setPositiveButton("Удалить") { _, _ -> viewModel.removeFriend(friend.userId) }
                     .setNegativeButton("Отмена", null)
                     .show()
             }
@@ -88,12 +91,13 @@ class FriendsActivity : AppCompatActivity() {
             val requests = viewModel.friendRequests.value ?: emptyList()
             adapter.setData(friends, requests)
             binding.swipeRefresh.isRefreshing = false
-            supportActionBar?.subtitle = if (friends.isEmpty()) null else "${friends.size} друзей"
+            updateEmptyState(friends.isEmpty() && requests.isEmpty())
         }
 
         viewModel.friendRequests.observe(this) { requests ->
             val friends = viewModel.friends.value ?: emptyList()
             adapter.setData(friends, requests)
+            updateEmptyState(friends.isEmpty() && requests.isEmpty())
         }
 
         viewModel.notification.observe(this) { msg ->
@@ -103,25 +107,27 @@ class FriendsActivity : AppCompatActivity() {
         }
     }
 
+    private fun updateEmptyState(isEmpty: Boolean) {
+        binding.layoutEmpty.visibility = if (isEmpty) View.VISIBLE else View.GONE
+        binding.rvFriends.visibility  = if (isEmpty) View.GONE  else View.VISIBLE
+    }
+
     private fun showAddFriendDialog() {
         val et = EditText(this).apply {
-            hint = "Введите ID (например 1234)"
+            hint = "Введите ID пользователя"
             inputType = android.text.InputType.TYPE_CLASS_NUMBER
-            setPadding(48, 24, 48, 24)
+            setPadding(56, 32, 56, 16)
         }
         MaterialAlertDialogBuilder(this)
-            .setTitle("Добавить друга")
+            .setTitle("👥 Добавить друга")
             .setMessage("Попросите друга открыть профиль и сообщить вам его ID")
             .setView(et)
             .setPositiveButton("Отправить запрос") { _, _ ->
-                val idStr = et.text.toString().trim()
-                val id = idStr.toIntOrNull()
-                if (id == null || id <= 0) {
-                    Toast.makeText(this, "Введите корректный ID", Toast.LENGTH_SHORT).show()
-                } else if (id == ChatSession.userId) {
-                    Toast.makeText(this, "Нельзя добавить себя", Toast.LENGTH_SHORT).show()
-                } else {
-                    viewModel.addFriend(id)
+                val id = et.text.toString().trim().toIntOrNull()
+                when {
+                    id == null || id <= 0     -> Toast.makeText(this, "Введите корректный ID", Toast.LENGTH_SHORT).show()
+                    id == ChatSession.userId  -> Toast.makeText(this, "Нельзя добавить себя", Toast.LENGTH_SHORT).show()
+                    else                      -> viewModel.addFriend(id)
                 }
             }
             .setNegativeButton("Отмена", null)
