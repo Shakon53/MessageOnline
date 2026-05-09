@@ -6,5 +6,6 @@ package com.messageonline.android.model
 data class OnlineUser(
     val id: Int,
     val username: String,
-    val online: Boolean = true
+    val online: Boolean = true,
+    val statusText: String = ""
 )

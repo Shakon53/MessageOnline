@@ -1,0 +1,47 @@
+{
+  "project_info": {
+    "project_number": "207861337669",
+    "project_id": "messageonline-f4a55",
+    "storage_bucket": "messageonline-f4a55.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:207861337669:android:427b4c55fb4d804e869d2c",
+        "android_client_info": {
+          "package_name": "com.messageonline.android"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "207861337669-ebig0eo2oei0m1jf8221hmqeub63o176.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.messageonline.android",
+            "certificate_hash": "4081c530aaab12501f8ec0a7fe10cda92e71cf4b"
+          }
+        },
+        {
+          "client_id": "207861337669-ebnjrgn68lcm107c9isvum3gmmaishcc.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyB_EDegLEYtuW1tCt6HKugIRGbSNER43Ew"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "207861337669-ebnjrgn68lcm107c9isvum3gmmaishcc.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

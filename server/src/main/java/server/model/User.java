@@ -7,22 +7,23 @@ package server.model;
 public class User {
     private int id;
     private String username;
-    private String email;
-    private String passwordHash; // Хэш пароля (SHA-256 + соль)
+    private String phone;
+    private String passwordHash;
+    private String statusText = "Привет, я использую MessageOnline";
     private boolean online;
 
     public User() {}
 
-    public User(int id, String username, String email) {
+    public User(int id, String username, String phone) {
         this.id = id;
         this.username = username;
-        this.email = email;
+        this.phone = phone;
     }
 
-    public User(int id, String username, String email, String passwordHash) {
+    public User(int id, String username, String phone, String passwordHash) {
         this.id = id;
         this.username = username;
-        this.email = email;
+        this.phone = phone;
         this.passwordHash = passwordHash;
     }
 
@@ -33,11 +34,14 @@ public class User {
     public String getUsername() { return username; }
     public void setUsername(String username) { this.username = username; }
 
-    public String getEmail() { return email; }
-    public void setEmail(String email) { this.email = email; }
+    public String getPhone() { return phone; }
+    public void setPhone(String phone) { this.phone = phone; }
 
     public String getPasswordHash() { return passwordHash; }
     public void setPasswordHash(String passwordHash) { this.passwordHash = passwordHash; }
+
+    public String getStatusText() { return statusText; }
+    public void setStatusText(String statusText) { this.statusText = statusText; }
 
     public boolean isOnline() { return online; }
     public void setOnline(boolean online) { this.online = online; }

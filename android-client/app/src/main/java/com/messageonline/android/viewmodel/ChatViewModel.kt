@@ -9,6 +9,7 @@ import androidx.lifecycle.LiveData
 import androidx.lifecycle.MutableLiveData
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.messageonline.android.R
 import com.messageonline.android.model.ChatMessage
 import com.messageonline.android.model.ChatSession
 import com.messageonline.android.model.OnlineUser
@@ -54,6 +55,13 @@ class ChatViewModel : ViewModel() {
 
     private val _notification = MutableLiveData<String>()
     val notification: LiveData<String> = _notification
+
+    // typing: Pair(senderUsername, isTyping)
+    private val _typing = MutableLiveData<Pair<String, Boolean>>()
+    val typing: LiveData<Pair<String, Boolean>> = _typing
+
+    private val _profileUpdated = MutableLiveData<Unit>()
+    val profileUpdated: LiveData<Unit> = _profileUpdated
 
     // ==================== ТЕКУЩИЙ ПОЛЬЗОВАТЕЛЬ ====================
 
@@ -111,7 +119,11 @@ class ChatViewModel : ViewModel() {
             Packet.LOGIN_SUCCESS -> {
                 myUserId = json.optInt("userId")
                 myUsername = json.optString("username")
-                ChatSession.login(myUserId, myUsername)
+                ChatSession.login(
+                    myUserId, myUsername,
+                    json.optString("phone"),
+                    json.optString("statusText")
+                )
                 _loginResult.postValue(AuthResult(true))
             }
 
@@ -149,7 +161,8 @@ class ChatViewModel : ViewModel() {
                     users.add(OnlineUser(
                         id = u.optInt("id"),
                         username = u.optString("username"),
-                        online = u.optBoolean("online", true)
+                        online = u.optBoolean("online", true),
+                        statusText = u.optString("statusText")
                     ))
                 }
                 _onlineUsers.postValue(users)
@@ -204,19 +217,36 @@ class ChatViewModel : ViewModel() {
             Packet.ERROR -> {
                 _notification.postValue(json.optString("message"))
             }
+
+            Packet.TYPING -> {
+                _typing.postValue(Pair(
+                    json.optString("senderUsername"),
+                    json.optBoolean("isTyping")
+                ))
+            }
+
+            Packet.PROFILE_UPDATED -> {
+                val updatedUsername = json.optString("username")
+                val updatedStatus = json.optString("statusText")
+                if (updatedUsername == myUsername) {
+                    ChatSession.statusText = updatedStatus
+                }
+                val list = _onlineUsers.value ?: mutableListOf()
+                val idx = list.indexOfFirst { it.username == updatedUsername }
+                if (idx >= 0) {
+                    list[idx] = list[idx].copy(statusText = updatedStatus)
+                    _onlineUsers.postValue(list)
+                }
+                _profileUpdated.postValue(Unit)
+            }
         }
     }
 
     // ==================== ПОДКЛЮЧЕНИЕ ====================
 
-    fun connect(host: String, port: Int) {
+    fun connect() {
         _connectionStatus.value = ConnectionStatus.CONNECTING
-        SocketManager.serverHost = host
-        SocketManager.serverPort = port
-
-        viewModelScope.launch(Dispatchers.IO) {
-            SocketManager.connect()
-        }
+        SocketManager.connect()
     }
 
     // ==================== АВТОРИЗАЦИЯ ====================
@@ -225,8 +255,8 @@ class ChatViewModel : ViewModel() {
         SocketManager.sendLogin(username, password)
     }
 
-    fun register(username: String, email: String, password: String) {
-        SocketManager.sendRegister(username, email, password)
+    fun register(username: String, phone: String, password: String) {
+        SocketManager.sendRegister(username, phone, password)
     }
 
     fun logout() {
@@ -265,6 +295,14 @@ class ChatViewModel : ViewModel() {
 
     fun refreshUsers() {
         SocketManager.requestUserList()
+    }
+
+    fun sendTyping(receiverUsername: String, isTyping: Boolean) {
+        SocketManager.sendTyping(receiverUsername, isTyping)
+    }
+
+    fun updateProfile(statusText: String) {
+        SocketManager.sendUpdateProfile(statusText)
     }
 
     // ==================== СИСТЕМНЫЕ УВЕДОМЛЕНИЯ ====================

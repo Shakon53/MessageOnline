@@ -12,7 +12,6 @@ import androidx.recyclerview.widget.LinearLayoutManager
 import com.messageonline.android.R
 import com.messageonline.android.adapter.MessageAdapter
 import com.messageonline.android.databinding.ActivityMainBinding
-import com.messageonline.android.model.ChatSession
 import com.messageonline.android.viewmodel.ChatViewModel
 
 /**
@@ -38,7 +37,7 @@ class MainActivity : AppCompatActivity() {
 
         setSupportActionBar(binding.toolbar)
         supportActionBar?.title = "Общий чат"
-        supportActionBar?.subtitle = "Подключено: ${ChatSession.username}"
+        supportActionBar?.subtitle = "Подключено: ${viewModel.myUsername}"
 
         setupRecyclerView()
         setupObservers()
@@ -50,7 +49,7 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun setupRecyclerView() {
-        messageAdapter = MessageAdapter(mutableListOf(), ChatSession.username)
+        messageAdapter = MessageAdapter(mutableListOf(), viewModel.myUsername)
         layoutManager = LinearLayoutManager(this).apply {
             stackFromEnd = true // Новые сообщения снизу
         }
@@ -78,7 +77,7 @@ class MainActivity : AppCompatActivity() {
                     showReconnectDialog()
                 }
                 ChatViewModel.ConnectionStatus.CONNECTED ->
-                    binding.toolbar.subtitle = ChatSession.username
+                    binding.toolbar.subtitle = viewModel.myUsername
                 else -> {}
             }
         }
@@ -121,6 +120,10 @@ class MainActivity : AppCompatActivity() {
 
     override fun onOptionsItemSelected(item: MenuItem): Boolean {
         return when (item.itemId) {
+            R.id.menu_profile -> {
+                startActivity(Intent(this, ProfileActivity::class.java))
+                true
+            }
             R.id.menu_logout -> {
                 confirmLogout()
                 true

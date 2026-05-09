@@ -28,4 +28,8 @@ object Packet {
 
     const val ERROR                 = "ERROR"
     const val NOTIFICATION          = "NOTIFICATION"
+
+    const val TYPING                = "TYPING"
+    const val UPDATE_PROFILE        = "UPDATE_PROFILE"
+    const val PROFILE_UPDATED       = "PROFILE_UPDATED"
 }

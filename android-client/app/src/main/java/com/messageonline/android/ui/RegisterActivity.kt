@@ -1,34 +1,31 @@
 package com.messageonline.android.ui
 
-import android.content.Intent
 import android.os.Bundle
 import android.view.View
 import android.widget.Toast
 import androidx.activity.viewModels
 import androidx.appcompat.app.AppCompatActivity
-import androidx.lifecycle.lifecycleScope
 import com.messageonline.android.databinding.ActivityRegisterBinding
 import com.messageonline.android.network.ServerConfig
 import com.messageonline.android.network.SocketManager
 import com.messageonline.android.viewmodel.ChatViewModel
-import kotlinx.coroutines.launch
 
-/**
- * Экран регистрации нового пользователя.
- */
 class RegisterActivity : AppCompatActivity() {
 
     private lateinit var binding: ActivityRegisterBinding
     private val viewModel: ChatViewModel by viewModels()
+
+    private var verifiedEmail: String = ""
+    private var pendingRegister: Triple<String, String, String>? = null // username, email, password
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         binding = ActivityRegisterBinding.inflate(layoutInflater)
         setContentView(binding.root)
 
-        // Подставляем адрес сервера из ServerConfig по умолчанию
-        binding.etServerHost.setText(ServerConfig.HOST)
-        binding.etServerPort.setText(ServerConfig.PORT.toString())
+        // Получаем email от Google Sign-In
+        verifiedEmail = intent.getStringExtra("verified_phone") ?: ""
+        binding.etPhone.setText(verifiedEmail)
 
         setupObservers()
         setupClickListeners()
@@ -38,18 +35,29 @@ class RegisterActivity : AppCompatActivity() {
         viewModel.registerResult.observe(this) { result ->
             setLoading(false)
             if (result.success) {
-                Toast.makeText(this, "Регистрация успешна! Теперь войдите в аккаунт",
+                Toast.makeText(this, "Регистрация успешна! Войдите в аккаунт",
                     Toast.LENGTH_LONG).show()
-                finish() // Возвращаемся на экран входа
+                finish()
             } else {
-                showError(result.message)
+                showError(result.message.ifEmpty { "Ошибка регистрации" })
             }
         }
 
         viewModel.connectionStatus.observe(this) { status ->
-            if (status == ChatViewModel.ConnectionStatus.ERROR) {
-                setLoading(false)
-                showError("Не удалось подключиться к серверу")
+            when (status) {
+                ChatViewModel.ConnectionStatus.CONNECTED -> {
+                    val p = pendingRegister
+                    if (p != null) {
+                        pendingRegister = null
+                        viewModel.register(p.first, p.second, p.third) // username, email, password
+                    }
+                }
+                ChatViewModel.ConnectionStatus.ERROR -> {
+                    pendingRegister = null
+                    setLoading(false)
+                    showError("Сервер недоступен. Проверьте интернет-соединение.")
+                }
+                else -> {}
             }
         }
     }
@@ -58,39 +66,33 @@ class RegisterActivity : AppCompatActivity() {
         binding.btnBack.setOnClickListener { finish() }
 
         binding.btnRegister.setOnClickListener {
-            val host = binding.etServerHost.text.toString().trim()
-            val portStr = binding.etServerPort.text.toString().trim()
+            if (!validateInput()) return@setOnClickListener
+
             val username = binding.etUsername.text.toString().trim()
-            val email = binding.etEmail.text.toString().trim()
             val password = binding.etPassword.text.toString()
-            val passwordConfirm = binding.etPasswordConfirm.text.toString()
 
-            // Валидация
-            when {
-                host.isEmpty() -> { showError("Укажите адрес сервера"); return@setOnClickListener }
-                username.length < 3 -> { showError("Имя минимум 3 символа"); return@setOnClickListener }
-                !email.contains("@") -> { showError("Неверный email"); return@setOnClickListener }
-                password.length < 4 -> { showError("Пароль минимум 4 символа"); return@setOnClickListener }
-                password != passwordConfirm -> { showError("Пароли не совпадают"); return@setOnClickListener }
-            }
-
-            val port = portStr.toIntOrNull() ?: 8888
             setLoading(true)
 
             if (SocketManager.isConnected) {
-                viewModel.register(username, email, password)
+                viewModel.register(username, verifiedEmail, password)
             } else {
-                viewModel.connect(host, port)
-                lifecycleScope.launch {
-                    kotlinx.coroutines.delay(1500)
-                    if (SocketManager.isConnected) {
-                        viewModel.register(username, email, password)
-                    } else {
-                        setLoading(false)
-                        showError("Не удалось подключиться к серверу")
-                    }
-                }
+                pendingRegister = Triple(username, verifiedEmail, password)
+                viewModel.connect()
             }
+        }
+    }
+
+    private fun validateInput(): Boolean {
+        val username = binding.etUsername.text.toString().trim()
+        val password = binding.etPassword.text.toString()
+        val confirm = binding.etPasswordConfirm.text.toString()
+
+        return when {
+            verifiedEmail.isEmpty() -> { showError("Email не получен от Google"); false }
+            username.length < 3 -> { showError("Имя слишком короткое (мин. 3 символа)"); false }
+            password.length < 4 -> { showError("Пароль минимум 4 символа"); false }
+            password != confirm -> { showError("Пароли не совпадают"); false }
+            else -> true
         }
     }
 

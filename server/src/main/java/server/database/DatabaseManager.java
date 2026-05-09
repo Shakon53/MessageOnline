@@ -64,13 +64,18 @@ public class DatabaseManager {
             // Таблица пользователей
             stmt.execute("""
                 CREATE TABLE IF NOT EXISTS users (
-                    id           INTEGER PRIMARY KEY AUTOINCREMENT,
-                    username     TEXT    NOT NULL UNIQUE,
-                    email        TEXT    NOT NULL UNIQUE,
-                    password_hash TEXT   NOT NULL,
-                    created_at   INTEGER NOT NULL DEFAULT (strftime('%s','now') * 1000)
+                    id            INTEGER PRIMARY KEY AUTOINCREMENT,
+                    username      TEXT    NOT NULL UNIQUE,
+                    phone         TEXT    NOT NULL UNIQUE,
+                    password_hash TEXT    NOT NULL,
+                    status_text   TEXT    NOT NULL DEFAULT 'Привет, я использую MessageOnline',
+                    created_at    INTEGER NOT NULL DEFAULT (strftime('%s','now') * 1000)
                 )
             """);
+
+            // Миграции
+            try { stmt.execute("ALTER TABLE users RENAME COLUMN email TO phone"); ServerLogger.info("Migration: email→phone"); } catch (Exception ignored) {}
+            try { stmt.execute("ALTER TABLE users ADD COLUMN status_text TEXT NOT NULL DEFAULT 'Привет, я использую MessageOnline'"); ServerLogger.info("Migration: added status_text"); } catch (Exception ignored) {}
 
             // Таблица сообщений
             stmt.execute("""
@@ -105,25 +110,23 @@ public class DatabaseManager {
      * Регистрация нового пользователя.
      * @return User с id если успешно, null если имя/email уже занято
      */
-    public synchronized User registerUser(String username, String email, String password) {
-        // Проверяем уникальность
+    public synchronized User registerUser(String username, String phone, String password) {
         if (isUsernameTaken(username)) return null;
 
-        String sql = "INSERT INTO users (username, email, password_hash) VALUES (?, ?, ?)";
+        String sql = "INSERT INTO users (username, phone, password_hash) VALUES (?, ?, ?)";
         try (PreparedStatement ps = connection.prepareStatement(sql,
                 Statement.RETURN_GENERATED_KEYS)) {
 
             ps.setString(1, username);
-            ps.setString(2, email);
+            ps.setString(2, phone);
             ps.setString(3, PasswordUtil.hashPassword(password));
             ps.executeUpdate();
 
-            // Получаем сгенерированный id
             ResultSet keys = ps.getGeneratedKeys();
             if (keys.next()) {
                 int id = keys.getInt(1);
                 ServerLogger.info("Зарегистрирован пользователь: " + username + " (id=" + id + ")");
-                return new User(id, username, email);
+                return new User(id, username, phone);
             }
         } catch (SQLException e) {
             ServerLogger.error("Ошибка регистрации: " + e.getMessage());
@@ -136,7 +139,7 @@ public class DatabaseManager {
      * @return User если данные верны, null если нет
      */
     public synchronized User loginUser(String username, String password) {
-        String sql = "SELECT id, username, email, password_hash FROM users WHERE username = ?";
+        String sql = "SELECT id, username, phone, password_hash, status_text FROM users WHERE username = ?";
         try (PreparedStatement ps = connection.prepareStatement(sql)) {
             ps.setString(1, username);
             ResultSet rs = ps.executeQuery();
@@ -144,18 +147,16 @@ public class DatabaseManager {
             if (rs.next()) {
                 String storedHash = rs.getString("password_hash");
                 if (PasswordUtil.verifyPassword(password, storedHash)) {
-                    return new User(
-                            rs.getInt("id"),
-                            rs.getString("username"),
-                            rs.getString("email"),
-                            storedHash
-                    );
+                    User user = new User(rs.getInt("id"), rs.getString("username"),
+                            rs.getString("phone"), storedHash);
+                    user.setStatusText(rs.getString("status_text"));
+                    return user;
                 }
             }
         } catch (SQLException e) {
             ServerLogger.error("Ошибка входа: " + e.getMessage());
         }
-        return null; // Неверный логин/пароль
+        return null;
     }
 
     /** Проверить занятость имени пользователя */
@@ -175,18 +176,16 @@ public class DatabaseManager {
      * Используется для загрузки истории личных сообщений, даже если собеседник офлайн.
      */
     public synchronized User getUserByUsername(String username) {
-        String sql = "SELECT id, username, email, password_hash FROM users WHERE username = ?";
+        String sql = "SELECT id, username, phone, password_hash, status_text FROM users WHERE username = ?";
         try (PreparedStatement ps = connection.prepareStatement(sql)) {
             ps.setString(1, username);
             ResultSet rs = ps.executeQuery();
 
             if (rs.next()) {
-                return new User(
-                        rs.getInt("id"),
-                        rs.getString("username"),
-                        rs.getString("email"),
-                        rs.getString("password_hash")
-                );
+                User user = new User(rs.getInt("id"), rs.getString("username"),
+                        rs.getString("phone"), rs.getString("password_hash"));
+                user.setStatusText(rs.getString("status_text"));
+                return user;
             }
         } catch (SQLException e) {
             ServerLogger.error("Ошибка поиска пользователя: " + e.getMessage());
@@ -309,6 +308,19 @@ public class DatabaseManager {
             ServerLogger.error("Ошибка получения истории: " + e.getMessage());
         }
         return result;
+    }
+
+    /** Обновить статус профиля пользователя */
+    public synchronized boolean updateProfile(int userId, String statusText) {
+        String sql = "UPDATE users SET status_text = ? WHERE id = ?";
+        try (PreparedStatement ps = connection.prepareStatement(sql)) {
+            ps.setString(1, statusText);
+            ps.setInt(2, userId);
+            return ps.executeUpdate() > 0;
+        } catch (SQLException e) {
+            ServerLogger.error("Ошибка обновления профиля: " + e.getMessage());
+            return false;
+        }
     }
 
     /** Закрыть соединение с БД */

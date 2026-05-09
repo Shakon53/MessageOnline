@@ -3,6 +3,12 @@
     xmlns:app="http://schemas.android.com/apk/res-auto">
 
     <item
+        android:id="@+id/menu_profile"
+        android:title="Профиль"
+        android:icon="@android:drawable/ic_menu_myplaces"
+        app:showAsAction="ifRoom" />
+
+    <item
         android:id="@+id/menu_logout"
         android:title="Выйти"
         android:icon="@android:drawable/ic_menu_close_clear_cancel"

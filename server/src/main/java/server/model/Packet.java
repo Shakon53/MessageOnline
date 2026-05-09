@@ -48,6 +48,10 @@ public class Packet {
     public static final String ERROR             = "ERROR";
     public static final String NOTIFICATION      = "NOTIFICATION";
 
+    public static final String TYPING           = "TYPING";
+    public static final String UPDATE_PROFILE   = "UPDATE_PROFILE";
+    public static final String PROFILE_UPDATED  = "PROFILE_UPDATED";
+
     // ===================== ФАБРИЧНЫЕ МЕТОДЫ =====================
 
     /** Успешная регистрация */
@@ -69,11 +73,18 @@ public class Packet {
 
     /** Успешный вход */
     public static String loginSuccess(int userId, String username) {
-        return new JSONObject()
+        return loginSuccess(userId, username, null, null);
+    }
+
+    /** Успешный вход с профилем */
+    public static String loginSuccess(int userId, String username, String phone, String statusText) {
+        JSONObject obj = new JSONObject()
                 .put("type", LOGIN_SUCCESS)
                 .put("userId", userId)
-                .put("username", username)
-                .toString();
+                .put("username", username);
+        if (phone != null) obj.put("phone", phone);
+        if (statusText != null) obj.put("statusText", statusText);
+        return obj.toString();
     }
 
     /** Ошибка входа */
@@ -139,6 +150,25 @@ public class Packet {
         return new JSONObject()
                 .put("type", NOTIFICATION)
                 .put("content", content)
+                .toString();
+    }
+
+    /** Индикатор печатает */
+    public static String typing(String senderUsername, boolean isTyping) {
+        return new JSONObject()
+                .put("type", TYPING)
+                .put("senderUsername", senderUsername)
+                .put("isTyping", isTyping)
+                .toString();
+    }
+
+    /** Профиль обновлён */
+    public static String profileUpdated(int userId, String username, String statusText) {
+        return new JSONObject()
+                .put("type", PROFILE_UPDATED)
+                .put("userId", userId)
+                .put("username", username)
+                .put("statusText", statusText)
                 .toString();
     }
 }

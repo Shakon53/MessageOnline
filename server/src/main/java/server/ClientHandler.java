@@ -1,5 +1,6 @@
 package server;
 
+import org.java_websocket.WebSocket;
 import org.json.JSONArray;
 import org.json.JSONObject;
 import server.database.DatabaseManager;
@@ -8,82 +9,35 @@ import server.model.Packet;
 import server.model.User;
 import server.util.ServerLogger;
 
-import java.io.*;
-import java.net.Socket;
+public class ClientHandler {
 
-/**
- * Обработчик одного клиентского подключения.
- *
- * Каждый клиент получает свой поток (Thread).
- * Читает JSON-пакеты от клиента и отправляет ответы.
- *
- * Жизненный цикл:
- *   1. Клиент подключается -> создаётся ClientHandler
- *   2. Клиент логинится/регистрируется -> user != null
- *   3. Клиент обменивается сообщениями
- *   4. Клиент отключается -> cleanup()
- */
-public class ClientHandler implements Runnable {
-
-    private final Socket socket;
+    private final WebSocket conn;
     private final ChatServer server;
-    private BufferedReader reader;
-    private PrintWriter writer;
-
-    // Текущий пользователь (null до авторизации)
     private User currentUser;
 
-    public ClientHandler(Socket socket, ChatServer server) {
-        this.socket = socket;
+    public ClientHandler(WebSocket conn, ChatServer server) {
+        this.conn = conn;
         this.server = server;
     }
 
-    @Override
-    public void run() {
-        try {
-            // Настраиваем потоки ввода/вывода
-            reader = new BufferedReader(
-                    new InputStreamReader(socket.getInputStream(), "UTF-8"));
-            writer = new PrintWriter(
-                    new OutputStreamWriter(socket.getOutputStream(), "UTF-8"), true);
+    // ==================== ОБРАБОТКА ПАКЕТОВ ====================
 
-            ServerLogger.info("Новое подключение: " + socket.getInetAddress().getHostAddress());
-
-            // Основной цикл чтения сообщений
-            String line;
-            while ((line = reader.readLine()) != null) {
-                if (!line.isBlank()) {
-                    handlePacket(line.trim());
-                }
-            }
-
-        } catch (IOException e) {
-            // Клиент отключился (нормальная ситуация)
-            if (currentUser != null) {
-                ServerLogger.info("Клиент отключился: " + currentUser.getUsername());
-            }
-        } finally {
-            cleanup();
-        }
-    }
-
-    /**
-     * Разбирает входящий JSON-пакет и вызывает нужный обработчик.
-     */
-    private void handlePacket(String json) {
+    public void handlePacket(String json) {
         try {
             JSONObject packet = new JSONObject(json);
             String type = packet.getString("type");
 
             switch (type) {
-                case Packet.REGISTER        -> handleRegister(packet);
-                case Packet.LOGIN           -> handleLogin(packet);
-                case Packet.LOGOUT          -> cleanup();
-                case Packet.GLOBAL_MESSAGE  -> handleGlobalMessage(packet);
-                case Packet.PRIVATE_MESSAGE -> handlePrivateMessage(packet);
-                case Packet.GET_HISTORY     -> handleGetHistory(packet);
+                case Packet.REGISTER            -> handleRegister(packet);
+                case Packet.LOGIN               -> handleLogin(packet);
+                case Packet.LOGOUT              -> cleanup();
+                case Packet.GLOBAL_MESSAGE      -> handleGlobalMessage(packet);
+                case Packet.PRIVATE_MESSAGE     -> handlePrivateMessage(packet);
+                case Packet.GET_HISTORY         -> handleGetHistory(packet);
                 case Packet.GET_PRIVATE_HISTORY -> handleGetPrivateHistory(packet);
-                case Packet.GET_USERS       -> handleGetUsers();
+                case Packet.GET_USERS           -> handleGetUsers();
+                case Packet.TYPING              -> handleTyping(packet);
+                case Packet.UPDATE_PROFILE      -> handleUpdateProfile(packet);
                 default -> send(Packet.error("Неизвестный тип пакета: " + type));
             }
 
@@ -95,13 +49,11 @@ public class ClientHandler implements Runnable {
 
     // ==================== ОБРАБОТЧИКИ ====================
 
-    /** Регистрация нового пользователя */
     private void handleRegister(JSONObject p) {
         String username = p.optString("username", "").trim();
-        String email    = p.optString("email", "").trim();
+        String phone    = p.optString("phone", "").trim();
         String password = p.optString("password", "");
 
-        // Валидация
         if (username.length() < 3) {
             send(Packet.registerFail("Имя пользователя слишком короткое (мин. 3 символа)"));
             return;
@@ -110,32 +62,28 @@ public class ClientHandler implements Runnable {
             send(Packet.registerFail("Пароль слишком короткий (мин. 4 символа)"));
             return;
         }
-        if (!email.contains("@")) {
-            send(Packet.registerFail("Неверный формат email"));
+        if (phone.length() < 5) {
+            send(Packet.registerFail("Неверный email или номер"));
             return;
         }
 
-        User user = DatabaseManager.getInstance().registerUser(username, email, password);
+        User user = DatabaseManager.getInstance().registerUser(username, phone, password);
         if (user != null) {
             send(Packet.registerSuccess(user.getId(), user.getUsername()));
-            ServerLogger.info("Регистрация: " + username);
+            ServerLogger.info("Регистрация: " + username + " (" + phone + ")");
         } else {
             send(Packet.registerFail("Имя пользователя или email уже заняты"));
         }
     }
 
-    /** Авторизация пользователя */
     private void handleLogin(JSONObject p) {
         String username = p.optString("username", "").trim();
         String password = p.optString("password", "");
 
-        // Уже авторизован?
         if (currentUser != null) {
             send(Packet.error("Вы уже авторизованы как " + currentUser.getUsername()));
             return;
         }
-
-        // Проверяем, не онлайн ли уже этот пользователь
         if (server.isUserOnline(username)) {
             send(Packet.loginFail("Пользователь уже подключён с другого устройства"));
             return;
@@ -145,17 +93,11 @@ public class ClientHandler implements Runnable {
         if (user != null) {
             currentUser = user;
             currentUser.setOnline(true);
-
-            // Регистрируемся на сервере как активный клиент
             server.addClient(this);
 
-            // Отправляем успешный ответ
-            send(Packet.loginSuccess(user.getId(), user.getUsername()));
-
-            // Уведомляем всех остальных
+            send(Packet.loginSuccess(user.getId(), user.getUsername(),
+                    user.getPhone(), user.getStatusText()));
             server.broadcastExcept(Packet.userJoined(user.getId(), user.getUsername()), this);
-
-            // Отправляем список онлайн-пользователей
             send(buildUserListPacket());
 
             ServerLogger.info("Вход: " + username);
@@ -164,7 +106,6 @@ public class ClientHandler implements Runnable {
         }
     }
 
-    /** Глобальное сообщение в общий чат */
     private void handleGlobalMessage(JSONObject p) {
         if (!checkAuthorized()) return;
 
@@ -174,25 +115,13 @@ public class ClientHandler implements Runnable {
             return;
         }
 
-        long timestamp = System.currentTimeMillis();
-        Message msg = new Message(
-                currentUser.getId(),
-                currentUser.getUsername(),
-                content,
-                timestamp
-        );
-
-        // Сохраняем в БД
+        Message msg = new Message(currentUser.getId(), currentUser.getUsername(),
+                content, System.currentTimeMillis());
         DatabaseManager.getInstance().saveMessage(msg);
-
-        // Рассылаем ВСЕМ подключённым клиентам (включая отправителя)
-        String packet = Packet.globalMessage(msg);
-        server.broadcastAll(packet);
-
+        server.broadcastAll(Packet.globalMessage(msg));
         ServerLogger.chat("[GLOBAL] " + currentUser.getUsername() + ": " + content);
     }
 
-    /** Личное сообщение конкретному пользователю */
     private void handlePrivateMessage(JSONObject p) {
         if (!checkAuthorized()) return;
 
@@ -208,92 +137,86 @@ public class ClientHandler implements Runnable {
             return;
         }
 
-        // Ищем получателя среди онлайн-клиентов
         ClientHandler receiver = server.getClientByUsername(receiverUsername);
         if (receiver == null) {
             send(Packet.error("Пользователь " + receiverUsername + " не в сети"));
             return;
         }
 
-        long timestamp = System.currentTimeMillis();
-        Message msg = new Message(
-                currentUser.getId(),
-                currentUser.getUsername(),
-                receiver.currentUser.getId(),
-                receiverUsername,
-                content,
-                timestamp
-        );
-
-        // Сохраняем в БД
+        Message msg = new Message(currentUser.getId(), currentUser.getUsername(),
+                receiver.currentUser.getId(), receiverUsername, content, System.currentTimeMillis());
         DatabaseManager.getInstance().saveMessage(msg);
 
         String packet = Packet.privateMessage(msg);
-
-        // Отправляем получателю
         receiver.send(packet);
-        // Эхо отправителю (чтобы увидел своё сообщение)
         send(packet);
-
-        // Push-уведомление получателю
-        receiver.send(Packet.notification(
-                "Новое сообщение от " + currentUser.getUsername()));
-
-        ServerLogger.chat("[PRIVATE] " + currentUser.getUsername()
-                + " -> " + receiverUsername + ": " + content);
+        receiver.send(Packet.notification("Новое сообщение от " + currentUser.getUsername()));
+        ServerLogger.chat("[PRIVATE] " + currentUser.getUsername() + " -> " + receiverUsername + ": " + content);
     }
 
-    /** Запрос истории глобального чата */
     private void handleGetHistory(JSONObject p) {
         if (!checkAuthorized()) return;
-
         int limit = Math.min(p.optInt("limit", 50), 100);
         JSONArray messages = DatabaseManager.getInstance().getGlobalHistory(limit);
-
-        String response = new JSONObject()
+        send(new JSONObject()
                 .put("type", Packet.HISTORY_RESPONSE)
                 .put("chatType", "global")
                 .put("messages", messages)
-                .toString();
-        send(response);
+                .toString());
     }
 
-    /** Запрос истории личных сообщений */
     private void handleGetPrivateHistory(JSONObject p) {
         if (!checkAuthorized()) return;
-
         String otherUsername = p.optString("otherUsername", "").trim();
         int limit = Math.min(p.optInt("limit", 50), 100);
 
         User otherUser = DatabaseManager.getInstance().getUserByUsername(otherUsername);
-        if (otherUser == null) {
-            send(Packet.error("Пользователь не найден"));
-            return;
-        }
+        if (otherUser == null) { send(Packet.error("Пользователь не найден")); return; }
 
         JSONArray messages = DatabaseManager.getInstance()
                 .getPrivateHistory(currentUser.getId(), otherUser.getId(), limit);
-
-        String response = new JSONObject()
+        send(new JSONObject()
                 .put("type", Packet.HISTORY_RESPONSE)
                 .put("chatType", "private")
                 .put("otherUsername", otherUsername)
                 .put("messages", messages)
-                .toString();
-        send(response);
+                .toString());
     }
 
-    /** Запрос списка онлайн-пользователей */
     private void handleGetUsers() {
         if (!checkAuthorized()) return;
         send(buildUserListPacket());
     }
 
-    // ==================== ВСПОМОГАТЕЛЬНЫЕ МЕТОДЫ ====================
+    private void handleTyping(JSONObject p) {
+        if (!checkAuthorized()) return;
+        String receiverUsername = p.optString("receiverUsername", "").trim();
+        boolean isTyping = p.optBoolean("isTyping", false);
+        ClientHandler receiver = server.getClientByUsername(receiverUsername);
+        if (receiver != null) {
+            receiver.send(Packet.typing(currentUser.getUsername(), isTyping));
+        }
+    }
 
-    /**
-     * Формирует пакет со списком онлайн-пользователей.
-     */
+    private void handleUpdateProfile(JSONObject p) {
+        if (!checkAuthorized()) return;
+        String statusText = p.optString("statusText", "").trim();
+        if (statusText.length() > 140) {
+            send(Packet.error("Статус слишком длинный (макс. 140 символов)"));
+            return;
+        }
+        boolean updated = DatabaseManager.getInstance().updateProfile(currentUser.getId(), statusText);
+        if (updated) {
+            currentUser.setStatusText(statusText);
+            server.broadcastAll(Packet.profileUpdated(
+                    currentUser.getId(), currentUser.getUsername(), statusText));
+        } else {
+            send(Packet.error("Не удалось сохранить профиль"));
+        }
+    }
+
+    // ==================== ВСПОМОГАТЕЛЬНЫЕ ====================
+
     private String buildUserListPacket() {
         JSONArray users = new JSONArray();
         for (ClientHandler client : server.getOnlineClients()) {
@@ -301,19 +224,13 @@ public class ClientHandler implements Runnable {
                 users.put(new JSONObject()
                         .put("id", client.currentUser.getId())
                         .put("username", client.currentUser.getUsername())
+                        .put("statusText", client.currentUser.getStatusText())
                         .put("online", true));
             }
         }
-        return new JSONObject()
-                .put("type", Packet.USER_LIST)
-                .put("users", users)
-                .toString();
+        return new JSONObject().put("type", Packet.USER_LIST).put("users", users).toString();
     }
 
-    /**
-     * Проверяет авторизацию.
-     * @return true если пользователь авторизован
-     */
     private boolean checkAuthorized() {
         if (currentUser == null) {
             send(Packet.error("Необходима авторизация"));
@@ -322,39 +239,26 @@ public class ClientHandler implements Runnable {
         return true;
     }
 
-    /**
-     * Отправляет JSON-строку клиенту.
-     * Потокобезопасен — synchronized на writer.
-     */
-    public synchronized void send(String jsonLine) {
-        if (writer != null && !socket.isClosed()) {
-            writer.println(jsonLine);
+    public synchronized void send(String json) {
+        try {
+            if (conn.isOpen()) {
+                conn.send(json);
+            }
+        } catch (Exception e) {
+            ServerLogger.error("Ошибка отправки: " + e.getMessage());
         }
     }
 
-    /**
-     * Очищает ресурсы при отключении клиента.
-     */
-    private void cleanup() {
+    public void cleanup() {
         if (currentUser != null) {
-            // Уведомляем других о выходе
             server.broadcastExcept(
-                    Packet.userLeft(currentUser.getId(), currentUser.getUsername()),
-                    this);
+                    Packet.userLeft(currentUser.getId(), currentUser.getUsername()), this);
             server.removeClient(this);
             ServerLogger.info("Отключён: " + currentUser.getUsername());
             currentUser = null;
         }
-        try {
-            if (socket != null && !socket.isClosed()) {
-                socket.close();
-            }
-        } catch (IOException e) {
-            ServerLogger.error("Ошибка закрытия сокета: " + e.getMessage());
-        }
     }
 
-    /** Имя текущего пользователя (для поиска) */
     public String getUsername() {
         return currentUser != null ? currentUser.getUsername() : null;
     }

@@ -1,0 +1,7 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(cmd /c \"start powershell -NoExit -Command \\\\\"cd 'C:\\\\\\\\Users\\\\\\\\shako\\\\\\\\AndroidStudioProjects\\\\\\\\MessageOnline'; Write-Host 'Vstavь komandu: gh auth login --web -h github.com' -ForegroundColor Yellow; Write-Host 'Zhmi Ctrl+V i Enter' -ForegroundColor Cyan\\\\\"\")"
+    ]
+  }
+}

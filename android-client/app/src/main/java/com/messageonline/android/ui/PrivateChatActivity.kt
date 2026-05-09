@@ -1,6 +1,8 @@
 package com.messageonline.android.ui
 
 import android.os.Bundle
+import android.text.Editable
+import android.text.TextWatcher
 import androidx.activity.viewModels
 import androidx.appcompat.app.AppCompatActivity
 import androidx.recyclerview.widget.LinearLayoutManager
@@ -60,7 +62,6 @@ class PrivateChatActivity : AppCompatActivity() {
 
     private fun setupObservers() {
         viewModel.privateMessages.observe(this) { allMessages ->
-            // Фильтруем сообщения — только с текущим собеседником
             val filtered = allMessages.filter { msg ->
                 (msg.senderUsername == peerUsername && msg.receiverUsername == ChatSession.username)
                 || (msg.senderUsername == ChatSession.username && msg.receiverUsername == peerUsername)
@@ -70,16 +71,36 @@ class PrivateChatActivity : AppCompatActivity() {
                 binding.rvMessages.scrollToPosition(filtered.size - 1)
             }
         }
+
+        viewModel.typing.observe(this) { (sender, isTyping) ->
+            if (sender == peerUsername) {
+                supportActionBar?.subtitle = if (isTyping) "печатает..." else "Личный чат"
+            }
+        }
     }
 
     private fun setupClickListeners() {
         binding.btnSend.setOnClickListener {
             val text = binding.etMessage.text.toString().trim()
             if (text.isNotEmpty()) {
+                viewModel.sendTyping(peerUsername, false)
                 viewModel.sendPrivateMessage(peerUsername, text)
                 binding.etMessage.text?.clear()
             }
         }
+
+        binding.etMessage.addTextChangedListener(object : TextWatcher {
+            private var wasTyping = false
+            override fun beforeTextChanged(s: CharSequence?, start: Int, count: Int, after: Int) {}
+            override fun onTextChanged(s: CharSequence?, start: Int, before: Int, count: Int) {}
+            override fun afterTextChanged(s: Editable?) {
+                val typing = !s.isNullOrBlank()
+                if (typing != wasTyping) {
+                    wasTyping = typing
+                    viewModel.sendTyping(peerUsername, typing)
+                }
+            }
+        })
     }
 
     override fun onSupportNavigateUp(): Boolean {
