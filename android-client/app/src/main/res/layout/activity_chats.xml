@@ -1,17 +1,20 @@
 <?xml version="1.0" encoding="utf-8"?>
-<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+<androidx.coordinatorlayout.widget.CoordinatorLayout
+    xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:background="@color/ft_chat_bg"
-    android:orientation="vertical">
+    android:background="@color/ft_chat_bg">
 
-    <!-- Toolbar (main screen — no back button) -->
+    <!-- AppBar -->
     <com.google.android.material.appbar.AppBarLayout
+        android:id="@+id/appBarLayout"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:background="@color/ft_surface"
-        android:elevation="8dp">
+        android:elevation="4dp"
+        app:liftOnScroll="true"
+        app:liftOnScrollTargetViewId="@id/rvChats">
 
         <com.google.android.material.appbar.MaterialToolbar
             android:id="@+id/toolbar"
@@ -19,65 +22,92 @@
             android:layout_height="?attr/actionBarSize"
             android:background="@color/ft_surface"
             app:contentInsetStart="20dp"
-            app:title="Сообщения"
-            app:titleTextColor="#FFFFFF"
-            app:subtitleTextColor="#94A3B8" />
+            app:contentInsetEnd="0dp">
 
-        <View
+            <!-- Title block -->
+            <LinearLayout
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:orientation="vertical">
+
+                <TextView
+                    android:id="@+id/tvToolbarTitle"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="Сообщения"
+                    android:textColor="#FFFFFF"
+                    android:textSize="19sp"
+                    android:textStyle="bold"
+                    android:letterSpacing="-0.01" />
+
+                <TextView
+                    android:id="@+id/tvToolbarSubtitle"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text=""
+                    android:textColor="#64748B"
+                    android:textSize="12sp"
+                    android:visibility="gone" />
+            </LinearLayout>
+
+        </com.google.android.material.appbar.MaterialToolbar>
+
+        <!-- Search bar (below toolbar) -->
+        <LinearLayout
             android:layout_width="match_parent"
-            android:layout_height="1dp"
-            android:background="@color/ft_divider" />
+            android:layout_height="48dp"
+            android:orientation="horizontal"
+            android:gravity="center_vertical"
+            android:paddingHorizontal="12dp"
+            android:paddingVertical="6dp">
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="36dp"
+                android:background="@drawable/shape_search_bg"
+                android:gravity="center_vertical"
+                android:orientation="horizontal"
+                android:paddingHorizontal="12dp">
+
+                <ImageView
+                    android:layout_width="16dp"
+                    android:layout_height="16dp"
+                    android:src="@drawable/ic_search"
+                    android:tint="#4B5563"
+                    android:contentDescription="@null" />
+
+                <EditText
+                    android:id="@+id/etSearch"
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:layout_marginStart="8dp"
+                    android:background="@null"
+                    android:hint="Поиск"
+                    android:textColorHint="#4B5563"
+                    android:inputType="text"
+                    android:textColor="#FFFFFF"
+                    android:textSize="14sp"
+                    android:singleLine="true"
+                    android:imeOptions="actionSearch" />
+            </LinearLayout>
+        </LinearLayout>
+
     </com.google.android.material.appbar.AppBarLayout>
 
-    <!-- Search bar -->
-    <LinearLayout
-        android:layout_width="match_parent"
-        android:layout_height="52dp"
-        android:background="@color/ft_surface"
-        android:gravity="center_vertical"
-        android:orientation="horizontal"
-        android:paddingHorizontal="16dp"
-        android:paddingVertical="8dp">
-
-        <ImageView
-            android:layout_width="18dp"
-            android:layout_height="18dp"
-            android:src="@drawable/ic_search"
-            android:tint="#4B5563"
-            android:contentDescription="@null" />
-
-        <EditText
-            android:id="@+id/etSearch"
-            android:layout_width="0dp"
-            android:layout_height="wrap_content"
-            android:layout_weight="1"
-            android:layout_marginStart="12dp"
-            android:background="@null"
-            android:hint="Поиск"
-            android:textColorHint="#4B5563"
-            android:inputType="text"
-            android:textColor="#FFFFFF"
-            android:textSize="15sp"
-            android:singleLine="true"
-            android:imeOptions="actionSearch" />
-    </LinearLayout>
-
-    <View
-        android:layout_width="match_parent"
-        android:layout_height="1dp"
-        android:background="@color/ft_divider" />
-
-    <!-- Chat list -->
+    <!-- Content -->
     <FrameLayout
         android:layout_width="match_parent"
-        android:layout_height="match_parent">
+        android:layout_height="match_parent"
+        app:layout_behavior="@string/appbar_scrolling_view_behavior">
 
         <androidx.recyclerview.widget.RecyclerView
             android:id="@+id/rvChats"
             android:layout_width="match_parent"
             android:layout_height="match_parent"
             android:paddingTop="4dp"
-            android:paddingBottom="4dp"
+            android:paddingBottom="80dp"
             android:clipToPadding="false"
             android:scrollbars="none" />
 
@@ -93,17 +123,17 @@
             android:visibility="gone">
 
             <ImageView
-                android:layout_width="72dp"
-                android:layout_height="72dp"
-                android:src="@drawable/ic_chat_logo"
-                android:tint="#2B6366F1"
+                android:layout_width="80dp"
+                android:layout_height="80dp"
+                android:src="@drawable/ic_message"
+                android:tint="#1F6366F1"
                 android:layout_marginBottom="20dp"
                 android:contentDescription="@null" />
 
             <TextView
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:text="Нет сообщений"
+                android:text="Нет чатов"
                 android:textColor="#FFFFFF"
                 android:textSize="20sp"
                 android:textStyle="bold" />
@@ -112,11 +142,39 @@
                 android:layout_width="220dp"
                 android:layout_height="wrap_content"
                 android:layout_marginTop="8dp"
-                android:text="Нажмите «Контакты» чтобы начать разговор"
+                android:text="Перейдите во вкладку «Друзья» чтобы начать разговор"
                 android:textColor="#64748B"
                 android:textSize="14sp"
                 android:gravity="center" />
         </LinearLayout>
+
     </FrameLayout>
 
-</LinearLayout>
+    <!-- FAB (compose new message) -->
+    <com.google.android.material.floatingactionbutton.FloatingActionButton
+        android:id="@+id/fabNewChat"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_gravity="bottom|end"
+        android:layout_marginEnd="16dp"
+        android:layout_marginBottom="80dp"
+        android:src="@drawable/ic_edit_compose"
+        android:contentDescription="Новый чат"
+        app:backgroundTint="#6366F1"
+        app:tint="#FFFFFF"
+        app:elevation="6dp" />
+
+    <!-- Bottom Navigation -->
+    <com.google.android.material.bottomnavigation.BottomNavigationView
+        android:id="@+id/bottomNav"
+        android:layout_width="match_parent"
+        android:layout_height="64dp"
+        android:layout_gravity="bottom"
+        android:background="@color/ft_surface"
+        app:menu="@menu/bottom_nav_menu"
+        app:itemIconTint="@color/bottom_nav_item_color"
+        app:itemTextColor="@color/bottom_nav_item_color"
+        app:labelVisibilityMode="labeled"
+        app:elevation="8dp" />
+
+</androidx.coordinatorlayout.widget.CoordinatorLayout>

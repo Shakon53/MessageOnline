@@ -4,10 +4,7 @@ import android.content.Intent
 import android.os.Bundle
 import android.text.Editable
 import android.text.TextWatcher
-import android.view.Menu
-import android.view.MenuItem
 import android.view.View
-import android.widget.Toast
 import androidx.activity.viewModels
 import androidx.appcompat.app.AppCompatActivity
 import androidx.appcompat.app.AppCompatDelegate
@@ -29,9 +26,26 @@ class ChatsActivity : AppCompatActivity() {
         binding = ActivityChatsBinding.inflate(layoutInflater)
         setContentView(binding.root)
 
+        // No default ActionBar title — we use custom tvToolbarTitle
         setSupportActionBar(binding.toolbar)
-        supportActionBar?.title = "Сообщения"
+        supportActionBar?.setDisplayShowTitleEnabled(false)
 
+        setupChatsList()
+        setupBottomNav()
+        setupSearch()
+        setupFab()
+        setupObservers()
+
+        if (!com.messageonline.android.network.SocketManager.isConnected) {
+            viewModel.connect()
+        }
+        viewModel.refreshConversations()
+        viewModel.refreshUsers()
+    }
+
+    // ─── Chats list ────────────────────────────────────────────────────────────
+
+    private fun setupChatsList() {
         chatsAdapter = ChatsAdapter { conv ->
             if (conv.isGlobal) {
                 startActivity(Intent(this, MainActivity::class.java))
@@ -41,13 +55,36 @@ class ChatsActivity : AppCompatActivity() {
                 })
             }
         }
-
         binding.rvChats.apply {
             adapter       = chatsAdapter
             layoutManager = LinearLayoutManager(this@ChatsActivity)
         }
+    }
 
-        // Search filter
+    // ─── Bottom navigation ─────────────────────────────────────────────────────
+
+    private fun setupBottomNav() {
+        binding.bottomNav.setOnItemSelectedListener { item ->
+            when (item.itemId) {
+                R.id.nav_chats   -> true  // already here
+                R.id.nav_friends -> {
+                    startActivity(Intent(this, FriendsActivity::class.java))
+                    binding.bottomNav.selectedItemId = R.id.nav_chats  // stay on chats
+                    true
+                }
+                R.id.nav_profile -> {
+                    startActivity(Intent(this, ProfileActivity::class.java))
+                    binding.bottomNav.selectedItemId = R.id.nav_chats  // stay on chats
+                    true
+                }
+                else -> false
+            }
+        }
+    }
+
+    // ─── Search ────────────────────────────────────────────────────────────────
+
+    private fun setupSearch() {
         binding.etSearch.addTextChangedListener(object : TextWatcher {
             override fun beforeTextChanged(s: CharSequence?, start: Int, count: Int, after: Int) {}
             override fun onTextChanged(s: CharSequence?, start: Int, before: Int, count: Int) {}
@@ -55,19 +92,19 @@ class ChatsActivity : AppCompatActivity() {
                 chatsAdapter.applyFilter(s.toString().trim())
             }
         })
-
-        setupObservers()
-
-        // Connect and load data on first open
-        if (!com.messageonline.android.network.SocketManager.isConnected) {
-            viewModel.connect()
-        }
-        viewModel.refreshConversations()
-        viewModel.refreshUsers()
     }
 
+    // ─── FAB (new chat / go to contacts) ──────────────────────────────────────
+
+    private fun setupFab() {
+        binding.fabNewChat.setOnClickListener {
+            startActivity(Intent(this, UsersActivity::class.java))
+        }
+    }
+
+    // ─── Observers ─────────────────────────────────────────────────────────────
+
     private fun setupObservers() {
-        // Main list of chats — live updates
         viewModel.conversations.observe(this) { convList ->
             chatsAdapter.setItems(convList)
             binding.layoutEmpty.visibility = if (convList.isEmpty()) View.VISIBLE else View.GONE
@@ -75,32 +112,36 @@ class ChatsActivity : AppCompatActivity() {
 
         viewModel.connectionStatus.observe(this) { status ->
             val subtitle = when (status) {
-                ChatViewModel.ConnectionStatus.CONNECTED    -> null  // clear
+                ChatViewModel.ConnectionStatus.CONNECTED    -> null
                 ChatViewModel.ConnectionStatus.CONNECTING  -> "Подключение..."
                 ChatViewModel.ConnectionStatus.DISCONNECTED -> "Нет соединения"
                 ChatViewModel.ConnectionStatus.ERROR        -> "Ошибка соединения"
             }
-            supportActionBar?.subtitle = subtitle
-        }
-
-        viewModel.notification.observe(this) { msg ->
-            if (!msg.isNullOrBlank()) {
-                Toast.makeText(this, msg, Toast.LENGTH_SHORT).show()
-            }
+            binding.tvToolbarSubtitle.visibility = if (subtitle != null) View.VISIBLE else View.GONE
+            binding.tvToolbarSubtitle.text = subtitle ?: ""
         }
 
         viewModel.onlineUsers.observe(this) { users ->
-            val onlineCount = users.size
-            if (onlineCount > 0) supportActionBar?.subtitle = "$onlineCount в сети"
+            val count = users.size
+            if (count > 0) {
+                binding.tvToolbarSubtitle.visibility = View.VISIBLE
+                binding.tvToolbarSubtitle.text = "$count в сети"
+            }
         }
 
         viewModel.incomingFriendRequest.observe(this) { request ->
             if (request != null) {
+                // Show badge on Friends nav item
+                val badge = binding.bottomNav.getOrCreateBadge(R.id.nav_friends)
+                badge.isVisible = true
+
                 com.google.android.material.snackbar.Snackbar
-                    .make(binding.root, "📩 ${request.username} хочет подружиться", com.google.android.material.snackbar.Snackbar.LENGTH_LONG)
+                    .make(binding.root, "📩 ${request.username} хочет подружиться",
+                          com.google.android.material.snackbar.Snackbar.LENGTH_LONG)
                     .setAction("Перейти") {
                         startActivity(Intent(this, FriendsActivity::class.java))
                     }
+                    .setAnchorView(binding.bottomNav)
                     .show()
             }
         }
@@ -109,34 +150,7 @@ class ChatsActivity : AppCompatActivity() {
     override fun onResume() {
         super.onResume()
         viewModel.refreshConversations()
-    }
-
-    override fun onCreateOptionsMenu(menu: Menu): Boolean {
-        menuInflater.inflate(R.menu.chats_menu, menu)
-        return true
-    }
-
-    override fun onOptionsItemSelected(item: MenuItem): Boolean {
-        return when (item.itemId) {
-            R.id.menu_friends  -> { startActivity(Intent(this, FriendsActivity::class.java)); true }
-            R.id.menu_profile  -> { startActivity(Intent(this, ProfileActivity::class.java)); true }
-            R.id.menu_settings -> { startActivity(Intent(this, SettingsActivity::class.java)); true }
-            R.id.menu_logout   -> { confirmLogout(); true }
-            else               -> super.onOptionsItemSelected(item)
-        }
-    }
-
-    private fun confirmLogout() {
-        com.google.android.material.dialog.MaterialAlertDialogBuilder(this)
-            .setTitle("Выход")
-            .setMessage("Вы хотите выйти из аккаунта?")
-            .setPositiveButton("Выйти") { _, _ ->
-                viewModel.logout()
-                startActivity(Intent(this, LoginActivity::class.java).apply {
-                    flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK
-                })
-            }
-            .setNegativeButton("Отмена", null)
-            .show()
+        // Reset friends badge after returning from FriendsActivity
+        binding.bottomNav.removeBadge(R.id.nav_friends)
     }
 }
