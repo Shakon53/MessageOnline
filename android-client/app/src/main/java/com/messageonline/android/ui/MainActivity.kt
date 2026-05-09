@@ -59,6 +59,9 @@ class MainActivity : AppCompatActivity() {
             messageAdapter.setMessages(messages)
             if (messages.isNotEmpty()) {
                 binding.rvMessages.scrollToPosition(messages.size - 1)
+                binding.layoutEmpty.visibility = View.GONE
+            } else {
+                binding.layoutEmpty.visibility = View.VISIBLE
             }
         }
 

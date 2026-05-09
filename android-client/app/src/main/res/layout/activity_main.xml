@@ -6,12 +6,12 @@
     android:layout_height="match_parent"
     android:background="@color/ft_chat_bg">
 
-    <!-- AppBar -->
+    <!-- ===== HEADER ===== -->
     <com.google.android.material.appbar.AppBarLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:background="@color/ft_surface"
-        android:elevation="0dp"
+        android:elevation="8dp"
         app:liftOnScroll="false">
 
         <com.google.android.material.appbar.MaterialToolbar
@@ -23,33 +23,86 @@
             app:titleTextColor="#FFFFFF"
             app:subtitleTextColor="#94A3B8" />
 
-        <!-- Subtle divider -->
         <View
             android:layout_width="match_parent"
             android:layout_height="1dp"
-            android:background="#1AFFFFFF" />
+            android:background="@color/ft_divider" />
     </com.google.android.material.appbar.AppBarLayout>
 
-    <!-- Content area -->
+    <!-- ===== CONTENT ===== -->
     <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="match_parent"
         android:orientation="vertical"
         app:layout_behavior="@string/appbar_scrolling_view_behavior">
 
-        <!-- Messages list -->
-        <androidx.recyclerview.widget.RecyclerView
-            android:id="@+id/rvMessages"
+        <!-- Messages area -->
+        <FrameLayout
             android:layout_width="match_parent"
             android:layout_height="0dp"
             android:layout_weight="1"
-            android:background="@drawable/bg_chat_wallpaper"
-            android:paddingTop="8dp"
-            android:paddingBottom="8dp"
-            android:clipToPadding="false"
-            android:scrollbars="none" />
+            android:background="@color/ft_chat_bg">
 
-        <!-- Bottom Input Bar -->
+            <androidx.recyclerview.widget.RecyclerView
+                android:id="@+id/rvMessages"
+                android:layout_width="match_parent"
+                android:layout_height="match_parent"
+                android:paddingTop="8dp"
+                android:paddingBottom="8dp"
+                android:paddingHorizontal="4dp"
+                android:clipToPadding="false"
+                android:scrollbars="none" />
+
+            <!-- Empty state -->
+            <LinearLayout
+                android:id="@+id/layoutEmpty"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_gravity="center"
+                android:gravity="center"
+                android:orientation="vertical"
+                android:padding="32dp"
+                android:visibility="gone">
+
+                <FrameLayout
+                    android:layout_width="96dp"
+                    android:layout_height="96dp"
+                    android:layout_marginBottom="20dp">
+                    <View
+                        android:layout_width="96dp"
+                        android:layout_height="96dp"
+                        android:background="@drawable/bg_empty_icon" />
+                    <ImageView
+                        android:layout_width="46dp"
+                        android:layout_height="46dp"
+                        android:layout_gravity="center"
+                        android:src="@drawable/ic_chat_logo"
+                        android:tint="#6366F1"
+                        android:alpha="0.9"
+                        android:contentDescription="@null" />
+                </FrameLayout>
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="Нет сообщений"
+                    android:textColor="#FFFFFF"
+                    android:textSize="20sp"
+                    android:textStyle="bold"
+                    android:gravity="center" />
+
+                <TextView
+                    android:layout_width="220dp"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="8dp"
+                    android:text="Будьте первым — напишите что-нибудь!"
+                    android:textColor="#64748B"
+                    android:textSize="14sp"
+                    android:gravity="center" />
+            </LinearLayout>
+        </FrameLayout>
+
+        <!-- ===== BOTTOM INPUT BAR ===== -->
         <LinearLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
@@ -58,9 +111,9 @@
             android:orientation="horizontal"
             android:paddingHorizontal="12dp"
             android:paddingTop="10dp"
-            android:paddingBottom="10dp">
+            android:paddingBottom="10dp"
+            android:elevation="8dp">
 
-            <!-- Emoji -->
             <ImageView
                 android:layout_width="40dp"
                 android:layout_height="40dp"
@@ -70,7 +123,6 @@
                 android:background="?attr/selectableItemBackgroundBorderless"
                 android:contentDescription="@null" />
 
-            <!-- Input field -->
             <LinearLayout
                 android:layout_width="0dp"
                 android:layout_height="wrap_content"
@@ -78,7 +130,7 @@
                 android:layout_marginHorizontal="8dp"
                 android:background="@drawable/shape_input_field"
                 android:gravity="center_vertical"
-                android:minHeight="44dp"
+                android:minHeight="46dp"
                 android:orientation="horizontal">
 
                 <EditText
@@ -93,7 +145,7 @@
                     android:maxLines="5"
                     android:paddingStart="16dp"
                     android:paddingEnd="4dp"
-                    android:paddingVertical="10dp"
+                    android:paddingVertical="11dp"
                     android:textColor="#FFFFFF"
                     android:textSize="15sp" />
 
@@ -107,13 +159,12 @@
                     android:contentDescription="@null" />
             </LinearLayout>
 
-            <!-- Send button -->
             <ImageView
                 android:id="@+id/btnSend"
-                android:layout_width="48dp"
-                android:layout_height="48dp"
+                android:layout_width="50dp"
+                android:layout_height="50dp"
                 android:background="@drawable/shape_send_btn"
-                android:padding="13dp"
+                android:padding="14dp"
                 android:src="@drawable/ic_send"
                 android:tint="#FFFFFF"
                 android:elevation="4dp"
