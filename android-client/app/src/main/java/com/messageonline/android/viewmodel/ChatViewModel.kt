@@ -14,6 +14,7 @@ import com.messageonline.android.database.MessageEntity
 import com.messageonline.android.model.ChatMessage
 import com.messageonline.android.model.ChatSession
 import com.messageonline.android.model.Conversation
+import com.messageonline.android.model.Friend
 import com.messageonline.android.model.OnlineUser
 import com.messageonline.android.model.Packet
 import com.messageonline.android.network.SocketManager
@@ -64,6 +65,15 @@ class ChatViewModel(app: Application) : AndroidViewModel(app) {
     private val _editedMessage = MutableLiveData<ChatMessage>()
     val editedMessage: LiveData<ChatMessage> = _editedMessage
 
+    private val _friends = MutableLiveData<List<Friend>>(emptyList())
+    val friends: LiveData<List<Friend>> = _friends
+
+    private val _friendRequests = MutableLiveData<List<Friend>>(emptyList())
+    val friendRequests: LiveData<List<Friend>> = _friendRequests
+
+    private val _incomingFriendRequest = MutableLiveData<Friend?>()
+    val incomingFriendRequest: LiveData<Friend?> = _incomingFriendRequest
+
     // ==================== ТЕКУЩИЙ ПОЛЬЗОВАТЕЛЬ ====================
 
     var myUserId: Int = -1
@@ -97,29 +107,41 @@ class ChatViewModel(app: Application) : AndroidViewModel(app) {
 
     fun refreshConversations() {
         viewModelScope.launch(Dispatchers.IO) {
-            val allPrivate = dao.getAllPrivateMessages()   // DESC order → newest first per peer
+            val allPrivate = dao.getAllPrivateMessages()
             val onlineSet  = _onlineUsers.value?.associateBy { it.username } ?: emptyMap()
+            val friendsMap = _friends.value?.associateBy { it.username } ?: emptyMap()
             val prefs = getApplication<Application>().getSharedPreferences("MessageOnline", Context.MODE_PRIVATE)
 
-            // One entry per peer (first occurrence = most recent due to DESC order)
             val convMap = linkedMapOf<String, Conversation>()
             for (msg in allPrivate) {
-                val peer = if (msg.senderUsername == myUsername) msg.receiverUsername
-                           else msg.senderUsername
+                val peer = if (msg.senderUsername == myUsername) msg.receiverUsername else msg.senderUsername
                 if (peer.isBlank() || convMap.containsKey(peer)) continue
-                val unread = dao.getUnreadCount(peer, myUsername)
-                val avatarUrl = prefs.getString("avatar_$peer", "") ?: ""
+                val unread    = dao.getUnreadCount(peer, myUsername)
+                val avatarUrl = friendsMap[peer]?.avatarUrl ?: prefs.getString("avatar_$peer", "") ?: ""
+                val isOnline  = onlineSet.containsKey(peer) || friendsMap[peer]?.isOnline == true
                 convMap[peer] = Conversation(
                     peerUsername  = peer,
                     lastMessage   = if (msg.senderUsername == myUsername) "Вы: ${msg.content}" else msg.content,
                     lastTimestamp = msg.timestamp,
                     unreadCount   = unread,
-                    isOnline      = onlineSet.containsKey(peer),
+                    isOnline      = isOnline,
                     avatarUrl     = avatarUrl
                 )
             }
 
-            // Global chat at the top
+            // Add accepted friends that have NO message history yet
+            for (friend in _friends.value ?: emptyList()) {
+                if (!convMap.containsKey(friend.username)) {
+                    convMap[friend.username] = Conversation(
+                        peerUsername  = friend.username,
+                        lastMessage   = "Начать разговор",
+                        lastTimestamp = 0L,
+                        isOnline      = friend.isOnline,
+                        avatarUrl     = friend.avatarUrl
+                    )
+                }
+            }
+
             val globalLast = dao.getGlobalMessages().lastOrNull()
             val globalConv = Conversation(
                 peerUsername  = "Общий чат",
@@ -129,8 +151,10 @@ class ChatViewModel(app: Application) : AndroidViewModel(app) {
                 isGlobal      = true
             )
 
+            // Sort: global first, then by lastTimestamp desc
+            val privList = convMap.values.sortedByDescending { it.lastTimestamp }
             val list = mutableListOf(globalConv)
-            list.addAll(convMap.values)
+            list.addAll(privList)
             _conversations.postValue(list)
         }
     }
@@ -142,6 +166,7 @@ class ChatViewModel(app: Application) : AndroidViewModel(app) {
             _connectionStatus.postValue(ConnectionStatus.CONNECTED)
             sendSavedFCMToken()
             sendSavedAvatar()
+            SocketManager.requestFriends()
         }
         SocketManager.onDisconnected = {
             _connectionStatus.postValue(ConnectionStatus.DISCONNECTED)
@@ -367,6 +392,78 @@ class ChatViewModel(app: Application) : AndroidViewModel(app) {
                 }
                 _profileUpdated.postValue(Unit)
             }
+
+            Packet.FRIENDS_LIST -> {
+                val friendsArr   = json.optJSONArray("friends")  ?: return
+                val requestsArr  = json.optJSONArray("requests") ?: return
+                val friendsList  = mutableListOf<Friend>()
+                val requestsList = mutableListOf<Friend>()
+                for (i in 0 until friendsArr.length()) {
+                    val u = friendsArr.getJSONObject(i)
+                    friendsList.add(Friend(
+                        userId     = u.optInt("userId"),
+                        username   = u.optString("username"),
+                        statusText = u.optString("statusText"),
+                        avatarUrl  = u.optString("avatarUrl"),
+                        isOnline   = u.optBoolean("online")
+                    ))
+                }
+                for (i in 0 until requestsArr.length()) {
+                    val u = requestsArr.getJSONObject(i)
+                    requestsList.add(Friend(
+                        userId              = u.optInt("userId"),
+                        username            = u.optString("username"),
+                        statusText          = u.optString("statusText"),
+                        avatarUrl           = u.optString("avatarUrl"),
+                        isPendingIncoming   = true
+                    ))
+                }
+                _friends.postValue(friendsList)
+                _friendRequests.postValue(requestsList)
+                refreshConversations()
+            }
+
+            Packet.FRIEND_REQUEST_IN -> {
+                val req = Friend(
+                    userId            = json.optInt("fromUserId"),
+                    username          = json.optString("fromUsername"),
+                    statusText        = json.optString("fromStatusText"),
+                    avatarUrl         = json.optString("fromAvatarUrl"),
+                    isPendingIncoming = true
+                )
+                val list = _friendRequests.value?.toMutableList() ?: mutableListOf()
+                if (list.none { it.userId == req.userId }) list.add(req)
+                _friendRequests.postValue(list)
+                _incomingFriendRequest.postValue(req)
+                _notification.postValue("${req.username} хочет добавить вас в друзья")
+            }
+
+            Packet.FRIEND_ACCEPTED -> {
+                val newFriend = Friend(
+                    userId     = json.optInt("userId"),
+                    username   = json.optString("username"),
+                    statusText = json.optString("statusText"),
+                    avatarUrl  = json.optString("avatarUrl"),
+                    isOnline   = true
+                )
+                val list = _friends.value?.toMutableList() ?: mutableListOf()
+                if (list.none { it.userId == newFriend.userId }) list.add(newFriend)
+                _friends.postValue(list)
+                // Remove from requests if we had sent one
+                val reqList = _friendRequests.value?.toMutableList() ?: mutableListOf()
+                reqList.removeAll { it.userId == newFriend.userId }
+                _friendRequests.postValue(reqList)
+                _notification.postValue("${newFriend.username} принял запрос дружбы")
+                refreshConversations()
+            }
+
+            Packet.FRIEND_REMOVED -> {
+                val removedId = json.optInt("userId")
+                val list = _friends.value?.toMutableList() ?: mutableListOf()
+                list.removeAll { it.userId == removedId }
+                _friends.postValue(list)
+                refreshConversations()
+            }
         }
     }
 
@@ -482,6 +579,21 @@ class ChatViewModel(app: Application) : AndroidViewModel(app) {
 
     fun refreshUsers() = SocketManager.requestUserList()
     fun sendTyping(r: String, t: Boolean) = SocketManager.sendTyping(r, t)
+    fun addFriend(targetUserId: Int) = SocketManager.sendFriendAdd(targetUserId)
+    fun acceptFriend(fromUserId: Int) {
+        SocketManager.sendFriendAccept(fromUserId)
+        val list = _friendRequests.value?.toMutableList() ?: mutableListOf()
+        list.removeAll { it.userId == fromUserId }
+        _friendRequests.value = list
+    }
+    fun declineFriend(fromUserId: Int) {
+        SocketManager.sendFriendDecline(fromUserId)
+        val list = _friendRequests.value?.toMutableList() ?: mutableListOf()
+        list.removeAll { it.userId == fromUserId }
+        _friendRequests.value = list
+    }
+    fun removeFriend(friendUserId: Int) = SocketManager.sendFriendRemove(friendUserId)
+    fun refreshFriends() = SocketManager.requestFriends()
     fun updateProfile(statusText: String) = SocketManager.sendUpdateProfile(statusText)
     fun markRead(peerUsername: String)    = SocketManager.sendMarkRead(peerUsername)
 

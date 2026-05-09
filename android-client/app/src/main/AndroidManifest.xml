@@ -70,6 +70,11 @@
             android:exported="false"
             android:parentActivityName=".ui.ChatsActivity" />
 
+        <activity
+            android:name=".ui.FriendsActivity"
+            android:exported="false"
+            android:parentActivityName=".ui.ChatsActivity" />
+
         <!-- FCM push-уведомления -->
         <service
             android:name=".service.FCMService"

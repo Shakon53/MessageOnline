@@ -101,6 +101,18 @@ public class DatabaseManager {
                 ON messages(sender_id, receiver_id, is_global)
             """);
 
+            // Friends table
+            stmt.execute("""
+                CREATE TABLE IF NOT EXISTS friends (
+                    id         INTEGER PRIMARY KEY AUTOINCREMENT,
+                    user_id    INTEGER NOT NULL,
+                    friend_id  INTEGER NOT NULL,
+                    status     TEXT    NOT NULL DEFAULT 'pending',
+                    created_at INTEGER NOT NULL DEFAULT (strftime('%s','now') * 1000),
+                    UNIQUE(user_id, friend_id)
+                )
+            """);
+
             ServerLogger.info("Таблицы БД готовы");
         } catch (SQLException e) {
             ServerLogger.error("Ошибка создания таблиц: " + e.getMessage());
@@ -379,6 +391,116 @@ public class DatabaseManager {
             ServerLogger.error("Ошибка редактирования сообщения: " + e.getMessage());
             return false;
         }
+    }
+
+    /** Отправить запрос дружбы */
+    public synchronized boolean sendFriendRequest(int fromId, int toId) {
+        if (fromId == toId) return false;
+        // Проверяем нет ли уже запроса или дружбы
+        String checkSql = "SELECT COUNT(*) FROM friends WHERE (user_id=? AND friend_id=?) OR (user_id=? AND friend_id=?)";
+        try (PreparedStatement ps = connection.prepareStatement(checkSql)) {
+            ps.setInt(1, fromId); ps.setInt(2, toId);
+            ps.setInt(3, toId);   ps.setInt(4, fromId);
+            ResultSet rs = ps.executeQuery();
+            if (rs.next() && rs.getInt(1) > 0) return false; // already exists
+        } catch (SQLException e) { ServerLogger.error(e.getMessage()); return false; }
+
+        String sql = "INSERT INTO friends (user_id, friend_id, status) VALUES (?, ?, 'pending')";
+        try (PreparedStatement ps = connection.prepareStatement(sql)) {
+            ps.setInt(1, fromId); ps.setInt(2, toId);
+            return ps.executeUpdate() > 0;
+        } catch (SQLException e) { ServerLogger.error(e.getMessage()); return false; }
+    }
+
+    /** Принять запрос дружбы */
+    public synchronized boolean acceptFriendRequest(int fromId, int toId) {
+        String sql = "UPDATE friends SET status='accepted' WHERE user_id=? AND friend_id=? AND status='pending'";
+        try (PreparedStatement ps = connection.prepareStatement(sql)) {
+            ps.setInt(1, fromId); ps.setInt(2, toId);
+            return ps.executeUpdate() > 0;
+        } catch (SQLException e) { ServerLogger.error(e.getMessage()); return false; }
+    }
+
+    /** Отклонить или удалить из друзей */
+    public synchronized boolean removeFriend(int userId1, int userId2) {
+        String sql = "DELETE FROM friends WHERE (user_id=? AND friend_id=?) OR (user_id=? AND friend_id=?)";
+        try (PreparedStatement ps = connection.prepareStatement(sql)) {
+            ps.setInt(1, userId1); ps.setInt(2, userId2);
+            ps.setInt(3, userId2); ps.setInt(4, userId1);
+            return ps.executeUpdate() > 0;
+        } catch (SQLException e) { ServerLogger.error(e.getMessage()); return false; }
+    }
+
+    /** Получить список друзей + входящих запросов */
+    public synchronized JSONObject getFriendsList(int userId, java.util.Set<String> onlineUsernames) {
+        JSONArray friends  = new JSONArray();
+        JSONArray requests = new JSONArray();
+
+        // Accepted friends (both directions)
+        String friendsSql = """
+            SELECT u.id, u.username, u.status_text, COALESCE(u.avatar_url,'') as avatar_url
+            FROM friends f
+            JOIN users u ON (
+                (f.user_id = ? AND f.friend_id = u.id) OR
+                (f.friend_id = ? AND f.user_id = u.id)
+            )
+            WHERE f.status = 'accepted'
+            ORDER BY u.username
+        """;
+        try (PreparedStatement ps = connection.prepareStatement(friendsSql)) {
+            ps.setInt(1, userId); ps.setInt(2, userId);
+            ResultSet rs = ps.executeQuery();
+            while (rs.next()) {
+                String uname = rs.getString("username");
+                friends.put(new JSONObject()
+                        .put("userId",     rs.getInt("id"))
+                        .put("username",   uname)
+                        .put("statusText", rs.getString("status_text"))
+                        .put("avatarUrl",  rs.getString("avatar_url"))
+                        .put("online",     onlineUsernames.contains(uname)));
+            }
+        } catch (SQLException e) { ServerLogger.error(e.getMessage()); }
+
+        // Incoming pending requests (others sent to me)
+        String requestsSql = """
+            SELECT u.id, u.username, u.status_text, COALESCE(u.avatar_url,'') as avatar_url
+            FROM friends f
+            JOIN users u ON f.user_id = u.id
+            WHERE f.friend_id = ? AND f.status = 'pending'
+            ORDER BY f.created_at DESC
+        """;
+        try (PreparedStatement ps = connection.prepareStatement(requestsSql)) {
+            ps.setInt(1, userId);
+            ResultSet rs = ps.executeQuery();
+            while (rs.next()) {
+                requests.put(new JSONObject()
+                        .put("userId",     rs.getInt("id"))
+                        .put("username",   rs.getString("username"))
+                        .put("statusText", rs.getString("status_text"))
+                        .put("avatarUrl",  rs.getString("avatar_url")));
+            }
+        } catch (SQLException e) { ServerLogger.error(e.getMessage()); }
+
+        return new JSONObject()
+                .put("type",     server.model.Packet.FRIENDS_LIST)
+                .put("friends",  friends)
+                .put("requests", requests);
+    }
+
+    /** Найти пользователя по ID */
+    public synchronized User getUserById(int id) {
+        String sql = "SELECT id, username, phone, status_text, COALESCE(avatar_url,'') as avatar_url FROM users WHERE id = ?";
+        try (PreparedStatement ps = connection.prepareStatement(sql)) {
+            ps.setInt(1, id);
+            ResultSet rs = ps.executeQuery();
+            if (rs.next()) {
+                User user = new User(rs.getInt("id"), rs.getString("username"), rs.getString("phone"));
+                user.setStatusText(rs.getString("status_text"));
+                user.setAvatarUrl(rs.getString("avatar_url"));
+                return user;
+            }
+        } catch (SQLException e) { ServerLogger.error(e.getMessage()); }
+        return null;
     }
 
     /** Закрыть соединение с БД */

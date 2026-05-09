@@ -40,6 +40,13 @@ class ProfileActivity : AppCompatActivity() {
 
         binding.tvAvatarInitial.text = initial
         binding.tvUsername.text      = username
+        val myId = ChatSession.userId
+        binding.tvUserId.text = "ID: #$myId   (нажмите чтобы скопировать)"
+        binding.tvUserId.setOnClickListener {
+            val cm = getSystemService(android.content.Context.CLIPBOARD_SERVICE) as android.content.ClipboardManager
+            cm.setPrimaryClip(android.content.ClipData.newPlainText("id", "#$myId"))
+            Toast.makeText(this, "ID #$myId скопирован", Toast.LENGTH_SHORT).show()
+        }
         binding.tvPhone.text         = ChatSession.phone.ifBlank { "Не указан" }
         binding.etStatusText.setText(ChatSession.statusText)
         binding.tvCharCount.text     = "${ChatSession.statusText.length}/140"

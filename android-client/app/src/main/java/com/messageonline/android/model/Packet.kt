@@ -40,4 +40,15 @@ object Packet {
     const val EDIT_MESSAGE          = "EDIT_MESSAGE"
     const val EDITED_MESSAGE        = "EDITED_MESSAGE"
     const val UPDATE_AVATAR         = "UPDATE_AVATAR"
+
+    // Friends
+    const val FRIEND_ADD        = "FRIEND_ADD"
+    const val FRIEND_REQUEST_IN = "FRIEND_REQUEST_IN"
+    const val FRIEND_ACCEPT     = "FRIEND_ACCEPT"
+    const val FRIEND_DECLINE    = "FRIEND_DECLINE"
+    const val FRIEND_ACCEPTED   = "FRIEND_ACCEPTED"
+    const val FRIEND_REMOVE     = "FRIEND_REMOVE"
+    const val FRIEND_REMOVED    = "FRIEND_REMOVED"
+    const val GET_FRIENDS       = "GET_FRIENDS"
+    const val FRIENDS_LIST      = "FRIENDS_LIST"
 }

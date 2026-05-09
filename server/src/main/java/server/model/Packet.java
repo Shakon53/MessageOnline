@@ -63,6 +63,17 @@ public class Packet {
     public static final String EDITED_MESSAGE   = "EDITED_MESSAGE";
     public static final String UPDATE_AVATAR    = "UPDATE_AVATAR";
 
+    // Friends
+    public static final String FRIEND_ADD        = "FRIEND_ADD";
+    public static final String FRIEND_REQUEST_IN = "FRIEND_REQUEST_IN";
+    public static final String FRIEND_ACCEPT     = "FRIEND_ACCEPT";
+    public static final String FRIEND_DECLINE    = "FRIEND_DECLINE";
+    public static final String FRIEND_ACCEPTED   = "FRIEND_ACCEPTED";
+    public static final String FRIEND_REMOVE     = "FRIEND_REMOVE";
+    public static final String FRIEND_REMOVED    = "FRIEND_REMOVED";
+    public static final String GET_FRIENDS       = "GET_FRIENDS";
+    public static final String FRIENDS_LIST      = "FRIENDS_LIST";
+
     // ===================== ФАБРИЧНЫЕ МЕТОДЫ =====================
 
     /** Успешная регистрация */
@@ -193,5 +204,33 @@ public class Packet {
                 .put("isGlobal", isGlobal);
         if (receiverUsername != null && !receiverUsername.isEmpty()) obj.put("receiverUsername", receiverUsername);
         return obj.toString();
+    }
+
+    public static String friendRequestIn(int fromId, String fromUsername, String fromStatusText, String fromAvatarUrl) {
+        return new JSONObject()
+                .put("type", FRIEND_REQUEST_IN)
+                .put("fromUserId", fromId)
+                .put("fromUsername", fromUsername)
+                .put("fromStatusText", fromStatusText)
+                .put("fromAvatarUrl", fromAvatarUrl)
+                .toString();
+    }
+
+    public static String friendAccepted(int userId, String username, String statusText, String avatarUrl) {
+        return new JSONObject()
+                .put("type", FRIEND_ACCEPTED)
+                .put("userId", userId)
+                .put("username", username)
+                .put("statusText", statusText)
+                .put("avatarUrl", avatarUrl)
+                .toString();
+    }
+
+    public static String friendRemoved(int userId, String username) {
+        return new JSONObject()
+                .put("type", FRIEND_REMOVED)
+                .put("userId", userId)
+                .put("username", username)
+                .toString();
     }
 }

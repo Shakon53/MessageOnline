@@ -47,6 +47,11 @@ public class ClientHandler {
                 case Packet.MARK_READ           -> handleMarkRead(packet);
                 case Packet.EDIT_MESSAGE        -> handleEditMessage(packet);
                 case Packet.UPDATE_AVATAR       -> handleUpdateAvatar(packet);
+                case Packet.FRIEND_ADD    -> handleFriendAdd(packet);
+                case Packet.FRIEND_ACCEPT -> handleFriendAccept(packet);
+                case Packet.FRIEND_DECLINE-> handleFriendDecline(packet);
+                case Packet.FRIEND_REMOVE -> handleFriendRemove(packet);
+                case Packet.GET_FRIENDS   -> handleGetFriends();
                 default -> send(Packet.error("Неизвестный тип пакета: " + type));
             }
 
@@ -108,6 +113,7 @@ public class ClientHandler {
                     user.getPhone(), user.getStatusText()));
             server.broadcastExcept(Packet.userJoined(user.getId(), user.getUsername()), this);
             send(buildUserListPacket());
+            handleGetFriends(); // Send friend list on login
 
             ServerLogger.info("Вход: " + username);
         } else {
@@ -325,6 +331,87 @@ public class ClientHandler {
             server.broadcastAll(buildUserListPacket());
             ServerLogger.info("AVATAR UPDATE: " + currentUser.getUsername());
         }
+    }
+
+    private void handleFriendAdd(JSONObject p) {
+        if (!checkAuthorized()) return;
+        int targetId = p.optInt("targetUserId", -1);
+        if (targetId <= 0 || targetId == currentUser.getId()) {
+            send(Packet.error("Неверный ID пользователя")); return;
+        }
+        User target = DatabaseManager.getInstance().getUserById(targetId);
+        if (target == null) {
+            send(Packet.error("Пользователь с ID #" + targetId + " не найден")); return;
+        }
+        boolean ok = DatabaseManager.getInstance().sendFriendRequest(currentUser.getId(), targetId);
+        if (!ok) {
+            send(Packet.error("Запрос уже отправлен или вы уже друзья")); return;
+        }
+        send(Packet.notification("Запрос дружбы отправлен → " + target.getUsername()));
+        // Notify target if online
+        ClientHandler targetClient = server.getClientByUsername(target.getUsername());
+        if (targetClient != null) {
+            targetClient.send(Packet.friendRequestIn(
+                    currentUser.getId(), currentUser.getUsername(),
+                    currentUser.getStatusText(), currentUser.getAvatarUrl()));
+        }
+        ServerLogger.info("FRIEND_REQUEST: " + currentUser.getUsername() + " → " + target.getUsername());
+    }
+
+    private void handleFriendAccept(JSONObject p) {
+        if (!checkAuthorized()) return;
+        int fromId = p.optInt("fromUserId", -1);
+        if (fromId <= 0) { send(Packet.error("Неверный ID")); return; }
+        boolean ok = DatabaseManager.getInstance().acceptFriendRequest(fromId, currentUser.getId());
+        if (!ok) { send(Packet.error("Запрос не найден")); return; }
+
+        User requester = DatabaseManager.getInstance().getUserById(fromId);
+        if (requester == null) { send(Packet.error("Пользователь не найден")); return; }
+
+        // Tell me about the new friend
+        send(Packet.friendAccepted(requester.getId(), requester.getUsername(),
+                requester.getStatusText(), requester.getAvatarUrl()));
+        // Tell the requester that their request was accepted
+        ClientHandler requesterClient = server.getClientByUsername(requester.getUsername());
+        if (requesterClient != null) {
+            requesterClient.send(Packet.friendAccepted(
+                    currentUser.getId(), currentUser.getUsername(),
+                    currentUser.getStatusText(), currentUser.getAvatarUrl()));
+        }
+        ServerLogger.info("FRIEND_ACCEPTED: " + currentUser.getUsername() + " ← " + requester.getUsername());
+    }
+
+    private void handleFriendDecline(JSONObject p) {
+        if (!checkAuthorized()) return;
+        int fromId = p.optInt("fromUserId", -1);
+        if (fromId <= 0) { send(Packet.error("Неверный ID")); return; }
+        DatabaseManager.getInstance().removeFriend(fromId, currentUser.getId());
+        send(Packet.notification("Запрос отклонён"));
+    }
+
+    private void handleFriendRemove(JSONObject p) {
+        if (!checkAuthorized()) return;
+        int friendId = p.optInt("friendUserId", -1);
+        if (friendId <= 0) return;
+        User friend = DatabaseManager.getInstance().getUserById(friendId);
+        if (friend == null) return;
+        DatabaseManager.getInstance().removeFriend(currentUser.getId(), friendId);
+        send(Packet.friendRemoved(friendId, friend.getUsername()));
+        // Also notify the other side if online
+        ClientHandler friendClient = server.getClientByUsername(friend.getUsername());
+        if (friendClient != null) {
+            friendClient.send(Packet.friendRemoved(currentUser.getId(), currentUser.getUsername()));
+        }
+        ServerLogger.info("FRIEND_REMOVED: " + currentUser.getUsername() + " unfriended " + friend.getUsername());
+    }
+
+    private void handleGetFriends() {
+        if (!checkAuthorized()) return;
+        java.util.Set<String> onlineNames = new java.util.HashSet<>();
+        for (ClientHandler c : server.getOnlineClients()) {
+            if (c.currentUser != null) onlineNames.add(c.currentUser.getUsername());
+        }
+        send(DatabaseManager.getInstance().getFriendsList(currentUser.getId(), onlineNames).toString());
     }
 
     private void sendFCMPush(String token, String title, String body, String senderUsername) {

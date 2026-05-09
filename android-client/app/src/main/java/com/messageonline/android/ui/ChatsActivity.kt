@@ -93,6 +93,17 @@ class ChatsActivity : AppCompatActivity() {
             val onlineCount = users.size
             if (onlineCount > 0) supportActionBar?.subtitle = "$onlineCount в сети"
         }
+
+        viewModel.incomingFriendRequest.observe(this) { request ->
+            if (request != null) {
+                com.google.android.material.snackbar.Snackbar
+                    .make(binding.root, "📩 ${request.username} хочет подружиться", com.google.android.material.snackbar.Snackbar.LENGTH_LONG)
+                    .setAction("Перейти") {
+                        startActivity(Intent(this, FriendsActivity::class.java))
+                    }
+                    .show()
+            }
+        }
     }
 
     override fun onResume() {
@@ -107,7 +118,7 @@ class ChatsActivity : AppCompatActivity() {
 
     override fun onOptionsItemSelected(item: MenuItem): Boolean {
         return when (item.itemId) {
-            R.id.menu_contacts -> { startActivity(Intent(this, UsersActivity::class.java)); true }
+            R.id.menu_friends  -> { startActivity(Intent(this, FriendsActivity::class.java)); true }
             R.id.menu_profile  -> { startActivity(Intent(this, ProfileActivity::class.java)); true }
             R.id.menu_settings -> { startActivity(Intent(this, SettingsActivity::class.java)); true }
             R.id.menu_logout   -> { confirmLogout(); true }

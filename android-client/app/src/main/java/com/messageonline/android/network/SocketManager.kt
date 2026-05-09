@@ -196,4 +196,36 @@ object SocketManager {
             put("avatarUrl", avatarUrl)
         })
     }
+
+    fun sendFriendAdd(targetUserId: Int) {
+        send(JSONObject().apply {
+            put("type", Packet.FRIEND_ADD)
+            put("targetUserId", targetUserId)
+        })
+    }
+
+    fun sendFriendAccept(fromUserId: Int) {
+        send(JSONObject().apply {
+            put("type", Packet.FRIEND_ACCEPT)
+            put("fromUserId", fromUserId)
+        })
+    }
+
+    fun sendFriendDecline(fromUserId: Int) {
+        send(JSONObject().apply {
+            put("type", Packet.FRIEND_DECLINE)
+            put("fromUserId", fromUserId)
+        })
+    }
+
+    fun sendFriendRemove(friendUserId: Int) {
+        send(JSONObject().apply {
+            put("type", Packet.FRIEND_REMOVE)
+            put("friendUserId", friendUserId)
+        })
+    }
+
+    fun requestFriends() {
+        send(JSONObject().apply { put("type", Packet.GET_FRIENDS) })
+    }
 }
