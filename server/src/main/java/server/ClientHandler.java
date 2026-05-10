@@ -65,7 +65,9 @@ public class ClientHandler {
                 case Packet.DELETE_FOR_ALL  -> handleDeleteForAll(packet);
                 case Packet.CHANGE_USERNAME -> handleChangeUsername(packet);
                 case Packet.UPDATE_PRIVACY  -> handleUpdatePrivacy(packet);
-                case Packet.ADMIN_LOGIN     -> handleAdminLogin(packet);
+                case Packet.ADMIN_LOGIN          -> handleAdminLogin(packet);
+                case Packet.ADMIN_DELETE_USER    -> handleAdminDeleteUser(packet);
+                case Packet.ADMIN_DELETE_MESSAGE -> handleAdminDeleteMessage(packet);
                 default -> send(Packet.error("Неизвестный тип пакета: " + type));
             }
 
@@ -673,5 +675,34 @@ public class ClientHandler {
             ServerLogger.error("[Admin] Ошибка отправки статистики: " + e.getMessage());
         }
         ServerLogger.info("[Admin] Admin panel авторизована");
+    }
+
+    private void handleAdminDeleteUser(JSONObject p) {
+        if (!isAdmin) return;
+        int userId = p.optInt("userId", -1);
+        String reqId = p.optString("reqId", "");
+        boolean ok = userId > 0 && DatabaseManager.getInstance().deleteUser(userId);
+        send(new JSONObject()
+                .put("type", Packet.ADMIN_ACTION_RESULT)
+                .put("action", "delete_user")
+                .put("userId", userId)
+                .put("reqId", reqId)
+                .put("ok", ok)
+                .toString());
+        ServerLogger.info("[Admin] Удалён пользователь #" + userId + " ok=" + ok);
+    }
+
+    private void handleAdminDeleteMessage(JSONObject p) {
+        if (!isAdmin) return;
+        int msgId = p.optInt("messageId", -1);
+        String reqId = p.optString("reqId", "");
+        boolean ok = msgId > 0 && DatabaseManager.getInstance().deleteMessageById(msgId);
+        send(new JSONObject()
+                .put("type", Packet.ADMIN_ACTION_RESULT)
+                .put("action", "delete_message")
+                .put("messageId", msgId)
+                .put("reqId", reqId)
+                .put("ok", ok)
+                .toString());
     }
 }

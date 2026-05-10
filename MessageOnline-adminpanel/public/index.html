@@ -1,253 +1,290 @@
 <!DOCTYPE html>
 <html lang="ru">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>MessageOnline — Admin</title>
-  <link rel="stylesheet" href="style.css" />
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>MessageOnline Admin</title>
+  <link rel="stylesheet" href="style.css">
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
 </head>
 <body>
 
-<!-- ═══════════════ LOGIN ═══════════════ -->
-<div id="loginScreen" class="login-screen">
-  <div class="login-card">
-    <div class="login-logo">
-      <div class="logo-icon-wrap">⚡</div>
+<!-- LOGIN -->
+<div id="loginScreen">
+  <div class="login-wrap">
+    <div class="login-card">
+      <div class="login-logo">
+        <svg width="52" height="52" viewBox="0 0 48 48" fill="none">
+          <rect width="48" height="48" rx="12" fill="url(#lg)"/>
+          <path d="M12 16h24v3H12zM12 22.5h18v3H12zM12 29h14v3H12z" fill="white"/>
+          <defs><linearGradient id="lg" x1="0" y1="0" x2="48" y2="48"><stop stop-color="#7367F0"/><stop offset="1" stop-color="#CE9FFC"/></linearGradient></defs>
+        </svg>
+      </div>
       <h1>MessageOnline</h1>
-      <p>Панель администратора</p>
+      <p class="login-sub">Панель администратора</p>
+      <form id="loginForm">
+        <div class="input-group">
+          <label>Пароль</label>
+          <input type="password" id="loginPassword" placeholder="••••••••" autofocus>
+        </div>
+        <button type="submit" class="btn-primary full">Войти →</button>
+      </form>
+      <div id="loginError" class="login-error"></div>
     </div>
-    <div id="loginError" class="alert alert-error" style="display:none"></div>
-    <input type="password" id="loginPassword" placeholder="Пароль администратора" class="input" />
-    <button onclick="doLogin()" class="btn btn-primary btn-block">Войти</button>
   </div>
 </div>
 
-<!-- ═══════════════ APP ═══════════════ -->
-<div id="app" style="display:none" class="app-layout">
+<!-- APP -->
+<div id="app" class="app-layout" style="display:none">
 
-  <!-- Sidebar -->
+  <!-- SIDEBAR -->
   <aside class="sidebar">
-    <div class="sidebar-logo">
-      <span class="logo-icon">⚡</span>
-      <span>MessageOnline</span>
+    <div class="sidebar-brand">
+      <svg width="30" height="30" viewBox="0 0 48 48" fill="none">
+        <rect width="48" height="48" rx="10" fill="url(#lg2)"/>
+        <path d="M12 16h24v3H12zM12 22.5h18v3H12zM12 29h14v3H12z" fill="white"/>
+        <defs><linearGradient id="lg2" x1="0" y1="0" x2="48" y2="48"><stop stop-color="#7367F0"/><stop offset="1" stop-color="#CE9FFC"/></linearGradient></defs>
+      </svg>
+      <span class="brand-name">MO <strong>Admin</strong></span>
     </div>
 
-    <!-- Java server status -->
-    <div class="server-status">
-      <span id="javaStatusDot" class="status-dot offline"></span>
-      <span id="javaStatusText" class="status-text">Нет соединения</span>
-    </div>
-
-    <div class="online-badge-wrap">
-      <span id="onlineCountBadge" class="online-badge">0 онлайн</span>
-    </div>
-
+    <div class="sidebar-label">Главное</div>
     <nav class="sidebar-nav">
-      <a href="#" class="nav-item active" data-page="dashboard">
-        <span class="nav-icon">📊</span> Dashboard
+      <a class="nav-item active" data-page="dashboard">
+        <svg class="ni" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg>
+        <span>Дашборд</span>
       </a>
-      <a href="#" class="nav-item" data-page="users">
-        <span class="nav-icon">👥</span> Пользователи
+      <a class="nav-item" data-page="users">
+        <svg class="ni" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+        <span>Пользователи</span>
+        <span class="nbadge" id="userCountBadge">0</span>
       </a>
-      <a href="#" class="nav-item" data-page="messages">
-        <span class="nav-icon">💬</span> Сообщения
+      <a class="nav-item" data-page="messages">
+        <svg class="ni" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+        <span>Сообщения</span>
+        <span class="nbadge" id="msgCountBadge">0</span>
       </a>
-      <a href="#" class="nav-item" data-page="friends">
-        <span class="nav-icon">🤝</span> Друзья
+      <a class="nav-item" data-page="friends">
+        <svg class="ni" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/></svg>
+        <span>Друзья</span>
       </a>
     </nav>
-    <div class="sidebar-footer">
-      <button onclick="doLogout()" class="btn btn-ghost btn-block">🚪 Выйти</button>
+
+    <div class="sidebar-label">Мониторинг</div>
+    <nav class="sidebar-nav">
+      <a class="nav-item" data-page="live">
+        <svg class="ni" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="3"/></svg>
+        <span>Live</span>
+        <span class="nbadge nbadge-green" id="onlineBadge">0</span>
+      </a>
+    </nav>
+
+    <div class="sidebar-bottom">
+      <div class="java-status" id="javaStatusBar">
+        <span class="sdot" id="javaStatusDot"></span>
+        <span id="javaStatusText">Подключение...</span>
+      </div>
+      <button class="btn-logout" id="logoutBtn">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4M16 17l5-5-5-5M21 12H9"/></svg>
+        Выйти
+      </button>
     </div>
   </aside>
 
-  <!-- Main -->
-  <main class="main-content">
+  <!-- MAIN -->
+  <div class="main-wrap">
+    <!-- TOPBAR -->
+    <header class="topbar">
+      <h2 class="page-title" id="pageTitle">Дашборд</h2>
+      <div class="topbar-right">
+        <div class="tsearch">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
+          <input type="text" id="topSearch" placeholder="Поиск...">
+        </div>
+        <div class="admin-chip">
+          <div class="admin-av">A</div>
+          <div>
+            <div class="aname">Admin</div>
+            <div class="arole">Администратор</div>
+          </div>
+        </div>
+      </div>
+    </header>
 
-    <!-- ── DASHBOARD ── -->
-    <div id="page-dashboard" class="page active">
-      <div class="page-header">
-        <h2>Dashboard</h2>
-        <span id="dbInfo" class="badge badge-info"></span>
+    <!-- DASHBOARD -->
+    <section class="page active" id="page-dashboard">
+      <div class="welcome-banner">
+        <div class="welcome-left">
+          <div class="congrats-emoji">🎉</div>
+          <div>
+            <h2 id="welcomeTitle">Добро пожаловать!</h2>
+            <p id="welcomeSub">Сегодня <span id="todayDate"></span></p>
+            <div class="wpills">
+              <span class="pill ppurple" id="welcomeUsers">— пользователей</span>
+              <span class="pill pgreen" id="welcomeOnline">0 онлайн</span>
+            </div>
+          </div>
+        </div>
+        <div class="welcome-art">💬</div>
       </div>
 
       <div class="stats-grid">
-        <div class="stat-card stat-card-highlight">
-          <div class="stat-icon" style="background:#22C55E20">🟢</div>
-          <div class="stat-body">
-            <div class="stat-value" id="st-online">—</div>
-            <div class="stat-label">Онлайн сейчас</div>
+        <div class="scard c-purple">
+          <div class="scard-top"><span class="slabel">Пользователи</span>
+            <div class="sico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/></svg></div>
           </div>
+          <div class="sval" id="st-users">—</div>
+          <div class="ssub">всего зарегистрировано</div>
         </div>
-        <div class="stat-card">
-          <div class="stat-icon" style="background:#6366F120">👤</div>
-          <div class="stat-body">
-            <div class="stat-value" id="st-users">—</div>
-            <div class="stat-label">Пользователей</div>
+        <div class="scard c-orange">
+          <div class="scard-top"><span class="slabel">Сообщения</span>
+            <div class="sico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg></div>
           </div>
-          <div class="stat-delta positive" id="st-users-today"></div>
+          <div class="sval" id="st-messages">—</div>
+          <div class="ssub">всего в базе</div>
         </div>
-        <div class="stat-card">
-          <div class="stat-icon" style="background:#3B82F620">💬</div>
-          <div class="stat-body">
-            <div class="stat-value" id="st-messages">—</div>
-            <div class="stat-label">Сообщений</div>
+        <div class="scard c-green">
+          <div class="scard-top"><span class="slabel">Онлайн сейчас</span>
+            <div class="sico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="4"/></svg></div>
           </div>
-          <div class="stat-delta positive" id="st-msg-today"></div>
+          <div class="sval" id="st-online">0</div>
+          <div class="ssub" id="st-online-names">нет активных</div>
         </div>
-        <div class="stat-card">
-          <div class="stat-icon" style="background:#F59E0B20">🌐</div>
-          <div class="stat-body">
-            <div class="stat-value" id="st-global">—</div>
-            <div class="stat-label">Глобальных</div>
+        <div class="scard c-cyan">
+          <div class="scard-top"><span class="slabel">Друзья</span>
+            <div class="sico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/></svg></div>
           </div>
+          <div class="sval" id="st-friends">—</div>
+          <div class="ssub">принятых заявок</div>
         </div>
-        <div class="stat-card">
-          <div class="stat-icon" style="background:#8B5CF620">🔒</div>
-          <div class="stat-body">
-            <div class="stat-value" id="st-private">—</div>
-            <div class="stat-label">Личных</div>
+      </div>
+
+      <div class="two-col">
+        <div class="card">
+          <div class="card-hdr">
+            <h3>Активность за 7 дней</h3>
+            <span class="chip">Сообщений</span>
           </div>
+          <canvas id="activityChart" height="180"></canvas>
         </div>
-        <div class="stat-card">
-          <div class="stat-icon" style="background:#EC489920">🤝</div>
-          <div class="stat-body">
-            <div class="stat-value" id="st-friends">—</div>
-            <div class="stat-label">Дружб</div>
-          </div>
-        </div>
-        <div class="stat-card">
-          <div class="stat-icon" style="background:#14B8A620">⏳</div>
-          <div class="stat-body">
-            <div class="stat-value" id="st-pending">—</div>
-            <div class="stat-label">Запросов</div>
+        <div class="card">
+          <div class="card-hdr"><h3>Java Сервер</h3></div>
+          <div class="server-panel">
+            <div class="server-ring" id="serverRing">
+              <div class="ring-inner">
+                <div class="ring-icon" id="ringIcon">●</div>
+                <div class="ring-label" id="ringLabel">Офлайн</div>
+              </div>
+            </div>
+            <div class="srows">
+              <div class="srow"><span>Онлайн</span><b id="srv-online">0</b></div>
+              <div class="srow"><span>Пользователей</span><b id="srv-users">—</b></div>
+              <div class="srow"><span>Сообщений</span><b id="srv-msgs">—</b></div>
+              <div class="srow"><span>Статус</span><b id="srv-status">—</b></div>
+            </div>
           </div>
         </div>
       </div>
 
-      <!-- Two-column: chart + live feed -->
-      <div class="dashboard-bottom">
-        <div class="dashboard-chart">
-          <div class="section-title">Активность за 7 дней</div>
-          <div class="chart-wrap"></div>
+      <div class="card">
+        <div class="card-hdr">
+          <h3><span class="live-pulse"></span> Активность в реальном времени</h3>
+          <button class="btn-sm" id="clearDashLog">Очистить</button>
         </div>
-        <div class="dashboard-live">
-          <div class="section-title">
-            Live-лог
-            <span class="live-dot"></span>
-          </div>
-          <div id="activityLog" class="activity-log">
-            <div class="activity-empty">Ожидание событий…</div>
-          </div>
-        </div>
+        <div id="dashActivityLog" class="activity-log"></div>
       </div>
-    </div>
+    </section>
 
-    <!-- ── USERS ── -->
-    <div id="page-users" class="page">
-      <div class="page-header">
-        <h2>Пользователи</h2>
-        <div class="page-header-actions">
-          <input type="text" id="userSearch" placeholder="Поиск…" class="input input-sm"
-            oninput="debounce(loadUsers,400)()" />
+    <!-- USERS -->
+    <section class="page" id="page-users">
+      <div class="page-bar">
+        <div class="tsearch">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
+          <input type="text" id="userSearch" placeholder="Поиск пользователей...">
         </div>
+        <span class="count-badge">Всего: <strong id="userTotal">—</strong></span>
       </div>
-      <div class="table-wrap">
-        <table class="table">
+      <div class="card no-pad">
+        <table class="dtable">
           <thead><tr>
-            <th>ID</th><th>Имя</th><th>Email</th><th>Статус</th>
+            <th>ID</th><th>Пользователь</th><th>Email</th><th>Статус</th>
             <th>Сообщ.</th><th>Друзей</th><th>Приватность</th><th>Регистрация</th><th></th>
           </tr></thead>
-          <tbody id="usersBody"></tbody>
+          <tbody id="usersTbody"><tr><td colspan="9" class="tloading">Загрузка...</td></tr></tbody>
         </table>
+        <div class="tpagination" id="usersPagination"></div>
       </div>
-      <div id="usersPagination" class="pagination"></div>
-    </div>
+    </section>
 
-    <!-- ── MESSAGES ── -->
-    <div id="page-messages" class="page">
-      <div class="page-header">
-        <h2>Сообщения</h2>
-        <div class="page-header-actions">
-          <select id="msgType" class="input input-sm" onchange="loadMessages()">
-            <option value="all">Все</option>
-            <option value="global">Глобальный</option>
-            <option value="private">Личные</option>
-          </select>
-          <input type="text" id="msgSearch" placeholder="Поиск…" class="input input-sm"
-            oninput="debounce(loadMessages,400)()" />
+    <!-- MESSAGES -->
+    <section class="page" id="page-messages">
+      <div class="page-bar">
+        <div class="ftabs">
+          <button class="ftab active" data-filter="all">Все</button>
+          <button class="ftab" data-filter="global">Глобальные</button>
+          <button class="ftab" data-filter="private">Личные</button>
+        </div>
+        <div class="tsearch">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
+          <input type="text" id="msgSearch" placeholder="Поиск по тексту...">
+        </div>
+        <span class="count-badge">Всего: <strong id="msgTotal">—</strong></span>
+      </div>
+      <div class="card no-pad">
+        <table class="dtable">
+          <thead><tr>
+            <th>ID</th><th>Отправитель</th><th>Получатель</th><th>Сообщение</th><th>Тип</th><th>Время</th><th></th>
+          </tr></thead>
+          <tbody id="messagesTbody"><tr><td colspan="7" class="tloading">Загрузка...</td></tr></tbody>
+        </table>
+        <div class="tpagination" id="msgPagination"></div>
+      </div>
+    </section>
+
+    <!-- FRIENDS -->
+    <section class="page" id="page-friends">
+      <div class="page-bar">
+        <div class="ftabs">
+          <button class="ftab active" data-filter="accepted">Друзья</button>
+          <button class="ftab" data-filter="pending">Ожидают</button>
+        </div>
+        <span class="count-badge">Всего: <strong id="friendTotal">—</strong></span>
+      </div>
+      <div class="card no-pad">
+        <table class="dtable">
+          <thead><tr>
+            <th>Пользователь 1</th><th>Пользователь 2</th><th>Статус</th><th>Дата</th>
+          </tr></thead>
+          <tbody id="friendsTbody"><tr><td colspan="4" class="tloading">Загрузка...</td></tr></tbody>
+        </table>
+        <div class="tpagination" id="friendsPagination"></div>
+      </div>
+    </section>
+
+    <!-- LIVE -->
+    <section class="page" id="page-live">
+      <div class="two-col two-col-3070">
+        <div class="card">
+          <div class="card-hdr">
+            <h3>🟢 Онлайн сейчас</h3>
+            <span class="live-count-big" id="liveOnlineCount">0</span>
+          </div>
+          <div id="liveUserChips" class="user-chips"></div>
+        </div>
+        <div class="card">
+          <div class="card-hdr">
+            <h3><span class="live-pulse"></span> Поток событий</h3>
+            <button class="btn-sm" id="clearLiveLog">Очистить</button>
+          </div>
+          <div id="liveFullLog" class="live-log-full"></div>
         </div>
       </div>
-      <div class="table-wrap">
-        <table class="table">
-          <thead><tr>
-            <th>ID</th><th>От</th><th>Кому</th><th>Тип</th><th>Сообщение</th><th>Время</th><th></th>
-          </tr></thead>
-          <tbody id="messagesBody"></tbody>
-        </table>
-      </div>
-      <div id="msgPagination" class="pagination"></div>
-    </div>
+    </section>
 
-    <!-- ── FRIENDS ── -->
-    <div id="page-friends" class="page">
-      <div class="page-header">
-        <h2>Друзья / Запросы</h2>
-        <div class="page-header-actions">
-          <select id="friendStatus" class="input input-sm" onchange="loadFriends()">
-            <option value="accepted">Друзья</option>
-            <option value="pending">Запросы</option>
-          </select>
-        </div>
-      </div>
-      <div class="table-wrap">
-        <table class="table">
-          <thead><tr>
-            <th>ID</th><th>Пользователь 1</th><th>Пользователь 2</th><th>Статус</th><th>Дата</th>
-          </tr></thead>
-          <tbody id="friendsBody"></tbody>
-        </table>
-      </div>
-      <div id="friendsPagination" class="pagination"></div>
-    </div>
+  </div><!-- /main-wrap -->
+</div><!-- /app -->
 
-  </main>
-</div>
-
-<!-- ═══ USER MODAL ═══ -->
-<div id="userModal" class="modal-overlay" style="display:none" onclick="closeModal(event)">
-  <div class="modal">
-    <div class="modal-header">
-      <div class="modal-avatar" id="modalAvatar"></div>
-      <div><h3 id="modalUsername"></h3><span id="modalPhone" class="text-muted"></span></div>
-      <button class="modal-close" onclick="closeUserModal()">✕</button>
-    </div>
-    <div class="modal-body">
-      <div class="modal-meta" id="modalMeta"></div>
-      <div class="modal-section-title">Последние сообщения</div>
-      <div id="modalMessages"></div>
-      <div class="modal-section-title">Друзья</div>
-      <div id="modalFriends"></div>
-    </div>
-    <div class="modal-footer">
-      <button id="modalDeleteBtn" class="btn btn-danger">🗑 Удалить аккаунт</button>
-    </div>
-  </div>
-</div>
-
-<!-- ═══ CONFIRM ═══ -->
-<div id="confirmModal" class="modal-overlay" style="display:none">
-  <div class="modal modal-sm">
-    <h3 id="confirmTitle"></h3>
-    <p id="confirmText" style="color:var(--muted);font-size:13px;margin-top:8px"></p>
-    <div class="modal-footer">
-      <button class="btn btn-ghost" onclick="document.getElementById('confirmModal').style.display='none'">Отмена</button>
-      <button class="btn btn-danger" id="confirmOkBtn">Удалить</button>
-    </div>
-  </div>
-</div>
-
-<div id="toast" class="toast"></div>
+<div id="toastContainer"></div>
 <script src="app.js"></script>
 </body>
 </html>

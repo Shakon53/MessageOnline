@@ -126,6 +126,11 @@ function handleJavaPacket(packet) {
     console.log(`📊 Статистика от Java: ${javaData.userCount} польз., ${javaData.messageCount} сообщ.`);
     return;
   }
+  if (type === 'ADMIN_ACTION_RESULT') {
+    const reqId = packet.reqId;
+    if (reqId) events.emit(`admin_result_${reqId}`, { ok: packet.ok, error: packet.error });
+    return;
+  }
   if (type === 'ADMIN_EVENT') {
     const ev = packet.event;
     const p  = packet.payload || {};
@@ -322,8 +327,30 @@ app.get('/api/users/:id', requireAuth, (req, res) => {
 });
 
 app.delete('/api/users/:id', requireAuth, (req, res) => {
+  const id = parseInt(req.params.id);
+  if (javaConnected && javaWs) {
+    const reqId = `du_${Date.now()}_${id}`;
+    const timer = setTimeout(() => {
+      events.removeAllListeners(`admin_result_${reqId}`);
+      javaData.users = javaData.users.filter(u => u.id !== id);
+      javaData.userCount = Math.max(0, javaData.userCount - 1);
+      res.json({ ok: true });
+    }, 4000);
+    events.once(`admin_result_${reqId}`, (result) => {
+      clearTimeout(timer);
+      if (result.ok) {
+        javaData.users = javaData.users.filter(u => u.id !== id);
+        javaData.userCount = Math.max(0, javaData.userCount - 1);
+        res.json({ ok: true });
+      } else {
+        res.status(500).json({ error: result.error || 'Ошибка удаления' });
+      }
+    });
+    javaWs.send(JSON.stringify({ type: 'ADMIN_DELETE_USER', userId: id, reqId }));
+    return;
+  }
   try {
-    const db = getDb(); const id = parseInt(req.params.id);
+    const db = getDb();
     dbRun(db, 'DELETE FROM messages WHERE sender_id=? OR receiver_id=?', [id,id]);
     dbRun(db, 'DELETE FROM friends WHERE user_id=? OR friend_id=?', [id,id]);
     const info = dbRun(db, 'DELETE FROM users WHERE id=?', [id]);
@@ -368,9 +395,29 @@ app.get('/api/messages', requireAuth, (req, res) => {
 });
 
 app.delete('/api/messages/:id', requireAuth, (req, res) => {
+  const id = parseInt(req.params.id);
+  if (javaConnected && javaWs) {
+    const reqId = `dm_${Date.now()}_${id}`;
+    const timer = setTimeout(() => {
+      events.removeAllListeners(`admin_result_${reqId}`);
+      javaData.recentMessages = javaData.recentMessages.filter(m => m.id !== id);
+      res.json({ ok: true });
+    }, 4000);
+    events.once(`admin_result_${reqId}`, (result) => {
+      clearTimeout(timer);
+      if (result.ok) {
+        javaData.recentMessages = javaData.recentMessages.filter(m => m.id !== id);
+        res.json({ ok: true });
+      } else {
+        res.status(500).json({ error: result.error || 'Ошибка удаления' });
+      }
+    });
+    javaWs.send(JSON.stringify({ type: 'ADMIN_DELETE_MESSAGE', messageId: id, reqId }));
+    return;
+  }
   try {
     const db = getDb();
-    const info = dbRun(db, 'DELETE FROM messages WHERE id=?', [parseInt(req.params.id)]);
+    const info = dbRun(db, 'DELETE FROM messages WHERE id=?', [id]);
     if (!info.changes) { db.close(); return res.status(404).json({ error: 'Не найдено' }); }
     saveDb(db); db.close();
     res.json({ ok: true });

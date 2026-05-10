@@ -584,6 +584,30 @@ public class DatabaseManager {
         } catch (SQLException e) { return false; }
     }
 
+    /** Удалить пользователя (admin) */
+    public synchronized boolean deleteUser(int userId) {
+        try {
+            try (PreparedStatement ps = connection.prepareStatement("DELETE FROM messages WHERE sender_id=? OR receiver_id=?")) {
+                ps.setInt(1, userId); ps.setInt(2, userId); ps.executeUpdate();
+            }
+            try (PreparedStatement ps = connection.prepareStatement("DELETE FROM friends WHERE user_id=? OR friend_id=?")) {
+                ps.setInt(1, userId); ps.setInt(2, userId); ps.executeUpdate();
+            }
+            try (PreparedStatement ps = connection.prepareStatement("DELETE FROM users WHERE id=?")) {
+                ps.setInt(1, userId);
+                return ps.executeUpdate() > 0;
+            }
+        } catch (SQLException e) { return false; }
+    }
+
+    /** Удалить сообщение по ID (admin) */
+    public synchronized boolean deleteMessageById(int messageId) {
+        try (PreparedStatement ps = connection.prepareStatement("DELETE FROM messages WHERE id=?")) {
+            ps.setInt(1, messageId);
+            return ps.executeUpdate() > 0;
+        } catch (SQLException e) { return false; }
+    }
+
     /** Статистика для admin панели */
     public synchronized JSONObject getAdminStats() {
         JSONObject stats = new JSONObject();

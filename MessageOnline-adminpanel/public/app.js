@@ -1,418 +1,418 @@
-/* ════════════════════════════════════════════════════════════════
-   MessageOnline Admin Panel — Frontend v2
-   ════════════════════════════════════════════════════════════════ */
+/* ══════════════════════════════════════════════════════
+   MessageOnline Admin Panel — App v3 (Vuexy Style)
+══════════════════════════════════════════════════════ */
 
-let usersPage    = 1;
-let messagesPage = 1;
-let friendsPage  = 1;
-let sseSource    = null;
-let onlineCount  = 0;
-const activityLog = []; // последние 50 событий
+// ─── State ────────────────────────────────────────────
+let currentPage = 'dashboard';
+let usersPage = 1, msgsPage = 1, friendsPage = 1;
+let msgFilter = 'all', friendFilter = 'accepted';
+let userSearchTimer = null, msgSearchTimer = null;
+let activityLog = [];
+let activityChart = null;
+let sseSource = null;
 
-// ─── Init ─────────────────────────────────────────────────────────────────────
-window.addEventListener('DOMContentLoaded', async () => {
-  const me = await api('/api/me');
-  if (me.authenticated) showApp();
-  document.getElementById('loginPassword').addEventListener('keydown', e => {
-    if (e.key === 'Enter') doLogin();
-  });
+// ─── Init ─────────────────────────────────────────────
+document.addEventListener('DOMContentLoaded', async () => {
+  const r = await api('/api/me');
+  if (r.authenticated) showApp();
+  else showLogin();
 });
 
-// ─── Auth ──────────────────────────────────────────────────────────────────────
-async function doLogin() {
-  const pw  = document.getElementById('loginPassword').value;
-  const err = document.getElementById('loginError');
-  err.style.display = 'none';
-  try {
-    await api('/api/login', 'POST', { password: pw });
-    showApp();
-  } catch (e) {
-    err.textContent = 'Неверный пароль';
-    err.style.display = 'block';
-  }
-}
-
-async function doLogout() {
-  if (sseSource) { sseSource.close(); sseSource = null; }
-  await api('/api/logout', 'POST');
+// ─── AUTH ─────────────────────────────────────────────
+function showLogin() {
+  document.getElementById('loginScreen').style.display = '';
   document.getElementById('app').style.display = 'none';
-  document.getElementById('loginScreen').style.display = 'flex';
-  document.getElementById('loginPassword').value = '';
 }
-
 function showApp() {
   document.getElementById('loginScreen').style.display = 'none';
-  document.getElementById('app').style.display = 'flex';
+  document.getElementById('app').style.display = '';
+  document.getElementById('todayDate').textContent = new Date().toLocaleDateString('ru', { day:'numeric', month:'long', year:'numeric' });
+  setupNav();
+  setupSearch();
   startSSE();
-  navigateTo('dashboard');
+  loadStats();
 }
 
-// ─── SSE Real-time ────────────────────────────────────────────────────────────
+document.getElementById('loginForm').addEventListener('submit', async e => {
+  e.preventDefault();
+  const pw = document.getElementById('loginPassword').value;
+  const err = document.getElementById('loginError');
+  err.textContent = '';
+  const r = await api('/api/login', 'POST', { password: pw });
+  if (r.ok) { showApp(); }
+  else { err.textContent = r.error || 'Неверный пароль'; }
+});
+
+document.getElementById('logoutBtn').addEventListener('click', async () => {
+  await api('/api/logout', 'POST');
+  stopSSE();
+  showLogin();
+});
+
+// ─── NAVIGATION ───────────────────────────────────────
+const pageTitles = { dashboard: 'Дашборд', users: 'Пользователи', messages: 'Сообщения', friends: 'Друзья', live: 'Live' };
+
+function setupNav() {
+  document.querySelectorAll('.nav-item').forEach(el => {
+    el.addEventListener('click', e => {
+      e.preventDefault();
+      const page = el.dataset.page;
+      if (page) navigateTo(page);
+    });
+  });
+}
+
+function navigateTo(page) {
+  currentPage = page;
+  document.querySelectorAll('.nav-item').forEach(el => el.classList.toggle('active', el.dataset.page === page));
+  document.querySelectorAll('.page').forEach(el => el.classList.toggle('active', el.id === `page-${page}`));
+  document.getElementById('pageTitle').textContent = pageTitles[page] || page;
+
+  if (page === 'users')    { usersPage = 1; loadUsers(); }
+  if (page === 'messages') { msgsPage = 1; loadMessages(); }
+  if (page === 'friends')  { friendsPage = 1; loadFriends(); }
+}
+
+function setupSearch() {
+  // Top search — navigate to users with query
+  document.getElementById('topSearch').addEventListener('input', e => {
+    const q = e.target.value.trim();
+    if (q) { navigateTo('users'); document.getElementById('userSearch').value = q; clearTimeout(userSearchTimer); userSearchTimer = setTimeout(() => loadUsers(1, q), 300); }
+  });
+  // User search
+  document.getElementById('userSearch').addEventListener('input', e => {
+    clearTimeout(userSearchTimer);
+    userSearchTimer = setTimeout(() => loadUsers(1, e.target.value.trim()), 350);
+  });
+  // Message search
+  document.getElementById('msgSearch').addEventListener('input', e => {
+    clearTimeout(msgSearchTimer);
+    msgSearchTimer = setTimeout(() => loadMessages(1), 350);
+  });
+  // Message filter tabs
+  document.querySelectorAll('#page-messages .ftab').forEach(btn => {
+    btn.addEventListener('click', () => {
+      document.querySelectorAll('#page-messages .ftab').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+      msgFilter = btn.dataset.filter;
+      loadMessages(1);
+    });
+  });
+  // Friends filter tabs
+  document.querySelectorAll('#page-friends .ftab').forEach(btn => {
+    btn.addEventListener('click', () => {
+      document.querySelectorAll('#page-friends .ftab').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+      friendFilter = btn.dataset.filter;
+      loadFriends(1);
+    });
+  });
+  // Clear logs
+  document.getElementById('clearDashLog').addEventListener('click', () => {
+    activityLog = [];
+    document.getElementById('dashActivityLog').innerHTML = '';
+  });
+  document.getElementById('clearLiveLog').addEventListener('click', () => {
+    document.getElementById('liveFullLog').innerHTML = '';
+  });
+}
+
+// ─── API ──────────────────────────────────────────────
+async function api(url, method = 'GET', body = null) {
+  try {
+    const opts = { method, headers: { 'Content-Type': 'application/json' } };
+    if (body) opts.body = JSON.stringify(body);
+    const r = await fetch(url, opts);
+    return await r.json();
+  } catch (e) { return { error: e.message }; }
+}
+
+// ─── SSE ──────────────────────────────────────────────
 function startSSE() {
   if (sseSource) sseSource.close();
   sseSource = new EventSource('/api/live');
-
-  sseSource.onmessage = (e) => {
-    try {
-      const data = JSON.parse(e.data);
-      handleLiveEvent(data);
-    } catch (_) {}
+  sseSource.onmessage = e => {
+    try { handleLiveEvent(JSON.parse(e.data)); } catch {}
   };
-
-  sseSource.onerror = () => {
-    setJavaStatus(false);
-  };
+  sseSource.onerror = () => { setJavaStatus(false); };
 }
+function stopSSE() { if (sseSource) { sseSource.close(); sseSource = null; } }
 
-function handleLiveEvent(data) {
-  switch (data.type) {
-    case 'status':
-      setJavaStatus(data.javaConnected);
-      updateOnlineCount(data.onlineCount || 0);
-      break;
-
-    case 'java_status':
-      setJavaStatus(data.connected);
-      break;
-
-    case 'connected':
-      setJavaStatus(true);
-      updateOnlineCount(data.onlineCount || 0);
-      break;
-
-    case 'online_list':
-      updateOnlineCount(data.count || 0);
-      break;
-
-    case 'user_joined':
-      updateOnlineCount(data.onlineCount || onlineCount + 1);
-      pushActivity('join', `🟢 <b>${esc(data.username)}</b> вошёл`, data.username);
-      break;
-
-    case 'user_left':
-      updateOnlineCount(data.onlineCount || Math.max(0, onlineCount - 1));
-      pushActivity('leave', `🔴 <b>${esc(data.username)}</b> вышел`, data.username);
-      break;
-
-    case 'new_message':
-      const icon = data.msgType === 'global' ? '🌐' : '🔒';
-      const preview = data.content.length > 50 ? data.content.substring(0, 50) + '…' : data.content;
-      pushActivity('msg', `${icon} <b>${esc(data.from)}</b>: ${esc(preview)}`);
-      // Refresh messages table if on that page
-      if (document.getElementById('page-messages').classList.contains('active')) {
-        loadMessages();
-      }
-      break;
-  }
-}
-
-function setJavaStatus(connected) {
-  const dot  = document.getElementById('javaStatusDot');
-  const text = document.getElementById('javaStatusText');
-  if (!dot) return;
-  dot.className  = 'status-dot ' + (connected ? 'online' : 'offline');
-  text.textContent = connected ? 'Сервер подключён' : 'Сервер недоступен';
-}
-
-function updateOnlineCount(count) {
-  onlineCount = count;
-  const el = document.getElementById('onlineCountBadge');
-  if (el) el.textContent = count + ' онлайн';
-  const st = document.getElementById('st-online');
-  if (st) st.textContent = count;
-}
-
-function pushActivity(type, html, username) {
-  const now = new Date().toLocaleTimeString('ru', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
-  activityLog.unshift({ type, html, time: now });
-  if (activityLog.length > 50) activityLog.pop();
-  renderActivityLog();
-}
-
-function renderActivityLog() {
-  const el = document.getElementById('activityLog');
-  if (!el) return;
-  if (!activityLog.length) {
-    el.innerHTML = '<div class="activity-empty">Ожидание событий…</div>';
+function handleLiveEvent(ev) {
+  const t = ev.type;
+  if (t === 'status') {
+    setJavaStatus(ev.javaConnected);
+    updateOnlineCount(ev.onlineCount, ev.onlineUsers);
     return;
   }
-  el.innerHTML = activityLog.map(e => `
-    <div class="activity-row activity-${e.type}">
-      <span class="activity-time">${e.time}</span>
-      <span>${e.html}</span>
-    </div>
-  `).join('');
-}
-
-// ─── Navigation ───────────────────────────────────────────────────────────────
-document.querySelectorAll('.nav-item').forEach(el => {
-  el.addEventListener('click', e => { e.preventDefault(); navigateTo(el.dataset.page); });
-});
-
-function navigateTo(page) {
-  document.querySelectorAll('.nav-item').forEach(el => el.classList.toggle('active', el.dataset.page === page));
-  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
-  document.getElementById('page-' + page).classList.add('active');
-  if (page === 'dashboard') loadDashboard();
-  if (page === 'users')     { usersPage = 1; loadUsers(); }
-  if (page === 'messages')  { messagesPage = 1; loadMessages(); }
-  if (page === 'friends')   { friendsPage = 1; loadFriends(); }
-}
-
-// ─── Dashboard ────────────────────────────────────────────────────────────────
-async function loadDashboard() {
-  try {
-    const [stats, info] = await Promise.all([api('/api/stats'), api('/api/dbinfo')]);
-
-    set('st-users',       stats.totalUsers);
-    set('st-messages',    stats.totalMessages);
-    set('st-global',      stats.globalMessages);
-    set('st-private',     stats.privateMessages);
-    set('st-friends',     stats.totalFriends);
-    set('st-pending',     stats.pendingReqs);
-    set('st-online',      stats.onlineCount);
-    set('st-users-today', stats.newUsersToday  > 0 ? `+${stats.newUsersToday} сегодня`  : '');
-    set('st-msg-today',   stats.newMsgToday    > 0 ? `+${stats.newMsgToday} сегодня`    : '');
-    set('dbInfo',         `📂 ${info.size}`);
-    setJavaStatus(info.javaConnected);
-    updateOnlineCount(stats.onlineCount || 0);
-
-    renderChart(stats.activity);
-    renderActivityLog();
-  } catch (e) {
-    showToast('Ошибка: ' + e.message, 'error');
+  if (t === 'java_status') { setJavaStatus(ev.connected); return; }
+  if (t === 'connected') {
+    setJavaStatus(true);
+    updateOnlineCount(ev.onlineCount);
+    loadStats();
+    return;
+  }
+  if (t === 'online_list') {
+    updateOnlineCount(ev.count, ev.users);
+    return;
+  }
+  if (t === 'user_joined') {
+    updateOnlineCount(ev.onlineCount);
+    addActivityLog({ icon: '🟢', text: `<strong>${esc(ev.username)}</strong> вошёл`, cls: 'join' });
+    loadStats();
+    return;
+  }
+  if (t === 'user_left') {
+    updateOnlineCount(ev.onlineCount);
+    addActivityLog({ icon: '🔴', text: `<strong>${esc(ev.username)}</strong> вышел`, cls: 'leave' });
+    return;
+  }
+  if (t === 'new_message') {
+    const who = ev.msgType === 'global' ? `в #global` : `→ ${esc(ev.to)}`;
+    addActivityLog({ icon: '💬', text: `<strong>${esc(ev.from)}</strong> ${who}: ${esc(ev.content)}`, cls: 'msg' });
+    return;
   }
 }
 
-function renderChart(activity) {
-  const wrap = document.querySelector('.chart-wrap');
-  if (!wrap) return;
-  wrap.innerHTML = '';
-  const max = Math.max(...activity.map(a => a.count), 1);
-  const barWrap = document.createElement('div');
-  barWrap.className = 'bar-wrap';
-  activity.forEach(a => {
-    const col = document.createElement('div');
-    col.className = 'bar-col';
-    const pct = Math.max((a.count / max) * 100, 4);
-    col.innerHTML = `
-      <div class="bar-val">${a.count || ''}</div>
-      <div class="bar" style="height:${pct}%"></div>
-      <div class="bar-label">${a.day}</div>
-    `;
-    barWrap.appendChild(col);
+function setJavaStatus(online) {
+  const dot = document.getElementById('javaStatusDot');
+  const txt = document.getElementById('javaStatusText');
+  const ring = document.getElementById('serverRing');
+  const icon = document.getElementById('ringIcon');
+  const lbl  = document.getElementById('ringLabel');
+  const srv  = document.getElementById('srv-status');
+  dot.className = 'sdot ' + (online ? 'online' : 'offline');
+  txt.textContent = online ? 'Java сервер онлайн' : 'Java сервер офлайн';
+  if (ring)  ring.className  = 'server-ring ' + (online ? 'online' : '');
+  if (icon)  icon.textContent = online ? '✅' : '●';
+  if (lbl)   lbl.textContent  = online ? 'Онлайн' : 'Офлайн';
+  if (srv)   srv.textContent  = online ? 'Работает' : 'Офлайн';
+}
+
+function updateOnlineCount(count, users) {
+  const n = count || 0;
+  document.getElementById('st-online').textContent = n;
+  document.getElementById('onlineBadge').textContent = n;
+  document.getElementById('srv-online').textContent = n;
+  const liveCount = document.getElementById('liveOnlineCount');
+  if (liveCount) liveCount.textContent = n;
+  const sub = document.getElementById('st-online-names');
+  if (sub) sub.textContent = n > 0 && users ? users.slice(0,3).join(', ') + (users.length > 3 ? '...' : '') : 'нет активных';
+  const pill = document.getElementById('welcomeOnline');
+  if (pill) pill.textContent = `${n} онлайн`;
+  // Live page user chips
+  const chips = document.getElementById('liveUserChips');
+  if (chips && users) {
+    chips.innerHTML = users.map(u =>
+      `<div class="uchip"><span class="uchip-dot"></span>${esc(u)}</div>`
+    ).join('');
+  }
+}
+
+function addActivityLog(entry) {
+  const ts = new Date().toLocaleTimeString('ru');
+  activityLog.unshift({ ...entry, ts });
+  if (activityLog.length > 60) activityLog.pop();
+
+  const html = `<div class="alog-row ${entry.cls}"><span class="alog-icon">${entry.icon}</span><span class="alog-text">${entry.text}</span><span class="alog-time">${ts}</span></div>`;
+
+  const dashLog = document.getElementById('dashActivityLog');
+  if (dashLog) dashLog.insertAdjacentHTML('afterbegin', html);
+
+  const liveLog = document.getElementById('liveFullLog');
+  if (liveLog) liveLog.insertAdjacentHTML('afterbegin', html);
+}
+
+// ─── STATS ────────────────────────────────────────────
+async function loadStats() {
+  const d = await api('/api/stats');
+  if (d.error) return;
+
+  const set = (id, v) => { const el = document.getElementById(id); if (el) el.textContent = v; };
+  set('st-users',    d.totalUsers    ?? '—');
+  set('st-messages', d.totalMessages ?? '—');
+  set('st-friends',  d.totalFriends  ?? '—');
+  set('srv-users',   d.totalUsers    ?? '—');
+  set('srv-msgs',    d.totalMessages ?? '—');
+  set('userCountBadge', d.totalUsers ?? 0);
+  set('msgCountBadge',  d.totalMessages ?? 0);
+
+  const pill = document.getElementById('welcomeUsers');
+  if (pill) pill.textContent = `${d.totalUsers ?? '—'} пользователей`;
+
+  updateOnlineCount(d.onlineCount);
+  renderActivityChart(d.activity || []);
+}
+
+// ─── CHART ────────────────────────────────────────────
+function renderActivityChart(activity) {
+  const canvas = document.getElementById('activityChart');
+  if (!canvas || !window.Chart) return;
+  const labels = activity.map(a => a.day);
+  const data   = activity.map(a => a.count);
+  if (activityChart) { activityChart.data.labels = labels; activityChart.data.datasets[0].data = data; activityChart.update(); return; }
+  activityChart = new Chart(canvas, {
+    type: 'bar',
+    data: {
+      labels,
+      datasets: [{
+        label: 'Сообщений',
+        data,
+        backgroundColor: 'rgba(115,103,240,.6)',
+        borderColor: '#7367F0',
+        borderRadius: 6,
+        borderWidth: 1,
+        hoverBackgroundColor: 'rgba(115,103,240,.85)',
+      }]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: true,
+      plugins: { legend: { display: false }, tooltip: { callbacks: { label: ctx => ` ${ctx.parsed.y} сообщений` } } },
+      scales: {
+        x: { grid: { color: 'rgba(59,66,83,.5)' }, ticks: { color: '#676D7D' } },
+        y: { grid: { color: 'rgba(59,66,83,.5)' }, ticks: { color: '#676D7D', stepSize: 1 }, beginAtZero: true }
+      }
+    }
   });
-  wrap.appendChild(barWrap);
 }
 
-// ─── Users ────────────────────────────────────────────────────────────────────
-async function loadUsers() {
-  const search = document.getElementById('userSearch')?.value || '';
-  try {
-    const data  = await api(`/api/users?page=${usersPage}&search=${encodeURIComponent(search)}`);
-    const tbody = document.getElementById('usersBody');
-    if (!data.users.length) {
-      tbody.innerHTML = '<tr class="empty-row"><td colspan="9">Пользователи не найдены</td></tr>';
-    } else {
-      tbody.innerHTML = data.users.map(u => `
-        <tr>
-          <td class="text-muted">#${u.id}</td>
-          <td>
-            <div class="user-cell">
-              <div class="avatar" onclick="openUser(${u.id})" style="background:${avatarColor(u.username)}">
-                ${u.username[0].toUpperCase()}
-              </div>
-              <div>
-                <div class="user-name">${esc(u.username)}</div>
-              </div>
-            </div>
-          </td>
-          <td class="text-muted">${esc(u.phone)}</td>
-          <td class="truncate">${esc(u.status_text || '—')}</td>
-          <td>${u.msg_count}</td>
-          <td>${u.friend_count}</td>
-          <td><span class="badge ${u.privacy_mode === 'friends_only' ? 'badge-warn' : 'badge-success'}">
-            ${u.privacy_mode === 'friends_only' ? 'Друзья' : 'Все'}
-          </span></td>
-          <td class="text-muted">${fmtDate(u.created_at)}</td>
-          <td>
-            <button class="btn btn-ghost btn-icon btn-sm" onclick="openUser(${u.id})">🔍</button>
-            <button class="btn btn-ghost btn-icon btn-sm text-danger" onclick="confirmDelete('user',${u.id},'${esc(u.username)}')">🗑</button>
-          </td>
-        </tr>
-      `).join('');
-    }
-    renderPagination('usersPagination', data.page, data.pages, p => { usersPage = p; loadUsers(); });
-  } catch (e) { showToast('Ошибка загрузки', 'error'); }
+// ─── USERS ────────────────────────────────────────────
+const AVATAR_COLORS = ['#7367F0','#FF9F43','#28C76F','#00CFE8','#EA5455','#9E95F5','#CE9FFC'];
+function avatarColor(str) { let h = 0; for (const c of (str||'?')) h = (h*31 + c.charCodeAt(0)) & 0xffff; return AVATAR_COLORS[h % AVATAR_COLORS.length]; }
+
+async function loadUsers(page, search) {
+  if (page) usersPage = page;
+  const q = search !== undefined ? search : (document.getElementById('userSearch')?.value || '');
+  const d = await api(`/api/users?page=${usersPage}&search=${encodeURIComponent(q)}`);
+  if (d.error) return;
+  document.getElementById('userTotal').textContent = d.total ?? 0;
+
+  const tbody = document.getElementById('usersTbody');
+  if (!d.users || !d.users.length) { tbody.innerHTML = '<tr><td colspan="9" class="tloading">Пользователи не найдены</td></tr>'; return; }
+
+  tbody.innerHTML = d.users.map(u => {
+    const av = `<div class="user-av" style="background:${avatarColor(u.username)}">${(u.username||'?')[0].toUpperCase()}</div>`;
+    const privacy = u.privacy_mode === 'friends_only' || u.privacy_mode === 'friends'
+      ? `<span class="privacy-badge pb-friends">Друзья</span>`
+      : `<span class="privacy-badge pb-all">Все</span>`;
+    const reg = u.created_at ? new Date(u.created_at).toLocaleDateString('ru') : '—';
+    return `<tr>
+      <td><span style="color:var(--muted)">#${u.id}</span></td>
+      <td><div class="user-cell">${av}<span class="user-cell-name">${esc(u.username)}</span></div></td>
+      <td style="color:var(--muted)">${esc(u.phone||'—')}</td>
+      <td style="color:var(--muted);max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(u.status_text||'—')}</td>
+      <td>${u.msg_count ?? 0}</td>
+      <td>${u.friend_count ?? 0}</td>
+      <td>${privacy}</td>
+      <td style="color:var(--muted)">${reg}</td>
+      <td><div class="actions-cell">
+        <button class="btn-icon btn-danger" onclick="deleteUser(${u.id},'${esc(u.username)}')" title="Удалить">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14H6L5 6"/><path d="M10 11v6M14 11v6"/><path d="M9 6V4h6v2"/></svg>
+        </button>
+      </div></td>
+    </tr>`;
+  }).join('');
+
+  renderPagination('usersPagination', usersPage, d.pages, p => loadUsers(p));
 }
 
-async function openUser(id) {
-  try {
-    const { user, recentMsgs, friends } = await api(`/api/users/${id}`);
-    set('modalUsername', esc(user.username));
-    set('modalPhone',    esc(user.phone));
-    const av = document.getElementById('modalAvatar');
-    av.textContent = user.username[0].toUpperCase();
-    av.style.background = avatarColor(user.username);
-    document.getElementById('modalMeta').innerHTML = `
-      <div class="modal-meta-item"><span>ID</span> #${user.id}</div>
-      <div class="modal-meta-item"><span>Статус</span> ${esc(user.status_text || '—')}</div>
-      <div class="modal-meta-item"><span>Приватность</span> ${user.privacy_mode}</div>
-      <div class="modal-meta-item"><span>Регистрация</span> ${fmtDate(user.created_at)}</div>
-    `;
-    document.getElementById('modalMessages').innerHTML = recentMsgs.length
-      ? recentMsgs.map(m => `
-        <div style="padding:6px 0;border-bottom:1px solid var(--border);display:flex;gap:8px;align-items:center">
-          <span class="badge ${m.is_global ? 'badge-global' : 'badge-private'}" style="font-size:10px">
-            ${m.is_global ? '🌐' : `→ ${esc(m.receiver_username)}`}
-          </span>
-          <span class="truncate" style="flex:1">${esc(m.content)}</span>
-          <span class="text-muted" style="font-size:11px;white-space:nowrap">${fmtDate(m.timestamp)}</span>
-        </div>`).join('')
-      : '<p class="text-muted" style="font-size:13px">Нет сообщений</p>';
-    document.getElementById('modalFriends').innerHTML = friends.length
-      ? `<div style="display:flex;flex-wrap:wrap;gap:8px">${friends.map(f => `<span class="badge badge-info">👤 ${esc(f.username)}</span>`).join('')}</div>`
-      : '<p class="text-muted" style="font-size:13px">Нет друзей</p>';
-    document.getElementById('modalDeleteBtn').onclick = () => confirmDelete('user', user.id, user.username);
-    document.getElementById('userModal').style.display = 'flex';
-  } catch (e) { showToast('Ошибка загрузки', 'error'); }
+async function deleteUser(id, username) {
+  if (!confirm(`Удалить пользователя ${username}? Это действие нельзя отменить.`)) return;
+  showToast(`Удаление ${username}...`, 'info');
+  const r = await api(`/api/users/${id}`, 'DELETE');
+  if (r.ok) { showToast(`✅ Пользователь ${username} удалён`, 'success'); loadUsers(); loadStats(); }
+  else showToast(`❌ ${r.error || 'Ошибка удаления'}`, 'error');
 }
 
-function closeUserModal() { document.getElementById('userModal').style.display = 'none'; }
-function closeModal(e)    { if (e.target.classList.contains('modal-overlay')) closeUserModal(); }
+// ─── MESSAGES ─────────────────────────────────────────
+async function loadMessages(page) {
+  if (page) msgsPage = page;
+  const q = document.getElementById('msgSearch')?.value || '';
+  const d = await api(`/api/messages?page=${msgsPage}&type=${msgFilter}&search=${encodeURIComponent(q)}`);
+  if (d.error) return;
+  document.getElementById('msgTotal').textContent = d.total ?? 0;
 
-// ─── Messages ─────────────────────────────────────────────────────────────────
-async function loadMessages() {
-  const type   = document.getElementById('msgType')?.value   || 'all';
-  const search = document.getElementById('msgSearch')?.value || '';
-  try {
-    const data  = await api(`/api/messages?page=${messagesPage}&type=${type}&search=${encodeURIComponent(search)}`);
-    const tbody = document.getElementById('messagesBody');
-    if (!data.messages.length) {
-      tbody.innerHTML = '<tr class="empty-row"><td colspan="7">Сообщений не найдено</td></tr>';
-    } else {
-      tbody.innerHTML = data.messages.map(m => `
-        <tr>
-          <td class="text-muted">#${m.id}</td>
-          <td><b>${esc(m.sender_username)}</b></td>
-          <td class="text-muted">${m.is_global ? '—' : esc(m.receiver_username)}</td>
-          <td>
-            <span class="badge ${m.is_global ? 'badge-global' : 'badge-private'}">
-              ${m.is_global ? '🌐 Глобальный' : '🔒 Личный'}
-            </span>
-            ${m.message_type !== 'text' ? `<span class="badge badge-info" style="margin-left:4px">${m.message_type}</span>` : ''}
-          </td>
-          <td>
-            <div class="msg-preview ${m.message_type !== 'text' ? 'media' : ''}">
-              ${m.message_type === 'image' ? '🖼 Изображение' : m.message_type === 'audio' ? '🎵 Аудио' : esc(m.content_edited || m.content)}
-              ${m.content_edited ? '<span class="text-muted" style="font-size:11px"> (ред.)</span>' : ''}
-            </div>
-          </td>
-          <td class="text-muted" style="white-space:nowrap">${fmtDateTime(m.timestamp)}</td>
-          <td>
-            <button class="btn btn-ghost btn-icon btn-sm text-danger" onclick="confirmDelete('message',${m.id},null)">🗑</button>
-          </td>
-        </tr>`).join('');
-    }
-    renderPagination('msgPagination', data.page, data.pages, p => { messagesPage = p; loadMessages(); });
-  } catch (e) { showToast('Ошибка загрузки', 'error'); }
+  const tbody = document.getElementById('messagesTbody');
+  if (!d.messages || !d.messages.length) { tbody.innerHTML = '<tr><td colspan="7" class="tloading">Сообщений не найдено</td></tr>'; return; }
+
+  tbody.innerHTML = d.messages.map(m => {
+    const isGlobal = m.is_global;
+    const type = `<span class="type-badge ${isGlobal ? 'tb-global' : 'tb-private'}">${isGlobal ? 'Global' : 'Private'}</span>`;
+    const ts = m.timestamp ? new Date(m.timestamp).toLocaleString('ru') : '—';
+    const to = esc(m.receiver_username || (isGlobal ? '#global' : '—'));
+    return `<tr>
+      <td style="color:var(--muted)">#${m.id}</td>
+      <td><span style="color:var(--primary);font-weight:600">${esc(m.sender_username||'?')}</span></td>
+      <td style="color:var(--muted)">${to}</td>
+      <td><div class="msg-content" title="${esc(m.content||'')}">${esc(m.content||'')}</div></td>
+      <td>${type}</td>
+      <td style="color:var(--muted);font-size:.8rem">${ts}</td>
+      <td><button class="btn-icon btn-danger" onclick="deleteMessage(${m.id})" title="Удалить">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14H6L5 6"/><path d="M10 11v6M14 11v6"/><path d="M9 6V4h6v2"/></svg>
+      </button></td>
+    </tr>`;
+  }).join('');
+
+  renderPagination('msgPagination', msgsPage, d.pages, p => loadMessages(p));
 }
 
-// ─── Friends ──────────────────────────────────────────────────────────────────
-async function loadFriends() {
-  const status = document.getElementById('friendStatus')?.value || 'accepted';
-  try {
-    const data  = await api(`/api/friends?page=${friendsPage}&status=${status}`);
-    const tbody = document.getElementById('friendsBody');
-    if (!data.rows.length) {
-      tbody.innerHTML = '<tr class="empty-row"><td colspan="5">Записей нет</td></tr>';
-    } else {
-      tbody.innerHTML = data.rows.map(r => `
-        <tr>
-          <td class="text-muted">#${r.id}</td>
-          <td><span class="badge badge-info">👤 ${esc(r.user1)}</span></td>
-          <td><span class="badge badge-info">👤 ${esc(r.user2)}</span></td>
-          <td><span class="badge ${r.status === 'accepted' ? 'badge-success' : 'badge-warn'}">
-            ${r.status === 'accepted' ? '✅ Друзья' : '⏳ Запрос'}
-          </span></td>
-          <td class="text-muted">${fmtDate(r.created_at)}</td>
-        </tr>`).join('');
-    }
-    renderPagination('friendsPagination', data.page, data.pages, p => { friendsPage = p; loadFriends(); });
-  } catch (e) { showToast('Ошибка', 'error'); }
+async function deleteMessage(id) {
+  if (!confirm(`Удалить сообщение #${id}?`)) return;
+  const r = await api(`/api/messages/${id}`, 'DELETE');
+  if (r.ok) { showToast('✅ Сообщение удалено', 'success'); loadMessages(); loadStats(); }
+  else showToast(`❌ ${r.error || 'Ошибка удаления'}`, 'error');
 }
 
-// ─── Confirm Delete ───────────────────────────────────────────────────────────
-function confirmDelete(type, id, name) {
-  const modal = document.getElementById('confirmModal');
-  set('confirmTitle', type === 'user' ? 'Удалить пользователя?' : 'Удалить сообщение?');
-  set('confirmText', type === 'user'
-    ? `Аккаунт «${name}» и все данные будут удалены безвозвратно.`
-    : 'Сообщение будет удалено из базы данных.');
-  document.getElementById('confirmOkBtn').onclick = async () => {
-    modal.style.display = 'none';
-    try {
-      await api(type === 'user' ? `/api/users/${id}` : `/api/messages/${id}`, 'DELETE');
-      showToast(type === 'user' ? 'Пользователь удалён' : 'Сообщение удалено', 'success');
-      closeUserModal();
-      if (type === 'user')    loadUsers();
-      if (type === 'message') loadMessages();
-      loadDashboard();
-    } catch (e) { showToast('Ошибка удаления', 'error'); }
-  };
-  modal.style.display = 'flex';
+// ─── FRIENDS ──────────────────────────────────────────
+async function loadFriends(page) {
+  if (page) friendsPage = page;
+  const d = await api(`/api/friends?page=${friendsPage}&status=${friendFilter}`);
+  if (d.error) return;
+  document.getElementById('friendTotal').textContent = d.total ?? 0;
+
+  const tbody = document.getElementById('friendsTbody');
+  if (!d.rows || !d.rows.length) { tbody.innerHTML = '<tr><td colspan="4" class="tloading">Не найдено</td></tr>'; return; }
+
+  tbody.innerHTML = d.rows.map(f => {
+    const status = f.status === 'accepted'
+      ? `<span class="privacy-badge pb-all">Друзья</span>`
+      : `<span class="privacy-badge pb-friends">Ожидает</span>`;
+    const date = f.created_at ? new Date(f.created_at).toLocaleDateString('ru') : '—';
+    return `<tr>
+      <td><span style="font-weight:600;color:#fff">${esc(f.user1)}</span></td>
+      <td><span style="font-weight:600;color:#fff">${esc(f.user2)}</span></td>
+      <td>${status}</td>
+      <td style="color:var(--muted)">${date}</td>
+    </tr>`;
+  }).join('');
+
+  renderPagination('friendsPagination', friendsPage, d.pages, p => loadFriends(p));
 }
 
-// ─── Pagination ───────────────────────────────────────────────────────────────
+// ─── PAGINATION ───────────────────────────────────────
 function renderPagination(containerId, current, total, onPage) {
   const el = document.getElementById(containerId);
-  if (total <= 1) { el.innerHTML = ''; return; }
+  if (!el || total <= 1) { if (el) el.innerHTML = ''; return; }
   let html = '';
-  if (current > 1) html += `<button class="page-btn" onclick="(${onPage})(${current-1})">‹</button>`;
-  for (let i = 1; i <= total; i++) {
-    if (i === 1 || i === total || Math.abs(i-current) <= 1)
-      html += `<button class="page-btn ${i===current?'active':''}" onclick="(${onPage})(${i})">${i}</button>`;
-    else if (Math.abs(i-current) === 2)
-      html += `<span class="text-muted" style="padding:0 4px">…</span>`;
-  }
-  if (current < total) html += `<button class="page-btn" onclick="(${onPage})(${current+1})">›</button>`;
+  if (current > 1) html += `<button onclick="(${onPage})(${current-1})">&laquo;</button>`;
+  const start = Math.max(1, current-2), end = Math.min(total, current+2);
+  for (let p = start; p <= end; p++)
+    html += `<button class="${p === current ? 'active' : ''}" onclick="(${onPage})(${p})">${p}</button>`;
+  if (current < total) html += `<button onclick="(${onPage})(${current+1})">&raquo;</button>`;
   el.innerHTML = html;
 }
 
-// ─── Helpers ──────────────────────────────────────────────────────────────────
-async function api(url, method = 'GET', body = null) {
-  const opts = { method, headers: { 'Content-Type': 'application/json' } };
-  if (body) opts.body = JSON.stringify(body);
-  const r = await fetch(url, opts);
-  if (r.status === 401) {
-    document.getElementById('app').style.display = 'none';
-    document.getElementById('loginScreen').style.display = 'flex';
-    throw new Error('Unauthorized');
-  }
-  const data = await r.json();
-  if (!r.ok) throw new Error(data.error || 'Ошибка');
-  return data;
+// ─── TOAST ────────────────────────────────────────────
+function showToast(msg, type = 'info', ms = 3500) {
+  const c = document.getElementById('toastContainer');
+  const icons = { success: '✅', error: '❌', info: 'ℹ️' };
+  const el = document.createElement('div');
+  el.className = `toast ${type}`;
+  el.innerHTML = `<span>${icons[type]||''}</span><span>${msg}</span>`;
+  c.appendChild(el);
+  setTimeout(() => { el.style.transition = 'opacity .3s'; el.style.opacity = '0'; setTimeout(() => el.remove(), 300); }, ms);
 }
 
-function set(id, val) { const el = document.getElementById(id); if (el) el.textContent = val; }
-function esc(str) {
-  if (!str) return '';
-  return String(str).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
-}
-function fmtDate(ts)     { if (!ts) return '—'; return new Date(ts).toLocaleDateString('ru', {day:'numeric',month:'short',year:'numeric'}); }
-function fmtDateTime(ts) { if (!ts) return '—'; return new Date(ts).toLocaleString('ru', {day:'numeric',month:'short',hour:'2-digit',minute:'2-digit'}); }
-const COLORS = ['#6366F1','#8B5CF6','#EC4899','#14B8A6','#F59E0B','#22C55E','#3B82F6'];
-function avatarColor(name) { let h=0; for(let i=0;i<(name||'').length;i++) h+=name.charCodeAt(i); return COLORS[h%COLORS.length]; }
-
-function showToast(msg, type = 'success') {
-  const t = document.getElementById('toast');
-  t.textContent = msg;
-  t.className = `toast ${type} show`;
-  clearTimeout(t._timer);
-  t._timer = setTimeout(() => t.classList.remove('show'), 3000);
-}
-
-function debounce(fn, delay) {
-  let timer;
-  return function(...args) { clearTimeout(timer); timer = setTimeout(() => fn.apply(this, args), delay); };
-}
+// ─── UTILS ────────────────────────────────────────────
+function esc(s) { return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
