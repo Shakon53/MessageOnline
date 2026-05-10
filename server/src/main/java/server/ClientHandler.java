@@ -354,8 +354,9 @@ public class ClientHandler {
     private void handleUpdateAvatar(JSONObject p) {
         if (!checkAuthorized()) return;
         String avatarUrl = p.optString("avatarUrl", "").trim();
-        if (avatarUrl.length() > 500) {
-            send(Packet.error("URL аватара слишком длинный"));
+        // Base64-encoded images can be 50–300 KB; allow up to ~400 KB worth of base64
+        if (avatarUrl.length() > 524288) {
+            send(Packet.error("Фото слишком большое (макс. ~400 КБ)"));
             return;
         }
         boolean updated = DatabaseManager.getInstance().updateAvatar(currentUser.getId(), avatarUrl);

@@ -3,6 +3,7 @@ package com.messageonline.android.ui
 import android.content.ClipData
 import android.content.ClipboardManager
 import android.content.Context
+import android.content.Intent
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
 import android.net.Uri
@@ -18,6 +19,7 @@ import androidx.appcompat.app.AppCompatActivity
 import androidx.appcompat.app.AppCompatDelegate
 import coil.load
 import coil.transform.CircleCropTransformation
+import com.google.firebase.auth.FirebaseAuth
 import com.messageonline.android.databinding.ActivityProfileBinding
 import com.messageonline.android.model.ChatSession
 import com.messageonline.android.network.SocketManager
@@ -49,6 +51,7 @@ class ProfileActivity : AppCompatActivity() {
         populateProfile()
         setupStatusTextWatcher()
         setupSaveButton()
+        setupLogoutButton()
         observeProfileUpdate()
 
         // Avatar click → pick image
@@ -183,6 +186,34 @@ class ProfileActivity : AppCompatActivity() {
         viewModel.profileUpdated.observe(this) {
             binding.btnSave.isEnabled = true
             Toast.makeText(this, "Профиль сохранён ✓", Toast.LENGTH_SHORT).show()
+        }
+    }
+
+    // ─── Logout ────────────────────────────────────────────────────────────────
+
+    private fun setupLogoutButton() {
+        binding.btnLogout.setOnClickListener {
+            // Disconnect socket
+            SocketManager.disconnect()
+
+            // Clear saved credentials
+            getSharedPreferences("MessageOnline", MODE_PRIVATE).edit()
+                .remove("last_username")
+                .remove("last_uid")
+                .remove("last_avatar")
+                .apply()
+
+            // Clear session
+            ChatSession.logout()
+
+            // Sign out Firebase
+            FirebaseAuth.getInstance().signOut()
+
+            // Navigate to login screen, clear back stack
+            val intent = Intent(this, LoginActivity::class.java)
+            intent.flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK
+            startActivity(intent)
+            finish()
         }
     }
 }

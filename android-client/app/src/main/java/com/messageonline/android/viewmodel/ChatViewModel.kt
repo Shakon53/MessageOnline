@@ -120,7 +120,10 @@ class ChatViewModel(app: Application) : AndroidViewModel(app) {
                 if (peer.isBlank() || convMap.containsKey(peer)) continue
                 val unread    = dao.getUnreadCount(peer, myUsername)
                 val avatarUrl = friendsMap[peer]?.avatarUrl ?: prefs.getString("avatar_$peer", "") ?: ""
-                val isOnline  = onlineSet.containsKey(peer) || friendsMap[peer]?.isOnline == true
+                // Use onlineSet as authoritative source; fall back to friendsMap only before
+                // the first USER_LIST arrives (onlineSet still empty right after app start)
+                val isOnline = if (onlineSet.isNotEmpty()) onlineSet.containsKey(peer)
+                               else friendsMap[peer]?.isOnline == true
                 convMap[peer] = Conversation(
                     peerUsername  = peer,
                     lastMessage   = if (msg.senderUsername == myUsername) "Вы: ${msg.content}" else msg.content,
@@ -341,6 +344,14 @@ class ChatViewModel(app: Application) : AndroidViewModel(app) {
                 if (list.none { it.username == user.username }) {
                     list.add(user); _onlineUsers.postValue(list)
                 }
+                // Update friends online status
+                val friendsList = _friends.value?.toMutableList() ?: mutableListOf()
+                val fi = friendsList.indexOfFirst { it.username == user.username }
+                if (fi >= 0) {
+                    friendsList[fi] = friendsList[fi].copy(isOnline = true)
+                    _friends.postValue(friendsList)
+                }
+                refreshConversations()
                 _notification.postValue("${user.username} присоединился")
             }
 
@@ -349,6 +360,14 @@ class ChatViewModel(app: Application) : AndroidViewModel(app) {
                 val list = _onlineUsers.value ?: mutableListOf()
                 list.removeAll { it.username == username }
                 _onlineUsers.postValue(list)
+                // Update friends online status
+                val friendsList = _friends.value?.toMutableList() ?: mutableListOf()
+                val fi = friendsList.indexOfFirst { it.username == username }
+                if (fi >= 0) {
+                    friendsList[fi] = friendsList[fi].copy(isOnline = false)
+                    _friends.postValue(friendsList)
+                }
+                refreshConversations()
                 _notification.postValue("$username покинул чат")
             }
 

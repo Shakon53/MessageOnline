@@ -88,7 +88,7 @@ class PrivateChatActivity : AppCompatActivity() {
 
         binding.tvPeerName.text     = peerUsername
         binding.tvPeerInitial.text  = peerUsername.first().uppercaseChar().toString()
-        binding.tvTypingStatus.text = "В сети"
+        binding.tvTypingStatus.text = "офлайн"
 
         viewModel.currentPrivatePeer = peerUsername
 
@@ -228,9 +228,35 @@ class PrivateChatActivity : AppCompatActivity() {
             }
         }
 
+        // Track actual online status to restore after typing indicator clears
+        viewModel.onlineUsers.observe(this) { users ->
+            val isOnline = users.any { it.username == peerUsername }
+            // Only update if not currently showing "typing"
+            if (binding.tvTypingStatus.text != "печатает...") {
+                binding.tvTypingStatus.text = if (isOnline) "В сети" else "офлайн"
+            }
+        }
+
+        viewModel.friends.observe(this) { friends ->
+            // Also check friends list for online status (populated earlier than onlineUsers)
+            val onlineUsers = viewModel.onlineUsers.value ?: emptyList()
+            if (onlineUsers.isEmpty()) {
+                val friend = friends.firstOrNull { it.username == peerUsername }
+                if (friend != null && binding.tvTypingStatus.text != "печатает...") {
+                    binding.tvTypingStatus.text = if (friend.isOnline) "В сети" else "офлайн"
+                }
+            }
+        }
+
         viewModel.typing.observe(this) { (sender, isTyping) ->
             if (sender == peerUsername) {
-                binding.tvTypingStatus.text = if (isTyping) "печатает..." else "В сети"
+                if (isTyping) {
+                    binding.tvTypingStatus.text = "печатает..."
+                } else {
+                    // Restore actual online status
+                    val isOnline = viewModel.onlineUsers.value?.any { it.username == peerUsername } == true
+                    binding.tvTypingStatus.text = if (isOnline) "В сети" else "офлайн"
+                }
             }
         }
     }
