@@ -115,7 +115,7 @@ public class Packet {
 
     /** Успешный вход */
     public static String loginSuccess(int userId, String username) {
-        return loginSuccess(userId, username, null, null);
+        return loginSuccess(userId, username, null, null, 0L);
     }
 
     /** Успешный вход с профилем */
