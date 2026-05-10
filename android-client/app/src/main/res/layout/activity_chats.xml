@@ -56,25 +56,25 @@
         <!-- Search bar (below toolbar) -->
         <LinearLayout
             android:layout_width="match_parent"
-            android:layout_height="48dp"
+            android:layout_height="52dp"
             android:orientation="horizontal"
             android:gravity="center_vertical"
-            android:paddingHorizontal="12dp"
-            android:paddingVertical="6dp">
+            android:paddingHorizontal="16dp"
+            android:paddingVertical="8dp">
 
             <LinearLayout
                 android:layout_width="match_parent"
-                android:layout_height="36dp"
+                android:layout_height="38dp"
                 android:background="@drawable/shape_search_bg"
                 android:gravity="center_vertical"
                 android:orientation="horizontal"
-                android:paddingHorizontal="12dp">
+                android:paddingHorizontal="14dp">
 
                 <ImageView
                     android:layout_width="16dp"
                     android:layout_height="16dp"
                     android:src="@drawable/ic_search"
-                    android:tint="#4B5563"
+                    android:tint="#64748B"
                     android:contentDescription="@null" />
 
                 <EditText
@@ -82,7 +82,7 @@
                     android:layout_width="0dp"
                     android:layout_height="wrap_content"
                     android:layout_weight="1"
-                    android:layout_marginStart="8dp"
+                    android:layout_marginStart="10dp"
                     android:background="@null"
                     android:hint="Поиск"
                     android:textColorHint="#4B5563"

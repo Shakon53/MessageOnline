@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
     android:layout_width="match_parent"
-    android:layout_height="72dp"
+    android:layout_height="74dp"
     android:gravity="center_vertical"
     android:orientation="horizontal"
     android:paddingHorizontal="16dp"
@@ -9,13 +9,13 @@
 
     <!-- Avatar with online dot -->
     <FrameLayout
-        android:layout_width="50dp"
-        android:layout_height="50dp"
+        android:layout_width="52dp"
+        android:layout_height="52dp"
         android:layout_marginEnd="14dp">
 
         <View
-            android:layout_width="50dp"
-            android:layout_height="50dp"
+            android:layout_width="52dp"
+            android:layout_height="52dp"
             android:background="@drawable/avatar_circle_bg" />
 
         <TextView
@@ -24,21 +24,21 @@
             android:layout_height="match_parent"
             android:gravity="center"
             android:textColor="#FFFFFF"
-            android:textSize="19sp"
+            android:textSize="20sp"
             android:textStyle="bold" />
 
         <ImageView
             android:id="@+id/ivChatAvatar"
-            android:layout_width="50dp"
-            android:layout_height="50dp"
+            android:layout_width="52dp"
+            android:layout_height="52dp"
             android:scaleType="centerCrop"
             android:visibility="gone" />
 
         <!-- Online dot (bottom-right) -->
         <View
             android:id="@+id/viewOnlineDot"
-            android:layout_width="13dp"
-            android:layout_height="13dp"
+            android:layout_width="14dp"
+            android:layout_height="14dp"
             android:layout_gravity="bottom|end"
             android:background="@drawable/shape_online_dot"
             android:visibility="gone" />
@@ -59,24 +59,25 @@
             android:textSize="15sp"
             android:textStyle="bold"
             android:maxLines="1"
-            android:ellipsize="end" />
+            android:ellipsize="end"
+            android:letterSpacing="-0.01" />
 
         <TextView
             android:id="@+id/tvLastMessage"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:layout_marginTop="2dp"
+            android:layout_marginTop="3dp"
             android:textColor="#64748B"
             android:textSize="13sp"
             android:maxLines="1"
             android:ellipsize="end" />
     </LinearLayout>
 
-    <!-- Time + badge -->
+    <!-- Time + unread badge -->
     <LinearLayout
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:layout_marginStart="8dp"
+        android:layout_marginStart="10dp"
         android:gravity="end|center_vertical"
         android:orientation="vertical">
 
@@ -84,14 +85,14 @@
             android:id="@+id/tvChatTime"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:textColor="#64748B"
+            android:textColor="#4B5563"
             android:textSize="11sp" />
 
         <TextView
             android:id="@+id/tvUnreadBadge"
             android:layout_width="22dp"
             android:layout_height="22dp"
-            android:layout_marginTop="4dp"
+            android:layout_marginTop="5dp"
             android:background="@drawable/bg_unread_badge"
             android:gravity="center"
             android:textColor="#FFFFFF"

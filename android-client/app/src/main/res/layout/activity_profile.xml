@@ -237,12 +237,27 @@
             android:layout_width="match_parent"
             android:layout_height="56dp"
             android:layout_marginHorizontal="16dp"
-            android:layout_marginBottom="24dp"
+            android:layout_marginTop="4dp"
+            android:layout_marginBottom="12dp"
             android:text="Сохранить"
             android:textSize="16sp"
             android:textStyle="bold"
             android:textColor="#FFFFFF"
             app:backgroundTint="#6366F1"
+            app:cornerRadius="16dp" />
+
+        <!-- Logout button -->
+        <com.google.android.material.button.MaterialButton
+            android:id="@+id/btnLogout"
+            style="@style/Widget.Material3.Button.OutlinedButton"
+            android:layout_width="match_parent"
+            android:layout_height="52dp"
+            android:layout_marginHorizontal="16dp"
+            android:layout_marginBottom="32dp"
+            android:text="Выйти из аккаунта"
+            android:textSize="14sp"
+            android:textColor="#FF5C8D"
+            app:strokeColor="#33FF5C8D"
             app:cornerRadius="16dp" />
 
     </LinearLayout>
