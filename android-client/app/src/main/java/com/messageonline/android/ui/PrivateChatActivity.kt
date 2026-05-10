@@ -1,11 +1,21 @@
 package com.messageonline.android.ui
 
+import android.Manifest
+import android.content.pm.PackageManager
+import android.graphics.Bitmap
+import android.graphics.BitmapFactory
 import android.graphics.Canvas
+import android.media.MediaRecorder
+import android.net.Uri
+import android.os.Build
 import android.os.Bundle
 import android.text.Editable
 import android.text.TextWatcher
+import android.util.Base64
+import android.view.MotionEvent
 import android.view.View
 import android.view.animation.AnimationUtils
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.activity.viewModels
 import androidx.appcompat.app.AppCompatActivity
 import androidx.appcompat.app.AppCompatDelegate
@@ -19,7 +29,10 @@ import com.messageonline.android.adapter.MessageAdapter
 import com.messageonline.android.databinding.ActivityPrivateChatBinding
 import com.messageonline.android.model.ChatMessage
 import com.messageonline.android.model.ChatSession
+import com.messageonline.android.model.Conversation
 import com.messageonline.android.viewmodel.ChatViewModel
+import java.io.ByteArrayOutputStream
+import java.io.File
 
 class PrivateChatActivity : AppCompatActivity() {
 
@@ -28,6 +41,36 @@ class PrivateChatActivity : AppCompatActivity() {
     private lateinit var messageAdapter: MessageAdapter
     private lateinit var layoutManager: LinearLayoutManager
     private lateinit var peerUsername: String
+
+    // ─── Voice recording ───────────────────────────────────────────────────────
+    private var mediaRecorder: MediaRecorder? = null
+    private var audioTempFile: File? = null
+    private var isRecording = false
+    private var recordingStartTime = 0L
+
+    // ─── Image picker ──────────────────────────────────────────────────────────
+    private val pickImageLauncher = registerForActivityResult(
+        ActivityResultContracts.GetContent()
+    ) { uri: Uri? ->
+        uri?.let { sendImage(it) }
+    }
+
+    // ─── Permission launchers ──────────────────────────────────────────────────
+    private val requestAudioPermission = registerForActivityResult(
+        ActivityResultContracts.RequestPermission()
+    ) { granted ->
+        if (!granted) {
+            android.widget.Toast.makeText(this, "Нет разрешения на запись звука", android.widget.Toast.LENGTH_SHORT).show()
+        }
+    }
+
+    private val requestImagePermission = registerForActivityResult(
+        ActivityResultContracts.RequestMultiplePermissions()
+    ) { grants ->
+        if (grants.values.all { it }) pickImageLauncher.launch("image/*")
+    }
+
+    // ──────────────────────────────────────────────────────────────────────────
 
     override fun onCreate(savedInstanceState: Bundle?) {
         AppCompatDelegate.setDefaultNightMode(AppCompatDelegate.MODE_NIGHT_YES)
@@ -54,7 +97,7 @@ class PrivateChatActivity : AppCompatActivity() {
         setupClickListeners()
 
         viewModel.loadPrivateHistory(peerUsername)
-        viewModel.markAllRead(peerUsername)   // mark all as read + update badge
+        viewModel.markAllRead(peerUsername)
     }
 
     private fun setupRecyclerView() {
@@ -64,7 +107,8 @@ class PrivateChatActivity : AppCompatActivity() {
             onDeleteMessage  = { msg -> viewModel.deleteLocalMessage(msg) },
             onEditMessage    = { msg, newContent -> viewModel.editMessage(msg, newContent) },
             onReplyMessage   = { msg -> showReplyBar(msg) },
-            onForwardMessage = { msg -> showForwardDialog(msg) }
+            onForwardMessage = { msg -> showForwardDialog(msg) },
+            onDeleteForAll   = { msg -> viewModel.deleteForEveryone(msg) }
         )
         layoutManager = LinearLayoutManager(this).apply { stackFromEnd = true }
         binding.rvMessages.apply {
@@ -72,10 +116,8 @@ class PrivateChatActivity : AppCompatActivity() {
             this.layoutManager = this@PrivateChatActivity.layoutManager
         }
 
-        // Swipe-to-reply
         ItemTouchHelper(buildSwipeHelper()).attachToRecyclerView(binding.rvMessages)
 
-        // FAB scroll listener
         binding.rvMessages.addOnScrollListener(object : RecyclerView.OnScrollListener() {
             override fun onScrolled(recyclerView: RecyclerView, dx: Int, dy: Int) {
                 val last  = layoutManager.findLastCompletelyVisibleItemPosition()
@@ -182,7 +224,6 @@ class PrivateChatActivity : AppCompatActivity() {
             messageAdapter.setMessages(filtered)
             if (filtered.isNotEmpty()) {
                 binding.rvMessages.scrollToPosition(filtered.size - 1)
-                // Auto-mark as read when we're looking at the chat
                 viewModel.markAllRead(peerUsername)
             }
         }
@@ -227,7 +268,145 @@ class PrivateChatActivity : AppCompatActivity() {
                 }
             }
         })
+
+        // Attach / photo button
+        binding.btnAttach.setOnClickListener {
+            launchImagePicker()
+        }
+
+        // Mic button — long press to record, tap to show hint
+        binding.btnMic.setOnClickListener {
+            android.widget.Toast.makeText(this, "Удерживайте для записи", android.widget.Toast.LENGTH_SHORT).show()
+        }
+
+        binding.btnMic.setOnLongClickListener {
+            startVoiceRecording()
+            true
+        }
+
+        binding.btnMic.setOnTouchListener { v, event ->
+            when (event.action) {
+                MotionEvent.ACTION_UP, MotionEvent.ACTION_CANCEL -> {
+                    if (isRecording) {
+                        v.performClick()
+                        stopVoiceRecordingAndSend()
+                    }
+                }
+            }
+            false
+        }
     }
+
+    // ─── Image handling ────────────────────────────────────────────────────────
+
+    private fun launchImagePicker() {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            if (checkSelfPermission(Manifest.permission.READ_MEDIA_IMAGES) == PackageManager.PERMISSION_GRANTED) {
+                pickImageLauncher.launch("image/*")
+            } else {
+                requestImagePermission.launch(arrayOf(Manifest.permission.READ_MEDIA_IMAGES))
+            }
+        } else {
+            if (checkSelfPermission(Manifest.permission.READ_EXTERNAL_STORAGE) == PackageManager.PERMISSION_GRANTED) {
+                pickImageLauncher.launch("image/*")
+            } else {
+                requestImagePermission.launch(arrayOf(Manifest.permission.READ_EXTERNAL_STORAGE))
+            }
+        }
+    }
+
+    private fun sendImage(uri: Uri) {
+        try {
+            val inputStream = contentResolver.openInputStream(uri) ?: return
+            val original = BitmapFactory.decodeStream(inputStream)
+            inputStream.close()
+
+            // Scale to max 800x800
+            val scaled = scaleBitmap(original, 800, 800)
+
+            val baos = ByteArrayOutputStream()
+            scaled.compress(Bitmap.CompressFormat.JPEG, 60, baos)
+            val base64 = Base64.encodeToString(baos.toByteArray(), Base64.NO_WRAP)
+            val dataUrl = "data:image/jpeg;base64,$base64"
+
+            viewModel.sendPrivateMessage(peerUsername, dataUrl, "image")
+            binding.rvMessages.scrollToPosition(messageAdapter.itemCount - 1)
+        } catch (e: Exception) {
+            android.widget.Toast.makeText(this, "Ошибка отправки фото", android.widget.Toast.LENGTH_SHORT).show()
+        }
+    }
+
+    private fun scaleBitmap(bitmap: Bitmap, maxW: Int, maxH: Int): Bitmap {
+        val w = bitmap.width
+        val h = bitmap.height
+        if (w <= maxW && h <= maxH) return bitmap
+        val ratio = minOf(maxW.toFloat() / w, maxH.toFloat() / h)
+        return Bitmap.createScaledBitmap(bitmap, (w * ratio).toInt(), (h * ratio).toInt(), true)
+    }
+
+    // ─── Voice recording ───────────────────────────────────────────────────────
+
+    private fun startVoiceRecording() {
+        if (checkSelfPermission(Manifest.permission.RECORD_AUDIO) != PackageManager.PERMISSION_GRANTED) {
+            requestAudioPermission.launch(Manifest.permission.RECORD_AUDIO)
+            return
+        }
+        try {
+            audioTempFile = File.createTempFile("voice_", ".amr", cacheDir)
+            mediaRecorder = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+                MediaRecorder(this)
+            } else {
+                @Suppress("DEPRECATION")
+                MediaRecorder()
+            }.apply {
+                setAudioSource(MediaRecorder.AudioSource.MIC)
+                setOutputFormat(MediaRecorder.OutputFormat.AMR_NB)
+                setAudioEncoder(MediaRecorder.AudioEncoder.AMR_NB)
+                setOutputFile(audioTempFile!!.absolutePath)
+                setMaxDuration(60_000) // 60 seconds max
+                setOnInfoListener { _, what, _ ->
+                    if (what == MediaRecorder.MEDIA_RECORDER_INFO_MAX_DURATION_REACHED) {
+                        stopVoiceRecordingAndSend()
+                    }
+                }
+                prepare()
+                start()
+            }
+            isRecording = true
+            recordingStartTime = System.currentTimeMillis()
+            binding.btnMic.setColorFilter(android.graphics.Color.RED)
+            android.widget.Toast.makeText(this, "Запись...", android.widget.Toast.LENGTH_SHORT).show()
+        } catch (e: Exception) {
+            android.widget.Toast.makeText(this, "Ошибка записи", android.widget.Toast.LENGTH_SHORT).show()
+        }
+    }
+
+    private fun stopVoiceRecordingAndSend() {
+        if (!isRecording) return
+        isRecording = false
+        binding.btnMic.clearColorFilter()
+        try {
+            mediaRecorder?.apply {
+                stop()
+                release()
+            }
+            mediaRecorder = null
+
+            val file = audioTempFile ?: return
+            val bytes = file.readBytes()
+            if (bytes.isEmpty()) return
+
+            val base64 = Base64.encodeToString(bytes, Base64.NO_WRAP)
+            val dataUrl = "data:audio/amr;base64,$base64"
+
+            viewModel.sendPrivateMessage(peerUsername, dataUrl, "audio")
+            binding.rvMessages.scrollToPosition(messageAdapter.itemCount - 1)
+        } catch (e: Exception) {
+            android.widget.Toast.makeText(this, "Ошибка отправки голосового", android.widget.Toast.LENGTH_SHORT).show()
+        }
+    }
+
+    // ──────────────────────────────────────────────────────────────────────────
 
     override fun onSupportNavigateUp(): Boolean {
         onBackPressedDispatcher.onBackPressed()
@@ -236,6 +415,12 @@ class PrivateChatActivity : AppCompatActivity() {
 
     override fun onDestroy() {
         super.onDestroy()
+        if (isRecording) {
+            mediaRecorder?.stop()
+            mediaRecorder?.release()
+        }
         viewModel.currentPrivatePeer = ""
     }
+
+    private fun dpToPx(dp: Int) = (dp * resources.displayMetrics.density).toInt()
 }

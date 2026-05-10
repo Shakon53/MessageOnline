@@ -18,7 +18,8 @@ data class MessageEntity(
     val replyToSender: String = "",
     val replyToContent: String = "",
     val isRead: Boolean = false,
-    val isEdited: Boolean = false
+    val isEdited: Boolean = false,
+    val messageType: String = "text"
 ) {
     fun toChatMessage() = ChatMessage(
         senderId = senderId,
@@ -31,7 +32,8 @@ data class MessageEntity(
         status = status,
         replyToSender = replyToSender,
         replyToContent = replyToContent,
-        isEdited = isEdited
+        isEdited = isEdited,
+        messageType = messageType
     )
 
     companion object {
@@ -47,7 +49,8 @@ data class MessageEntity(
                      else msg.status,
             replyToSender = msg.replyToSender,
             replyToContent = msg.replyToContent,
-            isEdited = msg.isEdited
+            isEdited = msg.isEdited,
+            messageType = msg.messageType
         )
     }
 }

@@ -56,6 +56,7 @@ public class ClientHandler {
                 case Packet.FRIEND_DECLINE-> handleFriendDecline(packet);
                 case Packet.FRIEND_REMOVE -> handleFriendRemove(packet);
                 case Packet.GET_FRIENDS   -> handleGetFriends();
+                case Packet.DELETE_FOR_ALL -> handleDeleteForAll(packet);
                 default -> send(Packet.error("Неизвестный тип пакета: " + type));
             }
 
@@ -129,13 +130,16 @@ public class ClientHandler {
         if (!checkAuthorized()) return;
 
         String content = p.optString("content", "").trim();
-        if (content.isEmpty() || content.length() > 2000) {
+        String messageType = p.optString("messageType", "text");
+        // For images/audio allow larger content (base64)
+        if (content.isEmpty() || (messageType.equals("text") && content.length() > 2000)) {
             send(Packet.error("Сообщение пустое или слишком длинное"));
             return;
         }
 
         Message msg = new Message(currentUser.getId(), currentUser.getUsername(),
                 content, System.currentTimeMillis());
+        msg.setMessageType(messageType);
         DatabaseManager.getInstance().saveMessage(msg);
 
         // Build packet, passthrough optional reply fields
@@ -146,7 +150,7 @@ public class ClientHandler {
         if (!replyToContent.isEmpty()) out.put("replyToContent", replyToContent);
 
         server.broadcastAll(out.toString());
-        ServerLogger.chat("[GLOBAL] " + currentUser.getUsername() + ": " + content);
+        ServerLogger.chat("[GLOBAL] " + currentUser.getUsername() + ": [" + messageType + "]");
     }
 
     private void handlePrivateMessage(JSONObject p) {
@@ -154,6 +158,7 @@ public class ClientHandler {
 
         String receiverUsername = p.optString("receiverUsername", "").trim();
         String content = p.optString("content", "").trim();
+        String messageType = p.optString("messageType", "text");
 
         if (receiverUsername.isEmpty() || content.isEmpty()) {
             send(Packet.error("Укажите получателя и текст сообщения"));
@@ -176,16 +181,17 @@ public class ClientHandler {
             // Сохраняем сообщение в историю
             Message msg = new Message(currentUser.getId(), currentUser.getUsername(),
                     receiverUser.getId(), receiverUsername, content, System.currentTimeMillis());
+            msg.setMessageType(messageType);
             DatabaseManager.getInstance().saveMessage(msg);
             send(Packet.privateMessage(msg)); // эхо отправителю
 
-            // Отправляем push уведомление
+            // Отправляем push уведомление (только для текстовых)
             String fcmToken = DatabaseManager.getInstance().getFCMToken(receiverUsername);
             if (fcmToken != null && !fcmToken.isEmpty()) {
-                sendFCMPush(fcmToken,
-                        "💬 " + currentUser.getUsername(),
-                        content.length() > 100 ? content.substring(0, 100) + "..." : content,
-                        currentUser.getUsername());
+                String pushBody = messageType.equals("text")
+                        ? (content.length() > 100 ? content.substring(0, 100) + "..." : content)
+                        : (messageType.equals("image") ? "📷 Фото" : "🎤 Голосовое сообщение");
+                sendFCMPush(fcmToken, "💬 " + currentUser.getUsername(), pushBody, currentUser.getUsername());
             }
             ServerLogger.chat("[PRIVATE→offline] " + currentUser.getUsername() + " -> " + receiverUsername);
             return;
@@ -193,6 +199,7 @@ public class ClientHandler {
 
         Message msg = new Message(currentUser.getId(), currentUser.getUsername(),
                 receiver.currentUser.getId(), receiverUsername, content, System.currentTimeMillis());
+        msg.setMessageType(messageType);
         DatabaseManager.getInstance().saveMessage(msg);
 
         // Build packet, passthrough optional reply fields
@@ -206,7 +213,30 @@ public class ClientHandler {
         receiver.send(packet);
         send(packet);
         receiver.send(Packet.notification("Новое сообщение от " + currentUser.getUsername()));
-        ServerLogger.chat("[PRIVATE] " + currentUser.getUsername() + " -> " + receiverUsername + ": " + content);
+        ServerLogger.chat("[PRIVATE] " + currentUser.getUsername() + " -> " + receiverUsername + ": [" + messageType + "]");
+    }
+
+    private void handleDeleteForAll(JSONObject p) {
+        if (!checkAuthorized()) return;
+        long timestamp = p.optLong("timestamp", 0);
+        boolean isGlobal = p.optBoolean("isGlobal", false);
+        String receiverUsername = p.optString("receiverUsername", "");
+
+        boolean deleted = DatabaseManager.getInstance().deleteMessage(currentUser.getUsername(), timestamp);
+        if (!deleted) {
+            send(Packet.error("Сообщение не найдено или нет прав на удаление"));
+            return;
+        }
+
+        String packet = Packet.messageDeleted(currentUser.getUsername(), timestamp, isGlobal, receiverUsername);
+        if (isGlobal) {
+            server.broadcastAll(packet);
+        } else {
+            ClientHandler receiver = server.getClientByUsername(receiverUsername);
+            if (receiver != null) receiver.send(packet);
+            send(packet);
+        }
+        ServerLogger.info("DELETE_FOR_ALL: " + currentUser.getUsername() + " ts=" + timestamp);
     }
 
     private void handleGetHistory(JSONObject p) {

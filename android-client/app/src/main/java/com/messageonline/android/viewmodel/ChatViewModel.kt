@@ -11,6 +11,7 @@ import androidx.lifecycle.MutableLiveData
 import androidx.lifecycle.viewModelScope
 import com.messageonline.android.database.AppDatabase
 import com.messageonline.android.database.MessageEntity
+import com.messageonline.android.database.PendingMessageEntity
 import com.messageonline.android.model.ChatMessage
 import com.messageonline.android.model.ChatSession
 import com.messageonline.android.model.Conversation
@@ -28,6 +29,7 @@ class ChatViewModel(app: Application) : AndroidViewModel(app) {
     // ==================== ROOM ====================
 
     private val dao = AppDatabase.getInstance(app).messageDao()
+    private val pendingDao = AppDatabase.getInstance(app).pendingMessageDao()
 
     // ==================== LIVE DATA ====================
 
@@ -167,6 +169,7 @@ class ChatViewModel(app: Application) : AndroidViewModel(app) {
             sendSavedFCMToken()
             sendSavedAvatar()
             SocketManager.requestFriends()
+            viewModelScope.launch(Dispatchers.IO) { flushPendingMessages() }
         }
         SocketManager.onDisconnected = {
             _connectionStatus.postValue(ConnectionStatus.DISCONNECTED)
@@ -473,6 +476,34 @@ class ChatViewModel(app: Application) : AndroidViewModel(app) {
                 _friends.postValue(list)
                 refreshConversations()
             }
+
+            Packet.MESSAGE_DELETED -> {
+                val sender = json.optString("senderUsername")
+                val timestamp = json.optLong("timestamp")
+                val isGlobal = json.optBoolean("isGlobal", false)
+
+                if (isGlobal) {
+                    val list = _globalMessages.value ?: mutableListOf()
+                    val idx = list.indexOfFirst { it.senderUsername == sender && it.timestamp == timestamp }
+                    if (idx >= 0) {
+                        list[idx] = list[idx].copy(content = "[Сообщение удалено]", messageType = "deleted")
+                        _globalMessages.postValue(list)
+                        viewModelScope.launch(Dispatchers.IO) {
+                            dao.updateMessageContent(timestamp, sender, "[Сообщение удалено]")
+                        }
+                    }
+                } else {
+                    val list = _privateMessages.value ?: mutableListOf()
+                    val idx = list.indexOfFirst { it.senderUsername == sender && it.timestamp == timestamp }
+                    if (idx >= 0) {
+                        list[idx] = list[idx].copy(content = "[Сообщение удалено]", messageType = "deleted")
+                        _privateMessages.postValue(list)
+                        viewModelScope.launch(Dispatchers.IO) {
+                            dao.updateMessageContent(timestamp, sender, "[Сообщение удалено]")
+                        }
+                    }
+                }
+            }
         }
     }
 
@@ -548,7 +579,7 @@ class ChatViewModel(app: Application) : AndroidViewModel(app) {
         SocketManager.sendGlobalMessage(trimmed, pending.replyToSender, pending.replyToContent)
     }
 
-    fun sendPrivateMessage(receiverUsername: String, content: String) {
+    fun sendPrivateMessage(receiverUsername: String, content: String, messageType: String = "text") {
         if (content.isBlank() || receiverUsername.isBlank()) return
         val trimmed = content.trim()
         val reply = replyToMessage
@@ -560,12 +591,65 @@ class ChatViewModel(app: Application) : AndroidViewModel(app) {
             status = ChatMessage.STATUS_PENDING,
             localId = UUID.randomUUID().toString(),
             replyToSender = reply?.senderUsername ?: "",
-            replyToContent = reply?.content ?: ""
+            replyToContent = reply?.content ?: "",
+            messageType = messageType
         )
         val list = _privateMessages.value ?: mutableListOf()
         list.add(pending)
         _privateMessages.value = list
-        SocketManager.sendPrivateMessage(receiverUsername, trimmed, pending.replyToSender, pending.replyToContent)
+        if (SocketManager.isConnected) {
+            SocketManager.sendPrivateMessage(receiverUsername, trimmed, pending.replyToSender, pending.replyToContent, messageType)
+        } else {
+            // Queue for offline sending
+            viewModelScope.launch(Dispatchers.IO) {
+                pendingDao.insert(PendingMessageEntity(
+                    receiverUsername = receiverUsername,
+                    content = trimmed,
+                    messageType = messageType,
+                    isGlobal = false,
+                    replyToSender = pending.replyToSender,
+                    replyToContent = pending.replyToContent
+                ))
+            }
+        }
+    }
+
+    /** Flush queued messages once connected */
+    private suspend fun flushPendingMessages() {
+        val pending = pendingDao.getAll()
+        for (p in pending) {
+            if (p.isGlobal) {
+                SocketManager.sendGlobalMessageWithType(p.content, p.messageType, p.replyToSender, p.replyToContent)
+            } else {
+                SocketManager.sendPrivateMessage(p.receiverUsername, p.content, p.replyToSender, p.replyToContent, p.messageType)
+            }
+            pendingDao.deleteById(p.id)
+        }
+    }
+
+    /** Delete a message for everyone (server + local) */
+    fun deleteForEveryone(msg: ChatMessage) {
+        // Update locally
+        if (msg.isGlobal) {
+            val list = _globalMessages.value ?: mutableListOf()
+            val idx = list.indexOfFirst { it.timestamp == msg.timestamp && it.senderUsername == msg.senderUsername }
+            if (idx >= 0) {
+                list[idx] = list[idx].copy(content = "[Сообщение удалено]", messageType = "deleted")
+                _globalMessages.value = list
+            }
+        } else {
+            val list = _privateMessages.value ?: mutableListOf()
+            val idx = list.indexOfFirst { it.timestamp == msg.timestamp && it.senderUsername == msg.senderUsername }
+            if (idx >= 0) {
+                list[idx] = list[idx].copy(content = "[Сообщение удалено]", messageType = "deleted")
+                _privateMessages.value = list
+            }
+        }
+        viewModelScope.launch(Dispatchers.IO) {
+            dao.updateMessageContent(msg.timestamp, msg.senderUsername, "[Сообщение удалено]")
+        }
+        // Send to server
+        SocketManager.sendDeleteForAll(msg.timestamp, msg.isGlobal, msg.receiverUsername ?: "")
     }
 
     fun loadGlobalHistory() {
@@ -732,7 +816,8 @@ class ChatViewModel(app: Application) : AndroidViewModel(app) {
         timestamp = json.optLong("timestamp"),
         isGlobal = true, status = ChatMessage.STATUS_SENT,
         replyToSender = json.optString("replyToSender"),
-        replyToContent = json.optString("replyToContent")
+        replyToContent = json.optString("replyToContent"),
+        messageType = json.optString("messageType", "text").ifEmpty { "text" }
     )
 
     private fun parsePrivateMessage(json: JSONObject) = ChatMessage(
@@ -744,6 +829,7 @@ class ChatViewModel(app: Application) : AndroidViewModel(app) {
         timestamp = json.optLong("timestamp"),
         isGlobal = false, status = ChatMessage.STATUS_SENT,
         replyToSender = json.optString("replyToSender"),
-        replyToContent = json.optString("replyToContent")
+        replyToContent = json.optString("replyToContent"),
+        messageType = json.optString("messageType", "text").ifEmpty { "text" }
     )
 }

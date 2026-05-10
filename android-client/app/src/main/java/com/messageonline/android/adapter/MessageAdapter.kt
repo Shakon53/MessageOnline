@@ -4,9 +4,11 @@ import android.content.ClipData
 import android.content.ClipboardManager
 import android.content.Context
 import android.graphics.Color
+import android.media.MediaPlayer
 import android.text.SpannableString
 import android.text.Spanned
 import android.text.style.BackgroundColorSpan
+import android.util.Base64
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
@@ -14,7 +16,9 @@ import android.view.animation.AnimationUtils
 import android.widget.ImageView
 import android.widget.TextView
 import android.widget.Toast
+import androidx.core.content.ContextCompat
 import androidx.recyclerview.widget.RecyclerView
+import coil.load
 import com.google.android.material.dialog.MaterialAlertDialogBuilder
 import com.messageonline.android.R
 import com.messageonline.android.model.ChatMessage
@@ -29,13 +33,18 @@ class MessageAdapter(
     private val onDeleteMessage: ((ChatMessage) -> Unit)? = null,
     private val onEditMessage: ((ChatMessage, String) -> Unit)? = null,
     private val onReplyMessage: ((ChatMessage) -> Unit)? = null,
-    private val onForwardMessage: ((ChatMessage) -> Unit)? = null
+    private val onForwardMessage: ((ChatMessage) -> Unit)? = null,
+    private val onDeleteForAll: ((ChatMessage) -> Unit)? = null
 ) : RecyclerView.Adapter<RecyclerView.ViewHolder>() {
 
     companion object {
-        const val VIEW_TYPE_SENT     = 1
-        const val VIEW_TYPE_RECEIVED = 2
-        const val VIEW_TYPE_DATE     = 3
+        const val VIEW_TYPE_SENT          = 1
+        const val VIEW_TYPE_RECEIVED      = 2
+        const val VIEW_TYPE_DATE          = 3
+        const val VIEW_TYPE_SENT_IMAGE    = 4
+        const val VIEW_TYPE_RECV_IMAGE    = 5
+        const val VIEW_TYPE_SENT_AUDIO    = 6
+        const val VIEW_TYPE_RECV_AUDIO    = 7
     }
 
     // ─── Display model ─────────────────────────────────────────────────────────
@@ -58,10 +67,7 @@ class MessageAdapter(
     private val dateFormat = SimpleDateFormat("d MMMM yyyy", Locale("ru"))
     private val dayFormat  = SimpleDateFormat("yyyyMMdd", Locale.getDefault())
 
-    // Last position that had a slide-in animation (avoid re-animating on rebind)
     private var lastAnimatedPos = -1
-
-    // Search query for text highlighting
     private var searchQuery = ""
 
     // ─── ViewHolders ───────────────────────────────────────────────────────────
@@ -93,30 +99,71 @@ class MessageAdapter(
         val tvDate: TextView = view.findViewById(R.id.tvDateLabel)
     }
 
+    inner class SentImageViewHolder(view: View) : RecyclerView.ViewHolder(view) {
+        val ivImage:  ImageView = view.findViewById(R.id.ivMessageImage)
+        val tvTime:   TextView  = view.findViewById(R.id.tvMessageTime)
+        val tvStatus: TextView  = view.findViewById(R.id.tvStatus)
+    }
+
+    inner class ReceivedImageViewHolder(view: View) : RecyclerView.ViewHolder(view) {
+        val flAvatar:  View      = view.findViewById(R.id.flAvatar)
+        val tvInitial: TextView  = view.findViewById(R.id.tvAvatarInitial)
+        val tvSender:  TextView  = view.findViewById(R.id.tvSenderName)
+        val ivImage:   ImageView = view.findViewById(R.id.ivMessageImage)
+        val tvTime:    TextView  = view.findViewById(R.id.tvMessageTime)
+    }
+
+    inner class SentAudioViewHolder(view: View) : RecyclerView.ViewHolder(view) {
+        val ivPlayPause: ImageView = view.findViewById(R.id.ivPlayPause)
+        val tvDuration:  TextView  = view.findViewById(R.id.tvDuration)
+        val tvTime:      TextView  = view.findViewById(R.id.tvMessageTime)
+        val tvStatus:    TextView  = view.findViewById(R.id.tvStatus)
+        var mediaPlayer: MediaPlayer? = null
+        var isPlaying = false
+    }
+
+    inner class ReceivedAudioViewHolder(view: View) : RecyclerView.ViewHolder(view) {
+        val flAvatar:    View      = view.findViewById(R.id.flAvatar)
+        val tvInitial:   TextView  = view.findViewById(R.id.tvAvatarInitial)
+        val tvSender:    TextView  = view.findViewById(R.id.tvSenderName)
+        val ivPlayPause: ImageView = view.findViewById(R.id.ivPlayPause)
+        val tvDuration:  TextView  = view.findViewById(R.id.tvDuration)
+        val tvTime:      TextView  = view.findViewById(R.id.tvMessageTime)
+        var mediaPlayer: MediaPlayer? = null
+        var isPlaying = false
+    }
+
     // ─── Adapter overrides ─────────────────────────────────────────────────────
 
     override fun getItemCount() = displayList.size
 
     override fun getItemViewType(position: Int): Int {
         val item = displayList[position]
-        return when {
-            item is DisplayItem.DateItem -> VIEW_TYPE_DATE
-            item is DisplayItem.MessageItem && item.msg.isMine(myUsername) -> VIEW_TYPE_SENT
-            else -> VIEW_TYPE_RECEIVED
+        if (item is DisplayItem.DateItem) return VIEW_TYPE_DATE
+        if (item !is DisplayItem.MessageItem) return VIEW_TYPE_DATE
+        val msg = item.msg
+        val isMine = msg.isMine(myUsername)
+        return when (msg.messageType) {
+            "image"   -> if (isMine) VIEW_TYPE_SENT_IMAGE else VIEW_TYPE_RECV_IMAGE
+            "audio"   -> if (isMine) VIEW_TYPE_SENT_AUDIO else VIEW_TYPE_RECV_AUDIO
+            else      -> if (isMine) VIEW_TYPE_SENT else VIEW_TYPE_RECEIVED
         }
     }
 
     override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): RecyclerView.ViewHolder {
         val inf = LayoutInflater.from(parent.context)
         return when (viewType) {
-            VIEW_TYPE_SENT     -> SentViewHolder(inf.inflate(R.layout.item_message_sent, parent, false))
-            VIEW_TYPE_RECEIVED -> ReceivedViewHolder(inf.inflate(R.layout.item_message_received, parent, false))
-            else               -> DateViewHolder(inf.inflate(R.layout.item_date_separator, parent, false))
+            VIEW_TYPE_SENT        -> SentViewHolder(inf.inflate(R.layout.item_message_sent, parent, false))
+            VIEW_TYPE_RECEIVED    -> ReceivedViewHolder(inf.inflate(R.layout.item_message_received, parent, false))
+            VIEW_TYPE_SENT_IMAGE  -> SentImageViewHolder(inf.inflate(R.layout.item_message_image_sent, parent, false))
+            VIEW_TYPE_RECV_IMAGE  -> ReceivedImageViewHolder(inf.inflate(R.layout.item_message_image_received, parent, false))
+            VIEW_TYPE_SENT_AUDIO  -> SentAudioViewHolder(inf.inflate(R.layout.item_message_audio_sent, parent, false))
+            VIEW_TYPE_RECV_AUDIO  -> ReceivedAudioViewHolder(inf.inflate(R.layout.item_message_audio_received, parent, false))
+            else                  -> DateViewHolder(inf.inflate(R.layout.item_date_separator, parent, false))
         }
     }
 
     override fun onBindViewHolder(holder: RecyclerView.ViewHolder, position: Int) {
-        // Slide-in animation only for newly appended items
         if (position > lastAnimatedPos) {
             lastAnimatedPos = position
             val anim = AnimationUtils.loadAnimation(holder.itemView.context, R.anim.slide_in_bottom)
@@ -132,13 +179,21 @@ class MessageAdapter(
 
             holder is SentViewHolder && item is DisplayItem.MessageItem -> {
                 val msg = item.msg
-                highlightText(holder.tvContent, msg.content)
-                holder.tvTime.text    = timeFormat.format(Date(msg.timestamp))
+                // Deleted message styling
+                if (msg.messageType == "deleted" || msg.content == "[Сообщение удалено]") {
+                    holder.tvContent.text = "🚫 Сообщение удалено"
+                    holder.tvContent.setTextColor(Color.parseColor("#94A3B8"))
+                    holder.tvContent.setTypeface(null, android.graphics.Typeface.ITALIC)
+                } else {
+                    highlightText(holder.tvContent, msg.content)
+                    holder.tvContent.setTextColor(Color.WHITE)
+                    holder.tvContent.setTypeface(null, android.graphics.Typeface.NORMAL)
+                }
+                holder.tvTime.text = timeFormat.format(Date(msg.timestamp))
                 bindStatus(holder.tvStatus, msg.status)
                 bindReplyQuote(holder.llReplyQuote, holder.tvReplySender, holder.tvReplyContent, msg)
                 holder.tvEdited.visibility = if (msg.isEdited) View.VISIBLE else View.GONE
 
-                // Group spacing
                 val lp = holder.itemView.layoutParams as? ViewGroup.MarginLayoutParams
                 lp?.topMargin = dpToPx(holder.itemView.context, if (item.isFirstInGroup) 6 else 2)
                 holder.itemView.layoutParams = lp
@@ -148,35 +203,163 @@ class MessageAdapter(
 
             holder is ReceivedViewHolder && item is DisplayItem.MessageItem -> {
                 val msg = item.msg
-                highlightText(holder.tvContent, msg.content)
-                holder.tvTime.text    = timeFormat.format(Date(msg.timestamp))
+                if (msg.messageType == "deleted" || msg.content == "[Сообщение удалено]") {
+                    holder.tvContent.text = "🚫 Сообщение удалено"
+                    holder.tvContent.setTextColor(Color.parseColor("#94A3B8"))
+                    holder.tvContent.setTypeface(null, android.graphics.Typeface.ITALIC)
+                } else {
+                    highlightText(holder.tvContent, msg.content)
+                    holder.tvContent.setTextColor(Color.parseColor("#E2E8F0"))
+                    holder.tvContent.setTypeface(null, android.graphics.Typeface.NORMAL)
+                }
+                holder.tvTime.text = timeFormat.format(Date(msg.timestamp))
                 bindReplyQuote(holder.llReplyQuote, holder.tvReplySender, holder.tvReplyContent, msg)
                 holder.tvEdited.visibility = if (msg.isEdited) View.VISIBLE else View.GONE
 
-                // Avatar — visible only on last message of group (bottom of bubble stack)
                 if (item.isLastInGroup) {
                     holder.flAvatar.visibility = View.VISIBLE
                     holder.tvInitial.text = msg.senderUsername.firstOrNull()?.uppercaseChar()?.toString() ?: "?"
                     holder.ivAvatarImage.visibility = View.GONE
                     holder.tvInitial.visibility = View.VISIBLE
                 } else {
-                    holder.flAvatar.visibility = View.INVISIBLE   // keep layout space
+                    holder.flAvatar.visibility = View.INVISIBLE
                 }
 
-                // Sender name — visible only on first message of group
                 if (item.isFirstInGroup) {
                     holder.tvSender.visibility = View.VISIBLE
-                    holder.tvSender.text       = msg.senderUsername
+                    holder.tvSender.text = msg.senderUsername
                 } else {
                     holder.tvSender.visibility = View.GONE
                 }
 
-                // Group spacing
                 val lp = holder.itemView.layoutParams as? ViewGroup.MarginLayoutParams
                 lp?.topMargin = dpToPx(holder.itemView.context, if (item.isFirstInGroup) 6 else 2)
                 holder.itemView.layoutParams = lp
 
                 setupLongPress(holder.itemView, msg)
+            }
+
+            holder is SentImageViewHolder && item is DisplayItem.MessageItem -> {
+                val msg = item.msg
+                loadBase64Image(holder.ivImage, msg.content)
+                holder.tvTime.text = timeFormat.format(Date(msg.timestamp))
+                bindStatus(holder.tvStatus, msg.status)
+                setupLongPress(holder.itemView, msg)
+            }
+
+            holder is ReceivedImageViewHolder && item is DisplayItem.MessageItem -> {
+                val msg = item.msg
+                loadBase64Image(holder.ivImage, msg.content)
+                holder.tvTime.text = timeFormat.format(Date(msg.timestamp))
+                if (item.isLastInGroup) {
+                    holder.flAvatar.visibility = View.VISIBLE
+                    holder.tvInitial.text = msg.senderUsername.firstOrNull()?.uppercaseChar()?.toString() ?: "?"
+                } else {
+                    holder.flAvatar.visibility = View.INVISIBLE
+                }
+                if (item.isFirstInGroup) {
+                    holder.tvSender.visibility = View.VISIBLE
+                    holder.tvSender.text = msg.senderUsername
+                } else {
+                    holder.tvSender.visibility = View.GONE
+                }
+                setupLongPress(holder.itemView, msg)
+            }
+
+            holder is SentAudioViewHolder && item is DisplayItem.MessageItem -> {
+                val msg = item.msg
+                holder.tvTime.text = timeFormat.format(Date(msg.timestamp))
+                bindStatus(holder.tvStatus, msg.status)
+                setupAudioPlayer(holder.ivPlayPause, holder.tvDuration, msg.content, holder)
+                setupLongPress(holder.itemView, msg)
+            }
+
+            holder is ReceivedAudioViewHolder && item is DisplayItem.MessageItem -> {
+                val msg = item.msg
+                holder.tvTime.text = timeFormat.format(Date(msg.timestamp))
+                if (item.isLastInGroup) {
+                    holder.flAvatar.visibility = View.VISIBLE
+                    holder.tvInitial.text = msg.senderUsername.firstOrNull()?.uppercaseChar()?.toString() ?: "?"
+                } else {
+                    holder.flAvatar.visibility = View.INVISIBLE
+                }
+                if (item.isFirstInGroup) {
+                    holder.tvSender.visibility = View.VISIBLE
+                    holder.tvSender.text = msg.senderUsername
+                } else {
+                    holder.tvSender.visibility = View.GONE
+                }
+                setupAudioPlayer(holder.ivPlayPause, holder.tvDuration, msg.content, holder)
+                setupLongPress(holder.itemView, msg)
+            }
+        }
+    }
+
+    // ─── Image loading ─────────────────────────────────────────────────────────
+
+    private fun loadBase64Image(imageView: ImageView, content: String) {
+        try {
+            val base64 = when {
+                content.startsWith("data:") -> content.substringAfter(",")
+                else -> content
+            }
+            val bytes = Base64.decode(base64, Base64.DEFAULT)
+            imageView.load(bytes) {
+                crossfade(true)
+                error(android.R.drawable.ic_menu_gallery)
+            }
+        } catch (e: Exception) {
+            imageView.setImageResource(android.R.drawable.ic_menu_gallery)
+        }
+    }
+
+    // ─── Audio player ──────────────────────────────────────────────────────────
+
+    private fun setupAudioPlayer(
+        playBtn: ImageView,
+        tvDuration: TextView,
+        content: String,
+        holder: RecyclerView.ViewHolder
+    ) {
+        var mediaPlayer: MediaPlayer? = null
+        var isPlaying = false
+
+        playBtn.setImageResource(R.drawable.ic_play)
+
+        playBtn.setOnClickListener {
+            if (isPlaying) {
+                mediaPlayer?.pause()
+                isPlaying = false
+                playBtn.setImageResource(R.drawable.ic_play)
+            } else {
+                try {
+                    if (mediaPlayer == null) {
+                        val base64 = when {
+                            content.startsWith("data:") -> content.substringAfter(",")
+                            else -> content
+                        }
+                        val bytes = Base64.decode(base64, Base64.DEFAULT)
+                        val tempFile = java.io.File.createTempFile("audio_", ".amr", playBtn.context.cacheDir)
+                        tempFile.writeBytes(bytes)
+
+                        mediaPlayer = MediaPlayer().apply {
+                            setDataSource(tempFile.absolutePath)
+                            prepare()
+                            val durSec = duration / 1000
+                            tvDuration.text = "${durSec / 60}:${(durSec % 60).toString().padStart(2, '0')}"
+                            setOnCompletionListener {
+                                isPlaying = false
+                                playBtn.setImageResource(R.drawable.ic_play)
+                                tvDuration.text = "0:00"
+                            }
+                        }
+                    }
+                    mediaPlayer?.start()
+                    isPlaying = true
+                    playBtn.setImageResource(R.drawable.ic_pause)
+                } catch (e: Exception) {
+                    Toast.makeText(playBtn.context, "Ошибка воспроизведения", Toast.LENGTH_SHORT).show()
+                }
             }
         }
     }
@@ -187,7 +370,7 @@ class MessageAdapter(
         container: View,
         tvSender: TextView,
         tvContent: TextView,
-        msg: com.messageonline.android.model.ChatMessage
+        msg: ChatMessage
     ) {
         if (msg.hasReply) {
             container.visibility = View.VISIBLE
@@ -204,7 +387,7 @@ class MessageAdapter(
         view.setOnLongClickListener {
             val ctx = view.context
             val options = if (msg.isMine(myUsername)) {
-                arrayOf("Копировать", "Ответить", "Редактировать", "Переслать", "Удалить")
+                arrayOf("Копировать", "Ответить", "Редактировать", "Переслать", "Удалить у всех", "Удалить")
             } else {
                 arrayOf("Копировать", "Ответить", "Переслать")
             }
@@ -220,6 +403,7 @@ class MessageAdapter(
                         "Ответить"       -> onReplyMessage?.invoke(msg)
                         "Редактировать"  -> showEditDialog(ctx, msg)
                         "Переслать"      -> onForwardMessage?.invoke(msg)
+                        "Удалить у всех" -> onDeleteForAll?.invoke(msg)
                         "Удалить"        -> onDeleteMessage?.invoke(msg)
                     }
                 }
@@ -270,12 +454,11 @@ class MessageAdapter(
     fun setMessages(newMessages: List<ChatMessage>) {
         messages.clear()
         messages.addAll(newMessages)
-        lastAnimatedPos = -1        // reset so history items don't all animate
+        lastAnimatedPos = -1
         rebuildDisplayList()
         notifyDataSetChanged()
     }
 
-    /** Return the ChatMessage at a given adapter position, or null for date separators. */
     fun getMessageAt(position: Int): ChatMessage? {
         val item = displayList.getOrNull(position) ?: return null
         return if (item is DisplayItem.MessageItem) item.msg else null
@@ -335,14 +518,12 @@ class MessageAdapter(
         for (i in source.indices) {
             val msg = source[i]
 
-            // Insert date chip when day changes
             val dayKey = dayFormat.format(Date(msg.timestamp))
             if (dayKey != lastDayKey) {
                 displayList.add(DisplayItem.DateItem(formatDateLabel(msg.timestamp)))
                 lastDayKey = dayKey
             }
 
-            // Grouping flags
             val prevMsg = if (i > 0) source[i - 1] else null
             val nextMsg = if (i < source.size - 1) source[i + 1] else null
 

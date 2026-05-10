@@ -2,10 +2,18 @@ package com.messageonline.android.network
 
 import android.util.Log
 import com.messageonline.android.model.Packet
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
 import okhttp3.*
 import okhttp3.Protocol
 import org.json.JSONObject
 import java.util.concurrent.TimeUnit
+import kotlin.math.min
+import kotlin.math.pow
 
 object SocketManager {
 
@@ -28,16 +36,46 @@ object SocketManager {
     var isConnected: Boolean = false
         private set
 
+    // ==================== AUTO-RECONNECT ====================
+
+    private val reconnectScope = CoroutineScope(Dispatchers.IO + SupervisorJob())
+    private var reconnectJob: Job? = null
+    private var reconnectAttempts = 0
+    private var shouldReconnect = true
+
+    private fun scheduleReconnect() {
+        if (!shouldReconnect || reconnectAttempts >= 10) return
+        reconnectJob?.cancel()
+        reconnectJob = reconnectScope.launch {
+            val delaySeconds = min(2.0.pow(reconnectAttempts).toLong(), 30L)
+            Log.i(TAG, "Переподключение через ${delaySeconds}с (попытка ${reconnectAttempts + 1})")
+            delay(delaySeconds * 1000)
+            reconnectAttempts++
+            if (shouldReconnect && !isConnected) {
+                val request = Request.Builder().url(ServerConfig.WS_URL).build()
+                webSocket = client.newWebSocket(request, wsListener)
+            }
+        }
+    }
+
     // ==================== ПОДКЛЮЧЕНИЕ ====================
 
     fun connect() {
-        disconnect()
+        shouldReconnect = true
+        reconnectAttempts = 0
+        val oldSocket = webSocket
+        webSocket = null
+        isConnected = false
+        oldSocket?.close(1000, "Reconnect")
         val request = Request.Builder().url(ServerConfig.WS_URL).build()
         webSocket = client.newWebSocket(request, wsListener)
         Log.i(TAG, "Подключение к ${ServerConfig.WS_URL}...")
     }
 
     fun disconnect() {
+        shouldReconnect = false
+        reconnectJob?.cancel()
+        reconnectJob = null
         isConnected = false
         webSocket?.close(1000, "Disconnect")
         webSocket = null
@@ -62,6 +100,7 @@ object SocketManager {
 
         override fun onOpen(webSocket: WebSocket, response: Response) {
             isConnected = true
+            reconnectAttempts = 0
             Log.i(TAG, "WebSocket подключён")
             onConnected?.invoke()
         }
@@ -80,6 +119,7 @@ object SocketManager {
             isConnected = false
             Log.i(TAG, "WebSocket закрыт: $reason")
             onDisconnected?.invoke()
+            if (shouldReconnect) scheduleReconnect()
         }
 
         override fun onFailure(webSocket: WebSocket, t: Throwable, response: Response?) {
@@ -87,6 +127,7 @@ object SocketManager {
             val errorMsg = "${t.javaClass.simpleName}: ${t.message}"
             Log.e(TAG, "WebSocket ошибка: $errorMsg")
             onError?.invoke(errorMsg)
+            if (shouldReconnect) scheduleReconnect()
         }
     }
 
@@ -118,11 +159,31 @@ object SocketManager {
         })
     }
 
-    fun sendPrivateMessage(receiverUsername: String, content: String, replyToSender: String = "", replyToContent: String = "") {
+    fun sendPrivateMessage(receiverUsername: String, content: String, replyToSender: String = "", replyToContent: String = "", messageType: String = "text") {
         send(JSONObject().apply {
             put("type", Packet.PRIVATE_MESSAGE)
             put("receiverUsername", receiverUsername)
             put("content", content)
+            put("messageType", messageType)
+            if (replyToSender.isNotEmpty()) put("replyToSender", replyToSender)
+            if (replyToContent.isNotEmpty()) put("replyToContent", replyToContent)
+        })
+    }
+
+    fun sendDeleteForAll(timestamp: Long, isGlobal: Boolean, receiverUsername: String = "") {
+        send(JSONObject().apply {
+            put("type", Packet.DELETE_FOR_ALL)
+            put("timestamp", timestamp)
+            put("isGlobal", isGlobal)
+            if (receiverUsername.isNotEmpty()) put("receiverUsername", receiverUsername)
+        })
+    }
+
+    fun sendGlobalMessageWithType(content: String, messageType: String = "text", replyToSender: String = "", replyToContent: String = "") {
+        send(JSONObject().apply {
+            put("type", Packet.GLOBAL_MESSAGE)
+            put("content", content)
+            put("messageType", messageType)
             if (replyToSender.isNotEmpty()) put("replyToSender", replyToSender)
             if (replyToContent.isNotEmpty()) put("replyToContent", replyToContent)
         })

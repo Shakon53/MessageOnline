@@ -19,7 +19,8 @@ data class ChatMessage(
     val localId: String = "",
     val replyToSender: String = "",
     val replyToContent: String = "",
-    val isEdited: Boolean = false
+    val isEdited: Boolean = false,
+    val messageType: String = "text"
 ) {
     fun isMine(myUsername: String): Boolean = senderUsername == myUsername
     val hasReply: Boolean get() = replyToContent.isNotEmpty()

@@ -79,6 +79,7 @@ public class DatabaseManager {
             try { stmt.execute("ALTER TABLE users ADD COLUMN fcm_token TEXT"); ServerLogger.info("Migration: added fcm_token"); } catch (Exception ignored) {}
             try { stmt.execute("ALTER TABLE users ADD COLUMN avatar_url TEXT NOT NULL DEFAULT ''"); ServerLogger.info("Migration: added avatar_url"); } catch (Exception ignored) {}
             try { stmt.execute("ALTER TABLE messages ADD COLUMN content_edited TEXT"); ServerLogger.info("Migration: added content_edited"); } catch (Exception ignored) {}
+            try { stmt.execute("ALTER TABLE messages ADD COLUMN message_type TEXT NOT NULL DEFAULT 'text'"); ServerLogger.info("Migration: added message_type"); } catch (Exception ignored) {}
 
             // Таблица сообщений
             stmt.execute("""
@@ -219,8 +220,8 @@ public class DatabaseManager {
         String sql = """
             INSERT INTO messages
                 (sender_id, sender_username, receiver_id, receiver_username,
-                 content, timestamp, is_global)
-            VALUES (?, ?, ?, ?, ?, ?, ?)
+                 content, timestamp, is_global, message_type)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?)
         """;
         try (PreparedStatement ps = connection.prepareStatement(sql)) {
             ps.setInt(1, msg.getSenderId());
@@ -235,9 +236,23 @@ public class DatabaseManager {
             ps.setString(5, msg.getContent());
             ps.setLong(6, msg.getTimestamp());
             ps.setInt(7, msg.isGlobal() ? 1 : 0);
+            ps.setString(8, msg.getMessageType());
             ps.executeUpdate();
         } catch (SQLException e) {
             ServerLogger.error("Ошибка сохранения сообщения: " + e.getMessage());
+        }
+    }
+
+    /** Пометить сообщение как удалённое */
+    public synchronized boolean deleteMessage(String senderUsername, long timestamp) {
+        String sql = "UPDATE messages SET content = '[Сообщение удалено]', message_type = 'deleted' WHERE sender_username = ? AND timestamp = ?";
+        try (PreparedStatement ps = connection.prepareStatement(sql)) {
+            ps.setString(1, senderUsername);
+            ps.setLong(2, timestamp);
+            return ps.executeUpdate() > 0;
+        } catch (SQLException e) {
+            ServerLogger.error("Ошибка удаления сообщения: " + e.getMessage());
+            return false;
         }
     }
 
@@ -248,7 +263,8 @@ public class DatabaseManager {
      */
     public synchronized JSONArray getGlobalHistory(int limit) {
         String sql = """
-            SELECT sender_id, sender_username, content, timestamp
+            SELECT sender_id, sender_username, content, timestamp,
+                   COALESCE(message_type,'text') as message_type
             FROM messages
             WHERE is_global = 1
             ORDER BY timestamp DESC
@@ -263,7 +279,7 @@ public class DatabaseManager {
     public synchronized JSONArray getPrivateHistory(int userId1, int userId2, int limit) {
         String sql = """
             SELECT sender_id, sender_username, receiver_id, receiver_username,
-                   content, timestamp
+                   content, timestamp, COALESCE(message_type,'text') as message_type
             FROM messages
             WHERE is_global = 0
               AND ((sender_id = ? AND receiver_id = ?)
@@ -289,7 +305,8 @@ public class DatabaseManager {
                         .put("receiverUsername",  rs.getString("receiver_username"))
                         .put("content",           rs.getString("content"))
                         .put("timestamp",         rs.getLong("timestamp"))
-                        .put("isGlobal",          false));
+                        .put("isGlobal",          false)
+                        .put("messageType",       rs.getString("message_type")));
             }
             // Возвращаем в хронологическом порядке (старые первыми)
             for (int i = msgs.size() - 1; i >= 0; i--) {
@@ -314,7 +331,8 @@ public class DatabaseManager {
                         .put("senderUsername", rs.getString("sender_username"))
                         .put("content",        rs.getString("content"))
                         .put("timestamp",      rs.getLong("timestamp"))
-                        .put("isGlobal",       isGlobal);
+                        .put("isGlobal",       isGlobal)
+                        .put("messageType",    rs.getString("message_type"));
                 msgs.add(obj);
             }
             // Возвращаем в хронологическом порядке

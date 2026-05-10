@@ -13,6 +13,7 @@ public class Message {
     private String content;
     private long timestamp;           // Unix timestamp в миллисекундах
     private boolean isGlobal;         // true = глобальный чат, false = личное сообщение
+    private String messageType = "text"; // "text" | "image" | "audio" | "deleted"
 
     public Message() {}
 
@@ -62,6 +63,9 @@ public class Message {
 
     public boolean isGlobal() { return isGlobal; }
     public void setGlobal(boolean global) { isGlobal = global; }
+
+    public String getMessageType() { return messageType != null ? messageType : "text"; }
+    public void setMessageType(String messageType) { this.messageType = messageType; }
 
     @Override
     public String toString() {

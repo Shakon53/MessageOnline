@@ -41,6 +41,10 @@ object Packet {
     const val EDITED_MESSAGE        = "EDITED_MESSAGE"
     const val UPDATE_AVATAR         = "UPDATE_AVATAR"
 
+    // Delete for all
+    const val DELETE_FOR_ALL    = "DELETE_FOR_ALL"
+    const val MESSAGE_DELETED   = "MESSAGE_DELETED"
+
     // Friends
     const val FRIEND_ADD        = "FRIEND_ADD"
     const val FRIEND_REQUEST_IN = "FRIEND_REQUEST_IN"

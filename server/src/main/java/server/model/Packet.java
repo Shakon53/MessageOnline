@@ -63,6 +63,10 @@ public class Packet {
     public static final String EDITED_MESSAGE   = "EDITED_MESSAGE";
     public static final String UPDATE_AVATAR    = "UPDATE_AVATAR";
 
+    // Delete for all
+    public static final String DELETE_FOR_ALL    = "DELETE_FOR_ALL";
+    public static final String MESSAGE_DELETED   = "MESSAGE_DELETED";
+
     // Friends
     public static final String FRIEND_ADD        = "FRIEND_ADD";
     public static final String FRIEND_REQUEST_IN = "FRIEND_REQUEST_IN";
@@ -125,6 +129,7 @@ public class Packet {
                 .put("senderUsername", msg.getSenderUsername())
                 .put("content", msg.getContent())
                 .put("timestamp", msg.getTimestamp())
+                .put("messageType", msg.getMessageType())
                 .toString();
     }
 
@@ -138,7 +143,19 @@ public class Packet {
                 .put("receiverUsername", msg.getReceiverUsername())
                 .put("content", msg.getContent())
                 .put("timestamp", msg.getTimestamp())
+                .put("messageType", msg.getMessageType())
                 .toString();
+    }
+
+    /** Сообщение удалено */
+    public static String messageDeleted(String senderUsername, long timestamp, boolean isGlobal, String receiverUsername) {
+        JSONObject obj = new JSONObject()
+                .put("type", MESSAGE_DELETED)
+                .put("senderUsername", senderUsername)
+                .put("timestamp", timestamp)
+                .put("isGlobal", isGlobal);
+        if (receiverUsername != null && !receiverUsername.isEmpty()) obj.put("receiverUsername", receiverUsername);
+        return obj.toString();
     }
 
     /** Уведомление о подключении пользователя */
