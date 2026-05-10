@@ -12,9 +12,13 @@ import androidx.appcompat.app.AppCompatActivity
 import androidx.appcompat.app.AppCompatDelegate
 import androidx.recyclerview.widget.LinearLayoutManager
 import com.google.android.material.dialog.MaterialAlertDialogBuilder
+import com.journeyapps.barcodescanner.ScanContract
+import com.journeyapps.barcodescanner.ScanIntentResult
+import com.journeyapps.barcodescanner.ScanOptions
 import com.messageonline.android.adapter.FriendsAdapter
 import com.messageonline.android.databinding.ActivityFriendsBinding
 import com.messageonline.android.model.ChatSession
+import com.messageonline.android.network.SocketManager
 import com.messageonline.android.viewmodel.ChatViewModel
 
 class FriendsActivity : AppCompatActivity() {
@@ -22,6 +26,17 @@ class FriendsActivity : AppCompatActivity() {
     private lateinit var binding: ActivityFriendsBinding
     private val viewModel: ChatViewModel by viewModels()
     private lateinit var adapter: FriendsAdapter
+
+    // ─── QR scan launcher ─────────────────────────────────────────────────────
+    private val qrScanLauncher = registerForActivityResult(ScanContract()) { result: ScanIntentResult ->
+        val raw = result.contents ?: return@registerForActivityResult
+        val userId = raw.removePrefix("messageonline://user/").toIntOrNull()
+        if (userId != null && userId > 0) {
+            showConfirmAddFriend(userId)
+        } else {
+            Toast.makeText(this, "Неверный QR-код", Toast.LENGTH_SHORT).show()
+        }
+    }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         AppCompatDelegate.setDefaultNightMode(AppCompatDelegate.MODE_NIGHT_YES)
@@ -44,11 +59,40 @@ class FriendsActivity : AppCompatActivity() {
         setupObservers()
 
         binding.btnAddFriend.setOnClickListener { showAddFriendDialog() }
+        binding.btnScanQR.setOnClickListener { launchQRScanner() }
 
         binding.swipeRefresh.setColorSchemeColors(0xFF6366F1.toInt())
         binding.swipeRefresh.setOnRefreshListener { viewModel.refreshFriends() }
 
         viewModel.refreshFriends()
+    }
+
+    // ─── QR Scan ───────────────────────────────────────────────────────────────
+
+    private fun launchQRScanner() {
+        val opts = ScanOptions().apply {
+            setPrompt("Наведите на QR-код друга")
+            setBeepEnabled(false)
+            setOrientationLocked(true)
+            setBarcodeImageEnabled(false)
+        }
+        qrScanLauncher.launch(opts)
+    }
+
+    private fun showConfirmAddFriend(userId: Int) {
+        if (userId == ChatSession.userId) {
+            Toast.makeText(this, "Нельзя добавить себя", Toast.LENGTH_SHORT).show()
+            return
+        }
+        MaterialAlertDialogBuilder(this)
+            .setTitle("Добавить друга")
+            .setMessage("Отправить запрос дружбы пользователю с ID: #$userId ?")
+            .setPositiveButton("Добавить") { _, _ ->
+                SocketManager.sendFriendAdd(userId)
+                Toast.makeText(this, "Запрос отправлен", Toast.LENGTH_SHORT).show()
+            }
+            .setNegativeButton("Отмена", null)
+            .show()
     }
 
     private fun copyMyId(id: Int) {

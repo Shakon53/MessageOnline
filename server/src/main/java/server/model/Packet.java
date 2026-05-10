@@ -67,6 +67,16 @@ public class Packet {
     public static final String DELETE_FOR_ALL    = "DELETE_FOR_ALL";
     public static final String MESSAGE_DELETED   = "MESSAGE_DELETED";
 
+    // Username change
+    public static final String CHANGE_USERNAME         = "CHANGE_USERNAME";
+    public static final String USERNAME_CHANGE_SUCCESS = "USERNAME_CHANGE_SUCCESS";
+    public static final String USERNAME_CHANGE_FAIL    = "USERNAME_CHANGE_FAIL";
+    public static final String USERNAME_CHANGED        = "USERNAME_CHANGED";
+
+    // Privacy settings
+    public static final String UPDATE_PRIVACY   = "UPDATE_PRIVACY";
+    public static final String PRIVACY_REJECTED = "PRIVACY_REJECTED";
+
     // Friends
     public static final String FRIEND_ADD        = "FRIEND_ADD";
     public static final String FRIEND_REQUEST_IN = "FRIEND_REQUEST_IN";
@@ -77,6 +87,12 @@ public class Packet {
     public static final String FRIEND_REMOVED    = "FRIEND_REMOVED";
     public static final String GET_FRIENDS       = "GET_FRIENDS";
     public static final String FRIENDS_LIST      = "FRIENDS_LIST";
+
+    // Admin panel
+    public static final String ADMIN_LOGIN         = "ADMIN_LOGIN";
+    public static final String ADMIN_LOGIN_SUCCESS = "ADMIN_LOGIN_SUCCESS";
+    public static final String ADMIN_LOGIN_FAIL    = "ADMIN_LOGIN_FAIL";
+    public static final String ADMIN_EVENT         = "ADMIN_EVENT";
 
     // ===================== ФАБРИЧНЫЕ МЕТОДЫ =====================
 
@@ -103,11 +119,12 @@ public class Packet {
     }
 
     /** Успешный вход с профилем */
-    public static String loginSuccess(int userId, String username, String phone, String statusText) {
+    public static String loginSuccess(int userId, String username, String phone, String statusText, long createdAt) {
         JSONObject obj = new JSONObject()
                 .put("type", LOGIN_SUCCESS)
                 .put("userId", userId)
-                .put("username", username);
+                .put("username", username)
+                .put("createdAt", createdAt);
         if (phone != null) obj.put("phone", phone);
         if (statusText != null) obj.put("statusText", statusText);
         return obj.toString();

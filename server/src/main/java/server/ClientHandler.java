@@ -24,9 +24,15 @@ public class ClientHandler {
     private final ChatServer server;
     private User currentUser;
 
+    private boolean isAdmin = false;
+
     public ClientHandler(WebSocket conn, ChatServer server) {
         this.conn = conn;
         this.server = server;
+    }
+
+    public int getUserId() {
+        return currentUser != null ? currentUser.getId() : -1;
     }
 
     // ==================== ОБРАБОТКА ПАКЕТОВ ====================
@@ -56,7 +62,10 @@ public class ClientHandler {
                 case Packet.FRIEND_DECLINE-> handleFriendDecline(packet);
                 case Packet.FRIEND_REMOVE -> handleFriendRemove(packet);
                 case Packet.GET_FRIENDS   -> handleGetFriends();
-                case Packet.DELETE_FOR_ALL -> handleDeleteForAll(packet);
+                case Packet.DELETE_FOR_ALL  -> handleDeleteForAll(packet);
+                case Packet.CHANGE_USERNAME -> handleChangeUsername(packet);
+                case Packet.UPDATE_PRIVACY  -> handleUpdatePrivacy(packet);
+                case Packet.ADMIN_LOGIN     -> handleAdminLogin(packet);
                 default -> send(Packet.error("Неизвестный тип пакета: " + type));
             }
 
@@ -115,8 +124,12 @@ public class ClientHandler {
             server.addClient(this);
 
             send(Packet.loginSuccess(user.getId(), user.getUsername(),
-                    user.getPhone(), user.getStatusText()));
+                    user.getPhone(), user.getStatusText(), user.getCreatedAt()));
             server.broadcastExcept(Packet.userJoined(user.getId(), user.getUsername()), this);
+            server.notifyAdminsRaw("user_joined", new JSONObject()
+                    .put("userId", user.getId())
+                    .put("username", user.getUsername())
+                    .put("onlineCount", server.getOnlineClients().size()));
             send(buildUserListPacket());
             handleGetFriends(); // Send friend list on login
 
@@ -178,6 +191,16 @@ public class ClientHandler {
                 send(Packet.error("Пользователь " + receiverUsername + " не найден"));
                 return;
             }
+            // Проверка приватности: только друзья
+            if ("friends_only".equals(DatabaseManager.getInstance().getPrivacyMode(receiverUser.getId()))) {
+                if (!DatabaseManager.getInstance().areFriends(currentUser.getId(), receiverUser.getId())) {
+                    send(new org.json.JSONObject()
+                            .put("type", Packet.PRIVACY_REJECTED)
+                            .put("username", receiverUsername)
+                            .toString());
+                    return;
+                }
+            }
             // Сохраняем сообщение в историю
             Message msg = new Message(currentUser.getId(), currentUser.getUsername(),
                     receiverUser.getId(), receiverUsername, content, System.currentTimeMillis());
@@ -195,6 +218,17 @@ public class ClientHandler {
             }
             ServerLogger.chat("[PRIVATE→offline] " + currentUser.getUsername() + " -> " + receiverUsername);
             return;
+        }
+
+        // Проверка приватности для онлайн-получателя
+        if ("friends_only".equals(receiver.currentUser.getPrivacyMode())) {
+            if (!DatabaseManager.getInstance().areFriends(currentUser.getId(), receiver.currentUser.getId())) {
+                send(new org.json.JSONObject()
+                        .put("type", Packet.PRIVACY_REJECTED)
+                        .put("username", receiverUsername)
+                        .toString());
+                return;
+            }
         }
 
         Message msg = new Message(currentUser.getId(), currentUser.getUsername(),
@@ -502,6 +536,52 @@ public class ClientHandler {
         }
     }
 
+    private void handleChangeUsername(JSONObject p) {
+        if (!checkAuthorized()) return;
+        String newUsername = p.optString("newUsername", "").trim();
+        if (newUsername.length() < 3 || newUsername.length() > 20) {
+            send(new JSONObject().put("type", Packet.USERNAME_CHANGE_FAIL)
+                    .put("message", "Имя должно быть от 3 до 20 символов").toString()); return;
+        }
+        if (!newUsername.matches("[a-zA-Z0-9_]+")) {
+            send(new JSONObject().put("type", Packet.USERNAME_CHANGE_FAIL)
+                    .put("message", "Только буквы, цифры и _").toString()); return;
+        }
+        if (server.isUserOnline(newUsername)) {
+            send(new JSONObject().put("type", Packet.USERNAME_CHANGE_FAIL)
+                    .put("message", "Имя уже занято").toString()); return;
+        }
+        String oldUsername = currentUser.getUsername();
+        boolean ok = DatabaseManager.getInstance().changeUsername(currentUser.getId(), oldUsername, newUsername);
+        if (ok) {
+            server.removeClient(this);
+            currentUser.setUsername(newUsername);
+            server.addClient(this);
+            send(new JSONObject().put("type", Packet.USERNAME_CHANGE_SUCCESS)
+                    .put("newUsername", newUsername).toString());
+            server.broadcastExcept(new JSONObject().put("type", Packet.USERNAME_CHANGED)
+                    .put("oldUsername", oldUsername).put("newUsername", newUsername).toString(), this);
+            ServerLogger.info("USERNAME CHANGED: " + oldUsername + " → " + newUsername);
+        } else {
+            send(new JSONObject().put("type", Packet.USERNAME_CHANGE_FAIL)
+                    .put("message", "Имя уже занято").toString());
+        }
+    }
+
+    private void handleUpdatePrivacy(JSONObject p) {
+        if (!checkAuthorized()) return;
+        String mode = p.optString("mode", "all");
+        if (!mode.equals("all") && !mode.equals("friends_only")) {
+            send(Packet.error("Неверный режим приватности")); return;
+        }
+        boolean ok = DatabaseManager.getInstance().updatePrivacy(currentUser.getId(), mode);
+        if (ok) {
+            currentUser.setPrivacyMode(mode);
+            send(Packet.notification("Настройки приватности обновлены"));
+            ServerLogger.info("PRIVACY: " + currentUser.getUsername() + " → " + mode);
+        }
+    }
+
     // ==================== ВСПОМОГАТЕЛЬНЫЕ ====================
 
     private String buildUserListPacket() {
@@ -538,7 +618,15 @@ public class ClientHandler {
     }
 
     public void cleanup() {
+        if (isAdmin) {
+            server.unregisterAdmin(this);
+            isAdmin = false;
+            return;
+        }
         if (currentUser != null) {
+            server.notifyAdminsRaw("user_left", new JSONObject()
+                    .put("userId", currentUser.getId())
+                    .put("username", currentUser.getUsername()));
             server.broadcastExcept(
                     Packet.userLeft(currentUser.getId(), currentUser.getUsername()), this);
             server.removeClient(this);
@@ -549,5 +637,25 @@ public class ClientHandler {
 
     public String getUsername() {
         return currentUser != null ? currentUser.getUsername() : null;
+    }
+
+    // ==================== ADMIN LOGIN ====================
+
+    private void handleAdminLogin(JSONObject p) {
+        String key = p.optString("key", "");
+        if (!ChatServer.ADMIN_SECRET.equals(key)) {
+            send(new JSONObject()
+                    .put("type", Packet.ADMIN_LOGIN_FAIL)
+                    .put("message", "Неверный ключ")
+                    .toString());
+            return;
+        }
+        isAdmin = true;
+        server.registerAdmin(this);
+        send(new JSONObject()
+                .put("type", Packet.ADMIN_LOGIN_SUCCESS)
+                .put("onlineCount", server.getOnlineClients().size())
+                .toString());
+        ServerLogger.info("[Admin] Admin panel авторизована");
     }
 }

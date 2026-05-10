@@ -45,6 +45,16 @@ object Packet {
     const val DELETE_FOR_ALL    = "DELETE_FOR_ALL"
     const val MESSAGE_DELETED   = "MESSAGE_DELETED"
 
+    // Username change
+    const val CHANGE_USERNAME         = "CHANGE_USERNAME"
+    const val USERNAME_CHANGE_SUCCESS = "USERNAME_CHANGE_SUCCESS"
+    const val USERNAME_CHANGE_FAIL    = "USERNAME_CHANGE_FAIL"
+    const val USERNAME_CHANGED        = "USERNAME_CHANGED"
+
+    // Privacy settings
+    const val UPDATE_PRIVACY   = "UPDATE_PRIVACY"
+    const val PRIVACY_REJECTED = "PRIVACY_REJECTED"
+
     // Friends
     const val FRIEND_ADD        = "FRIEND_ADD"
     const val FRIEND_REQUEST_IN = "FRIEND_REQUEST_IN"

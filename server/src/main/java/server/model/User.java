@@ -12,6 +12,8 @@ public class User {
     private String statusText = "Привет, я использую MessageOnline";
     private boolean online;
     private String avatarUrl = "";
+    private String privacyMode = "all";
+    private long createdAt = 0;
 
     public User() {}
 
@@ -49,6 +51,12 @@ public class User {
 
     public String getAvatarUrl() { return avatarUrl; }
     public void setAvatarUrl(String avatarUrl) { this.avatarUrl = avatarUrl; }
+
+    public String getPrivacyMode() { return privacyMode; }
+    public void setPrivacyMode(String privacyMode) { this.privacyMode = privacyMode; }
+
+    public long getCreatedAt() { return createdAt; }
+    public void setCreatedAt(long createdAt) { this.createdAt = createdAt; }
 
     @Override
     public String toString() {

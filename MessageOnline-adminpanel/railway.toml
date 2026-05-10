@@ -1,0 +1,12 @@
+[build]
+  dockerfile = "Dockerfile"
+
+[deploy]
+  restartPolicyType = "on_failure"
+  restartPolicyMaxRetries = 5
+  healthcheckTimeout = 30
+
+# Shared volume with Java server — same chat.db file
+[[volumes]]
+  name      = "chat-data"
+  mountPath = "/data"

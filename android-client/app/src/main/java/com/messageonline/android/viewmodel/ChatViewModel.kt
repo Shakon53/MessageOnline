@@ -76,6 +76,9 @@ class ChatViewModel(app: Application) : AndroidViewModel(app) {
     private val _incomingFriendRequest = MutableLiveData<Friend?>()
     val incomingFriendRequest: LiveData<Friend?> = _incomingFriendRequest
 
+    private val _usernameChangeResult = MutableLiveData<AuthResult>()
+    val usernameChangeResult: LiveData<AuthResult> = _usernameChangeResult
+
     // ==================== ТЕКУЩИЙ ПОЛЬЗОВАТЕЛЬ ====================
 
     var myUserId: Int = -1
@@ -211,7 +214,8 @@ class ChatViewModel(app: Application) : AndroidViewModel(app) {
                 ChatSession.login(
                     myUserId, myUsername,
                     json.optString("phone"),
-                    json.optString("statusText")
+                    json.optString("statusText"),
+                    json.optLong("createdAt", 0L)
                 )
                 _loginResult.postValue(AuthResult(true))
             }
@@ -414,14 +418,17 @@ class ChatViewModel(app: Application) : AndroidViewModel(app) {
             Packet.PROFILE_UPDATED -> {
                 val updatedUsername = json.optString("username")
                 val updatedStatus = json.optString("statusText")
-                if (updatedUsername == myUsername) ChatSession.statusText = updatedStatus
                 val list = _onlineUsers.value ?: mutableListOf()
                 val idx = list.indexOfFirst { it.username == updatedUsername }
                 if (idx >= 0) {
                     list[idx] = list[idx].copy(statusText = updatedStatus)
                     _onlineUsers.postValue(list)
                 }
-                _profileUpdated.postValue(Unit)
+                // Only notify ProfileActivity if it's OUR profile that was saved
+                if (updatedUsername == myUsername) {
+                    ChatSession.statusText = updatedStatus
+                    _profileUpdated.postValue(Unit)
+                }
             }
 
             Packet.FRIENDS_LIST -> {
@@ -494,6 +501,35 @@ class ChatViewModel(app: Application) : AndroidViewModel(app) {
                 list.removeAll { it.userId == removedId }
                 _friends.postValue(list)
                 refreshConversations()
+            }
+
+            Packet.USERNAME_CHANGE_SUCCESS -> {
+                val newUsername = json.optString("newUsername")
+                myUsername = newUsername
+                ChatSession.username = newUsername
+                _usernameChangeResult.postValue(AuthResult(true, newUsername))
+            }
+
+            Packet.USERNAME_CHANGE_FAIL ->
+                _usernameChangeResult.postValue(AuthResult(false, json.optString("message")))
+
+            Packet.USERNAME_CHANGED -> {
+                // A contact renamed themselves — update friends list & conversations
+                val oldName = json.optString("oldUsername")
+                val newName = json.optString("newUsername")
+                val fList = _friends.value?.toMutableList() ?: mutableListOf()
+                val fi = fList.indexOfFirst { it.username == oldName }
+                if (fi >= 0) { fList[fi] = fList[fi].copy(username = newName); _friends.postValue(fList) }
+                refreshConversations()
+            }
+
+            Packet.PRIVACY_REJECTED -> {
+                val username = json.optString("username")
+                _notification.postValue("$username принимает сообщения только от друзей")
+                // Remove the pending message from UI
+                val list = _privateMessages.value ?: mutableListOf()
+                val idx = list.indexOfLast { it.status == ChatMessage.STATUS_PENDING && it.receiverUsername == username }
+                if (idx >= 0) { list.removeAt(idx); _privateMessages.postValue(list) }
             }
 
             Packet.MESSAGE_DELETED -> {
@@ -707,6 +743,8 @@ class ChatViewModel(app: Application) : AndroidViewModel(app) {
     fun removeFriend(friendUserId: Int) = SocketManager.sendFriendRemove(friendUserId)
     fun refreshFriends() = SocketManager.requestFriends()
     fun updateProfile(statusText: String) = SocketManager.sendUpdateProfile(statusText)
+    fun changeUsername(newUsername: String) = SocketManager.sendChangeUsername(newUsername)
+    fun updatePrivacy(mode: String) = SocketManager.sendUpdatePrivacy(mode)
     fun markRead(peerUsername: String)    = SocketManager.sendMarkRead(peerUsername)
 
     fun markAllRead(peerUsername: String) {
@@ -772,6 +810,10 @@ class ChatViewModel(app: Application) : AndroidViewModel(app) {
     // ==================== УВЕДОМЛЕНИЯ ====================
 
     private fun showIncomingNotification(senderUsername: String, messageText: String) {
+        // Do Not Disturb mode — skip all notifications
+        val prefs = getApplication<Application>().getSharedPreferences("MessageOnline", Context.MODE_PRIVATE)
+        if (prefs.getBoolean("dnd_enabled", false)) return
+
         val ctx = getApplication<Application>()
         val channelId = "msg_incoming"
         val manager = ctx.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager

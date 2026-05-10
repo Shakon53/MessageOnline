@@ -258,6 +258,20 @@ object SocketManager {
         })
     }
 
+    fun sendChangeUsername(newUsername: String) {
+        send(JSONObject().apply {
+            put("type", Packet.CHANGE_USERNAME)
+            put("newUsername", newUsername)
+        })
+    }
+
+    fun sendUpdatePrivacy(mode: String) {
+        send(JSONObject().apply {
+            put("type", Packet.UPDATE_PRIVACY)
+            put("mode", mode)
+        })
+    }
+
     fun sendFriendAdd(targetUserId: Int) {
         send(JSONObject().apply {
             put("type", Packet.FRIEND_ADD)

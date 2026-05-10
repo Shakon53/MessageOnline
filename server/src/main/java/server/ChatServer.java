@@ -15,6 +15,13 @@ public class ChatServer extends WebSocketServer {
     private final ConcurrentHashMap<String, ClientHandler> onlineClients = new ConcurrentHashMap<>();
     private final ConcurrentHashMap<WebSocket, ClientHandler> connHandlers = new ConcurrentHashMap<>();
 
+    // Admin panel connections
+    private final java.util.Set<ClientHandler> adminClients =
+            java.util.Collections.newSetFromMap(new ConcurrentHashMap<>());
+
+    public static final String ADMIN_SECRET =
+            System.getenv("ADMIN_SECRET") != null ? System.getenv("ADMIN_SECRET") : "messageonline_admin_2025";
+
     public ChatServer(int port) {
         super(new InetSocketAddress(port));
         setReuseAddr(true);
@@ -92,6 +99,7 @@ public class ChatServer extends WebSocketServer {
         for (ClientHandler client : onlineClients.values()) {
             client.send(message);
         }
+        notifyAdmins("broadcast", message);
     }
 
     public void broadcastExcept(String message, ClientHandler exclude) {
@@ -100,6 +108,63 @@ public class ChatServer extends WebSocketServer {
                 client.send(message);
             }
         }
+        notifyAdmins("broadcast", message);
+    }
+
+    // ==================== ADMIN ====================
+
+    public void registerAdmin(ClientHandler handler) {
+        adminClients.add(handler);
+        ServerLogger.info("[Admin] Подключился admin-клиент");
+        // Send current online list to the new admin
+        try {
+            org.json.JSONArray arr = new org.json.JSONArray();
+            for (ClientHandler c : onlineClients.values()) {
+                arr.put(new org.json.JSONObject()
+                        .put("username", c.getUsername())
+                        .put("userId", c.getUserId()));
+            }
+            handler.send(new org.json.JSONObject()
+                    .put("type", server.model.Packet.ADMIN_EVENT)
+                    .put("event", "online_list")
+                    .put("users", arr)
+                    .put("count", onlineClients.size())
+                    .toString());
+        } catch (Exception ignored) {}
+    }
+
+    public void unregisterAdmin(ClientHandler handler) {
+        adminClients.remove(handler);
+    }
+
+    public void notifyAdmins(String event, String rawJson) {
+        if (adminClients.isEmpty()) return;
+        try {
+            org.json.JSONObject wrapper = new org.json.JSONObject()
+                    .put("type", server.model.Packet.ADMIN_EVENT)
+                    .put("event", event)
+                    .put("payload", new org.json.JSONObject(rawJson))
+                    .put("ts", System.currentTimeMillis());
+            String msg = wrapper.toString();
+            for (ClientHandler admin : adminClients) {
+                admin.send(msg);
+            }
+        } catch (Exception ignored) {}
+    }
+
+    public void notifyAdminsRaw(String event, org.json.JSONObject data) {
+        if (adminClients.isEmpty()) return;
+        try {
+            org.json.JSONObject wrapper = new org.json.JSONObject()
+                    .put("type", server.model.Packet.ADMIN_EVENT)
+                    .put("event", event)
+                    .put("payload", data)
+                    .put("ts", System.currentTimeMillis());
+            String msg = wrapper.toString();
+            for (ClientHandler admin : adminClients) {
+                admin.send(msg);
+            }
+        } catch (Exception ignored) {}
     }
 
     // ==================== ТОЧКА ВХОДА ====================

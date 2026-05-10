@@ -80,6 +80,7 @@ public class DatabaseManager {
             try { stmt.execute("ALTER TABLE users ADD COLUMN avatar_url TEXT NOT NULL DEFAULT ''"); ServerLogger.info("Migration: added avatar_url"); } catch (Exception ignored) {}
             try { stmt.execute("ALTER TABLE messages ADD COLUMN content_edited TEXT"); ServerLogger.info("Migration: added content_edited"); } catch (Exception ignored) {}
             try { stmt.execute("ALTER TABLE messages ADD COLUMN message_type TEXT NOT NULL DEFAULT 'text'"); ServerLogger.info("Migration: added message_type"); } catch (Exception ignored) {}
+            try { stmt.execute("ALTER TABLE users ADD COLUMN privacy_mode TEXT NOT NULL DEFAULT 'all'"); ServerLogger.info("Migration: added privacy_mode"); } catch (Exception ignored) {}
 
             // Таблица сообщений
             stmt.execute("""
@@ -155,7 +156,7 @@ public class DatabaseManager {
      * @return User если данные верны, null если нет
      */
     public synchronized User loginUser(String username, String password) {
-        String sql = "SELECT id, username, phone, password_hash, status_text, avatar_url FROM users WHERE username = ?";
+        String sql = "SELECT id, username, phone, password_hash, status_text, avatar_url, COALESCE(privacy_mode,'all') as privacy_mode, created_at FROM users WHERE username = ?";
         try (PreparedStatement ps = connection.prepareStatement(sql)) {
             ps.setString(1, username);
             ResultSet rs = ps.executeQuery();
@@ -167,6 +168,8 @@ public class DatabaseManager {
                             rs.getString("phone"), storedHash);
                     user.setStatusText(rs.getString("status_text"));
                     user.setAvatarUrl(rs.getString("avatar_url") != null ? rs.getString("avatar_url") : "");
+                    user.setPrivacyMode(rs.getString("privacy_mode"));
+                    user.setCreatedAt(rs.getLong("created_at"));
                     return user;
                 }
             }
@@ -519,6 +522,66 @@ public class DatabaseManager {
             }
         } catch (SQLException e) { ServerLogger.error(e.getMessage()); }
         return null;
+    }
+
+    /** Изменить имя пользователя и обновить все сообщения */
+    public synchronized boolean changeUsername(int userId, String oldUsername, String newUsername) {
+        if (isUsernameTaken(newUsername)) return false;
+        try {
+            try (PreparedStatement ps = connection.prepareStatement(
+                    "UPDATE users SET username = ? WHERE id = ?")) {
+                ps.setString(1, newUsername); ps.setInt(2, userId);
+                if (ps.executeUpdate() == 0) return false;
+            }
+            try (PreparedStatement ps = connection.prepareStatement(
+                    "UPDATE messages SET sender_username = ? WHERE sender_username = ?")) {
+                ps.setString(1, newUsername); ps.setString(2, oldUsername);
+                ps.executeUpdate();
+            }
+            try (PreparedStatement ps = connection.prepareStatement(
+                    "UPDATE messages SET receiver_username = ? WHERE receiver_username = ?")) {
+                ps.setString(1, newUsername); ps.setString(2, oldUsername);
+                ps.executeUpdate();
+            }
+            ServerLogger.info("Username changed: " + oldUsername + " → " + newUsername);
+            return true;
+        } catch (SQLException e) {
+            ServerLogger.error("changeUsername error: " + e.getMessage());
+            return false;
+        }
+    }
+
+    /** Обновить режим приватности пользователя */
+    public synchronized boolean updatePrivacy(int userId, String mode) {
+        String sql = "UPDATE users SET privacy_mode = ? WHERE id = ?";
+        try (PreparedStatement ps = connection.prepareStatement(sql)) {
+            ps.setString(1, mode); ps.setInt(2, userId);
+            return ps.executeUpdate() > 0;
+        } catch (SQLException e) {
+            ServerLogger.error("updatePrivacy error: " + e.getMessage()); return false;
+        }
+    }
+
+    /** Получить режим приватности пользователя */
+    public synchronized String getPrivacyMode(int userId) {
+        String sql = "SELECT COALESCE(privacy_mode,'all') FROM users WHERE id = ?";
+        try (PreparedStatement ps = connection.prepareStatement(sql)) {
+            ps.setInt(1, userId);
+            ResultSet rs = ps.executeQuery();
+            if (rs.next()) return rs.getString(1);
+        } catch (SQLException e) { /* ignore */ }
+        return "all";
+    }
+
+    /** Проверить, являются ли два пользователя друзьями */
+    public synchronized boolean areFriends(int userId1, int userId2) {
+        String sql = "SELECT COUNT(*) FROM friends WHERE ((user_id=? AND friend_id=?) OR (user_id=? AND friend_id=?)) AND status='accepted'";
+        try (PreparedStatement ps = connection.prepareStatement(sql)) {
+            ps.setInt(1, userId1); ps.setInt(2, userId2);
+            ps.setInt(3, userId2); ps.setInt(4, userId1);
+            ResultSet rs = ps.executeQuery();
+            return rs.getInt(1) > 0;
+        } catch (SQLException e) { return false; }
     }
 
     /** Закрыть соединение с БД */

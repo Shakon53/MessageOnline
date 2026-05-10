@@ -33,6 +33,7 @@ class MainActivity : AppCompatActivity() {
     private lateinit var messageAdapter: MessageAdapter
     private lateinit var layoutManager: LinearLayoutManager
     private var wasConnected = false
+    private var reconnectDialogShown = false
 
     override fun onCreate(savedInstanceState: Bundle?) {
         AppCompatDelegate.setDefaultNightMode(AppCompatDelegate.MODE_NIGHT_YES)
@@ -186,11 +187,13 @@ class MainActivity : AppCompatActivity() {
             when (status) {
                 ChatViewModel.ConnectionStatus.CONNECTED -> {
                     wasConnected = true
+                    reconnectDialogShown = false
                     supportActionBar?.subtitle = viewModel.myUsername
                 }
                 ChatViewModel.ConnectionStatus.DISCONNECTED -> {
-                    if (wasConnected) {
+                    if (wasConnected && !reconnectDialogShown) {
                         supportActionBar?.subtitle = "Нет соединения"
+                        reconnectDialogShown = true
                         showReconnectDialog()
                     }
                 }
@@ -312,12 +315,16 @@ class MainActivity : AppCompatActivity() {
         MaterialAlertDialogBuilder(this)
             .setTitle("Соединение потеряно")
             .setMessage("Проверьте интернет и попробуйте снова")
-            .setPositiveButton("Повторить") { _, _ -> viewModel.connect() }
+            .setPositiveButton("Повторить") { _, _ ->
+                reconnectDialogShown = false
+                viewModel.connect()
+            }
             .setNegativeButton("Выйти") { _, _ ->
                 startActivity(Intent(this, LoginActivity::class.java).apply {
                     flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK
                 })
             }
+            .setOnDismissListener { reconnectDialogShown = false }
             .setCancelable(false)
             .show()
     }
