@@ -656,6 +656,22 @@ public class ClientHandler {
                 .put("type", Packet.ADMIN_LOGIN_SUCCESS)
                 .put("onlineCount", server.getOnlineClients().size())
                 .toString());
+        // Send DB stats to admin panel
+        try {
+            DatabaseManager dm = DatabaseManager.getInstance();
+            JSONObject stats = dm.getAdminStats();
+            JSONArray users  = dm.getAllUsers();
+            JSONArray msgs   = dm.getRecentMessages(50);
+            send(new JSONObject()
+                    .put("type", Packet.ADMIN_STATS)
+                    .put("userCount", stats.optInt("userCount", 0))
+                    .put("messageCount", stats.optInt("messageCount", 0))
+                    .put("users", users)
+                    .put("recentMessages", msgs)
+                    .toString());
+        } catch (Exception e) {
+            ServerLogger.error("[Admin] Ошибка отправки статистики: " + e.getMessage());
+        }
         ServerLogger.info("[Admin] Admin panel авторизована");
     }
 }

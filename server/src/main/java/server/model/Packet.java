@@ -93,6 +93,7 @@ public class Packet {
     public static final String ADMIN_LOGIN_SUCCESS = "ADMIN_LOGIN_SUCCESS";
     public static final String ADMIN_LOGIN_FAIL    = "ADMIN_LOGIN_FAIL";
     public static final String ADMIN_EVENT         = "ADMIN_EVENT";
+    public static final String ADMIN_STATS         = "ADMIN_STATS";
 
     // ===================== ФАБРИЧНЫЕ МЕТОДЫ =====================
 

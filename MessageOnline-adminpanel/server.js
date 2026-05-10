@@ -66,6 +66,8 @@ let javaWs = null;
 let javaConnected = false;
 let reconnectTimer = null;
 const liveStats = { onlineCount: 0, onlineUsers: [] };
+// Cache of data received from Java server via WebSocket
+const javaData = { userCount: 0, messageCount: 0, users: [], recentMessages: [] };
 
 function connectToJava() {
   if (javaWs) return;
@@ -114,6 +116,14 @@ function handleJavaPacket(packet) {
   if (type === 'ADMIN_LOGIN_SUCCESS') {
     liveStats.onlineCount = packet.onlineCount || 0;
     events.emit('live', { type: 'connected', onlineCount: liveStats.onlineCount });
+    return;
+  }
+  if (type === 'ADMIN_STATS') {
+    javaData.userCount      = packet.userCount      || 0;
+    javaData.messageCount   = packet.messageCount   || 0;
+    javaData.users          = packet.users          || [];
+    javaData.recentMessages = packet.recentMessages || [];
+    console.log(`📊 Статистика от Java: ${javaData.userCount} польз., ${javaData.messageCount} сообщ.`);
     return;
   }
   if (type === 'ADMIN_EVENT') {
@@ -222,6 +232,7 @@ app.get('/api/live', requireAuth, (req, res) => {
 
 // ─── STATS ────────────────────────────────────────────────────────────────────
 app.get('/api/stats', requireAuth, (req, res) => {
+  // Try local DB first; fall back to data received from Java server via WebSocket
   try {
     const db = getDb();
     const totalUsers      = dbGet(db, 'SELECT COUNT(*) as c FROM users').c;
@@ -243,8 +254,22 @@ app.get('/api/stats', requireAuth, (req, res) => {
     db.close();
     res.json({ totalUsers, totalMessages, globalMessages, privateMessages, totalFriends, pendingReqs, newUsersToday, newMsgToday, activity, onlineCount: liveStats.onlineCount });
   } catch (e) {
-    console.error('Stats error:', e.message);
-    res.status(500).json({ error: e.message });
+    // DB not available — use data received from Java server
+    const activity = [];
+    for (let i = 6; i >= 0; i--) {
+      const d = new Date(Date.now() - i * 86400000);
+      activity.push({ day: d.toLocaleDateString('ru', { weekday: 'short' }), count: 0 });
+    }
+    res.json({
+      totalUsers: javaData.userCount,
+      totalMessages: javaData.messageCount,
+      globalMessages: 0, privateMessages: 0,
+      totalFriends: 0, pendingReqs: 0,
+      newUsersToday: 0, newMsgToday: 0,
+      activity,
+      onlineCount: liveStats.onlineCount,
+      source: 'java_ws'
+    });
   }
 });
 
@@ -267,7 +292,21 @@ app.get('/api/users', requireAuth, (req, res) => {
     const total = dbGet(db, 'SELECT COUNT(*) as c FROM users WHERE username LIKE ? OR phone LIKE ?', [search, search]).c;
     db.close();
     res.json({ users, total, page, pages: Math.ceil(total / limit) });
-  } catch (e) { res.status(500).json({ error: e.message }); }
+  } catch (e) {
+    // DB not available — use data from Java server
+    const search = (req.query.search || '').toLowerCase();
+    let users = javaData.users;
+    if (search) users = users.filter(u => u.username && u.username.toLowerCase().includes(search));
+    const page  = parseInt(req.query.page) || 1;
+    const limit = 20;
+    const total = users.length;
+    const slice = users.slice((page - 1) * limit, page * limit).map(u => ({
+      id: u.id, username: u.username, phone: u.phone,
+      status_text: u.statusText, created_at: u.createdAt,
+      privacy_mode: u.privacyMode, msg_count: 0, friend_count: 0
+    }));
+    res.json({ users: slice, total, page, pages: Math.ceil(total / limit), source: 'java_ws' });
+  }
 });
 
 app.get('/api/users/:id', requireAuth, (req, res) => {
@@ -309,7 +348,23 @@ app.get('/api/messages', requireAuth, (req, res) => {
     const total = dbGet(db, `SELECT COUNT(*) as c FROM messages m ${where}`, args).c;
     db.close();
     res.json({ messages, total, page, pages: Math.ceil(total/limit) });
-  } catch (e) { res.status(500).json({ error: e.message }); }
+  } catch (e) {
+    // DB not available — use recent messages from Java server
+    let msgs = javaData.recentMessages;
+    const search = (req.query.search || '').toLowerCase();
+    if (search) msgs = msgs.filter(m => m.content && m.content.toLowerCase().includes(search));
+    const page = parseInt(req.query.page) || 1;
+    const limit = 30;
+    const total = msgs.length;
+    const slice = msgs.slice((page-1)*limit, page*limit).map(m => ({
+      id: m.id, sender_username: m.senderUsername,
+      receiver_username: m.receiverUsername || '',
+      content: m.content, timestamp: m.timestamp,
+      is_global: m.type === 'global' ? 1 : 0,
+      message_type: 'text', content_edited: ''
+    }));
+    res.json({ messages: slice, total, page, pages: Math.ceil(total/limit), source: 'java_ws' });
+  }
 });
 
 app.delete('/api/messages/:id', requireAuth, (req, res) => {
@@ -341,7 +396,10 @@ app.get('/api/dbinfo', requireAuth, (req, res) => {
   try {
     const stats = fs.statSync(DB_PATH);
     res.json({ path: DB_PATH, size: (stats.size/1024).toFixed(1)+' KB', modified: stats.mtime, javaConnected });
-  } catch (e) { res.status(500).json({ error: e.message }); }
+  } catch (e) {
+    res.json({ path: DB_PATH, size: 'N/A', modified: null, javaConnected,
+               note: 'База данных находится на Java сервере. Данные передаются через WebSocket.' });
+  }
 });
 
 // ─── SPA ──────────────────────────────────────────────────────────────────────

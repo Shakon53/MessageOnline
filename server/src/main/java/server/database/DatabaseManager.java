@@ -584,6 +584,60 @@ public class DatabaseManager {
         } catch (SQLException e) { return false; }
     }
 
+    /** Статистика для admin панели */
+    public synchronized JSONObject getAdminStats() {
+        JSONObject stats = new JSONObject();
+        try {
+            ResultSet rs1 = connection.createStatement().executeQuery("SELECT COUNT(*) FROM users");
+            stats.put("userCount", rs1.getInt(1));
+            ResultSet rs2 = connection.createStatement().executeQuery("SELECT COUNT(*) FROM messages");
+            stats.put("messageCount", rs2.getInt(1));
+        } catch (SQLException e) {
+            stats.put("userCount", 0).put("messageCount", 0);
+        }
+        return stats;
+    }
+
+    /** Список всех пользователей для admin панели */
+    public synchronized JSONArray getAllUsers() {
+        JSONArray arr = new JSONArray();
+        String sql = "SELECT id, username, phone, status_text, privacy_mode, created_at FROM users ORDER BY created_at DESC LIMIT 200";
+        try (PreparedStatement ps = connection.prepareStatement(sql)) {
+            ResultSet rs = ps.executeQuery();
+            while (rs.next()) {
+                arr.put(new JSONObject()
+                        .put("id", rs.getInt("id"))
+                        .put("username", rs.getString("username"))
+                        .put("phone", rs.getString("phone"))
+                        .put("statusText", rs.getString("status_text"))
+                        .put("privacyMode", rs.getString("privacy_mode"))
+                        .put("createdAt", rs.getLong("created_at")));
+            }
+        } catch (SQLException e) { /* ignore */ }
+        return arr;
+    }
+
+    /** Последние сообщения для admin панели */
+    public synchronized JSONArray getRecentMessages(int limit) {
+        JSONArray arr = new JSONArray();
+        String sql = "SELECT m.id, m.sender_username, m.receiver_username, m.content, m.type, m.timestamp " +
+                     "FROM messages m ORDER BY m.timestamp DESC LIMIT ?";
+        try (PreparedStatement ps = connection.prepareStatement(sql)) {
+            ps.setInt(1, limit);
+            ResultSet rs = ps.executeQuery();
+            while (rs.next()) {
+                arr.put(new JSONObject()
+                        .put("id", rs.getInt("id"))
+                        .put("senderUsername", rs.getString("sender_username"))
+                        .put("receiverUsername", rs.getString("receiver_username"))
+                        .put("content", rs.getString("content"))
+                        .put("type", rs.getString("type"))
+                        .put("timestamp", rs.getLong("timestamp")));
+            }
+        } catch (SQLException e) { /* ignore */ }
+        return arr;
+    }
+
     /** Закрыть соединение с БД */
     public void close() {
         try {
