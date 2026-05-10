@@ -17,14 +17,19 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.activity.viewModels
 import androidx.appcompat.app.AppCompatActivity
 import androidx.appcompat.app.AppCompatDelegate
+import androidx.lifecycle.lifecycleScope
 import coil.load
 import coil.transform.CircleCropTransformation
 import com.google.firebase.auth.FirebaseAuth
+import com.messageonline.android.database.AppDatabase
 import com.messageonline.android.databinding.ActivityProfileBinding
 import com.messageonline.android.model.ChatSession
 import com.messageonline.android.network.SocketManager
 import com.messageonline.android.viewmodel.ChatViewModel
 import java.io.ByteArrayOutputStream
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 
 class ProfileActivity : AppCompatActivity() {
 
@@ -53,6 +58,7 @@ class ProfileActivity : AppCompatActivity() {
         setupSaveButton()
         setupLogoutButton()
         observeProfileUpdate()
+        loadStats()
 
         // Avatar click → pick image
         binding.flAvatarContainer.setOnClickListener {
@@ -66,11 +72,14 @@ class ProfileActivity : AppCompatActivity() {
         val username = ChatSession.username
         val initial  = username.firstOrNull()?.uppercaseChar()?.toString() ?: "?"
 
-        binding.tvAvatarInitial.text = initial
-        binding.tvUsername.text      = username
-        binding.tvPhone.text         = ChatSession.phone.ifBlank { "Не указан" }
+        binding.tvAvatarInitial.text  = initial
+        binding.tvUsername.text       = username
+        binding.tvPhone.text          = ChatSession.phone.ifBlank { "Не указан" }
         binding.etStatusText.setText(ChatSession.statusText)
-        binding.tvCharCount.text     = "${ChatSession.statusText.length}/140"
+        binding.tvCharCount.text      = "${ChatSession.statusText.length}/140"
+
+        // Header status preview
+        binding.tvHeaderStatus.text = ChatSession.statusText.ifBlank { "Нет статуса" }
 
         // ID with copy
         val myId = ChatSession.userId
@@ -169,7 +178,11 @@ class ProfileActivity : AppCompatActivity() {
             override fun beforeTextChanged(s: CharSequence?, start: Int, count: Int, after: Int) {}
             override fun onTextChanged(s: CharSequence?, start: Int, before: Int, count: Int) {}
             override fun afterTextChanged(s: Editable?) {
-                binding.tvCharCount.text = "${s?.length ?: 0}/140"
+                val len = s?.length ?: 0
+                binding.tvCharCount.text = "$len/140"
+                // Live preview in header
+                val preview = s?.toString()?.trim()
+                binding.tvHeaderStatus.text = if (preview.isNullOrBlank()) "Нет статуса" else preview
             }
         })
     }
@@ -186,6 +199,25 @@ class ProfileActivity : AppCompatActivity() {
         viewModel.profileUpdated.observe(this) {
             binding.btnSave.isEnabled = true
             Toast.makeText(this, "Профиль сохранён ✓", Toast.LENGTH_SHORT).show()
+        }
+    }
+
+    // ─── Stats ─────────────────────────────────────────────────────────────────
+
+    private fun loadStats() {
+        // Friends count — observe live so it updates if data arrives after screen opens
+        viewModel.friends.observe(this) { friends ->
+            binding.tvStatFriends.text = friends.size.toString()
+        }
+
+        // Messages count — query from local Room DB
+        lifecycleScope.launch(Dispatchers.IO) {
+            val count = AppDatabase.getInstance(this@ProfileActivity)
+                .messageDao()
+                .countSentMessages(ChatSession.username)
+            withContext(Dispatchers.Main) {
+                binding.tvStatMessages.text = count.toString()
+            }
         }
     }
 

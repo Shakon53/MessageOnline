@@ -10,41 +10,41 @@
         android:layout_height="wrap_content"
         android:orientation="vertical">
 
-        <!-- Gradient Header -->
-        <FrameLayout
+        <!-- Gradient Header — avatar + name + status + stats -->
+        <LinearLayout
             android:layout_width="match_parent"
-            android:layout_height="220dp"
-            android:background="@drawable/bg_profile_header">
+            android:layout_height="wrap_content"
+            android:background="@drawable/bg_profile_header"
+            android:orientation="vertical"
+            android:paddingBottom="24dp">
 
-            <!-- Toolbar inside header -->
+            <!-- Toolbar -->
             <androidx.appcompat.widget.Toolbar
                 android:id="@+id/toolbar"
                 android:layout_width="match_parent"
                 android:layout_height="?attr/actionBarSize"
-                android:layout_gravity="top"
                 android:paddingTop="24dp"
                 app:navigationIcon="@drawable/ic_back"
                 app:navigationIconTint="#FFFFFF"
                 app:title="Профиль"
                 app:titleTextColor="#FFFFFF" />
 
-            <!-- Avatar centered + clickable to change -->
+            <!-- Avatar + camera badge -->
             <FrameLayout
                 android:id="@+id/flAvatarContainer"
                 android:layout_width="104dp"
                 android:layout_height="104dp"
-                android:layout_gravity="center"
+                android:layout_gravity="center_horizontal"
+                android:layout_marginTop="4dp"
                 android:clickable="true"
                 android:focusable="true"
                 android:foreground="?attr/selectableItemBackgroundBorderless">
 
-                <!-- Avatar background ring -->
                 <View
                     android:layout_width="104dp"
                     android:layout_height="104dp"
                     android:background="@drawable/bg_avatar_ring" />
 
-                <!-- Avatar image -->
                 <ImageView
                     android:id="@+id/ivAvatar"
                     android:layout_width="92dp"
@@ -55,7 +55,6 @@
                     android:visibility="gone"
                     android:contentDescription="@null" />
 
-                <!-- Initial letter -->
                 <TextView
                     android:id="@+id/tvAvatarInitial"
                     android:layout_width="92dp"
@@ -67,7 +66,6 @@
                     android:textColor="#FFFFFF"
                     android:textStyle="bold" />
 
-                <!-- Camera badge (bottom-right) -->
                 <FrameLayout
                     android:layout_width="30dp"
                     android:layout_height="30dp"
@@ -84,20 +82,111 @@
                         android:tint="#FFFFFF"
                         android:contentDescription="@null" />
                 </FrameLayout>
-
             </FrameLayout>
 
-            <!-- "Нажмите для изменения" hint -->
+            <!-- Tap hint -->
             <TextView
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:layout_gravity="bottom|center_horizontal"
-                android:layout_marginBottom="12dp"
+                android:layout_gravity="center_horizontal"
+                android:layout_marginTop="5dp"
                 android:text="Нажмите на фото, чтобы изменить"
-                android:textColor="#80FFFFFF"
+                android:textColor="#60FFFFFF"
                 android:textSize="11sp" />
 
-        </FrameLayout>
+            <!-- Username displayed in header -->
+            <TextView
+                android:id="@+id/tvUsername"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_gravity="center_horizontal"
+                android:layout_marginTop="10dp"
+                android:textColor="#FFFFFF"
+                android:textSize="20sp"
+                android:textStyle="bold"
+                android:letterSpacing="-0.02"
+                android:maxLines="1"
+                android:ellipsize="end" />
+
+            <!-- Status preview (updates live as user types) -->
+            <TextView
+                android:id="@+id/tvHeaderStatus"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_gravity="center_horizontal"
+                android:layout_marginTop="3dp"
+                android:textColor="#80FFFFFF"
+                android:textSize="13sp"
+                android:maxLines="1"
+                android:ellipsize="end" />
+
+            <!-- Stats row -->
+            <LinearLayout
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_gravity="center_horizontal"
+                android:layout_marginTop="18dp"
+                android:orientation="horizontal">
+
+                <!-- Friends count card -->
+                <LinearLayout
+                    android:layout_width="110dp"
+                    android:layout_height="wrap_content"
+                    android:background="@drawable/bg_stat_card"
+                    android:gravity="center"
+                    android:orientation="vertical"
+                    android:layout_marginEnd="10dp"
+                    android:paddingTop="12dp"
+                    android:paddingBottom="12dp">
+
+                    <TextView
+                        android:id="@+id/tvStatFriends"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="0"
+                        android:textColor="#FFFFFF"
+                        android:textSize="22sp"
+                        android:textStyle="bold" />
+
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="2dp"
+                        android:text="Друзья"
+                        android:textColor="#80FFFFFF"
+                        android:textSize="11sp" />
+                </LinearLayout>
+
+                <!-- Messages count card -->
+                <LinearLayout
+                    android:layout_width="110dp"
+                    android:layout_height="wrap_content"
+                    android:background="@drawable/bg_stat_card"
+                    android:gravity="center"
+                    android:orientation="vertical"
+                    android:paddingTop="12dp"
+                    android:paddingBottom="12dp">
+
+                    <TextView
+                        android:id="@+id/tvStatMessages"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="0"
+                        android:textColor="#FFFFFF"
+                        android:textSize="22sp"
+                        android:textStyle="bold" />
+
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="2dp"
+                        android:text="Сообщений"
+                        android:textColor="#80FFFFFF"
+                        android:textSize="11sp" />
+                </LinearLayout>
+            </LinearLayout>
+
+        </LinearLayout>
 
         <!-- Profile Info Glass Card -->
         <LinearLayout
@@ -108,39 +197,19 @@
             android:orientation="vertical"
             android:padding="24dp">
 
-            <!-- Name section -->
-            <TextView
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:text="ИМЯ"
-                android:textSize="11sp"
-                android:textColor="#6366F1"
-                android:textStyle="bold"
-                android:letterSpacing="0.1" />
-
-            <TextView
-                android:id="@+id/tvUsername"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:textSize="18sp"
-                android:textColor="#FFFFFF"
-                android:textStyle="bold"
-                android:paddingTop="6dp"
-                android:paddingBottom="4dp" />
-
             <!-- ID row -->
             <LinearLayout
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:orientation="horizontal"
                 android:gravity="center_vertical"
-                android:layout_marginBottom="20dp">
+                android:layout_marginBottom="16dp">
 
                 <TextView
                     android:id="@+id/tvUserId"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:textSize="12sp"
+                    android:textSize="13sp"
                     android:textColor="#6366F1"
                     android:text="ID: #—" />
 

@@ -65,4 +65,8 @@ interface MessageDao {
     /** Update message content (for editing) */
     @Query("UPDATE messages SET content = :newContent, isEdited = 1 WHERE timestamp = :timestamp AND senderUsername = :sender")
     suspend fun updateMessageContent(timestamp: Long, sender: String, newContent: String)
+
+    /** Count text messages sent by a specific user (excludes media) */
+    @Query("SELECT COUNT(*) FROM messages WHERE senderUsername = :username AND messageType = 'text'")
+    suspend fun countSentMessages(username: String): Int
 }
