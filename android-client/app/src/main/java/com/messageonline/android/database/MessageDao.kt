@@ -54,6 +54,14 @@ interface MessageDao {
     """)
     suspend fun markConversationRead(peerUsername: String, myUsername: String)
 
+    /** Clear all messages between two users (called before inserting fresh server history) */
+    @Query("""
+        DELETE FROM messages WHERE isGlobal = 0
+          AND ((senderUsername = :user1 AND receiverUsername = :user2)
+           OR  (senderUsername = :user2 AND receiverUsername = :user1))
+    """)
+    suspend fun clearPrivateConversation(user1: String, user2: String)
+
     /** Update message content (for editing) */
     @Query("UPDATE messages SET content = :newContent, isEdited = 1 WHERE timestamp = :timestamp AND senderUsername = :sender")
     suspend fun updateMessageContent(timestamp: Long, sender: String, newContent: String)

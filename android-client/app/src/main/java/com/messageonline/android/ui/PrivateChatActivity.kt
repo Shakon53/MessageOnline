@@ -173,8 +173,11 @@ class PrivateChatActivity : AppCompatActivity() {
     private fun setupObservers() {
         viewModel.privateMessages.observe(this) { allMessages ->
             val filtered = allMessages.filter { msg ->
-                (msg.senderUsername == peerUsername && msg.receiverUsername == ChatSession.username)
-                        || (msg.senderUsername == ChatSession.username && msg.receiverUsername == peerUsername)
+                val recv = msg.receiverUsername.orEmpty()
+                val send = msg.senderUsername
+                !msg.isGlobal &&
+                ((send == peerUsername && recv == ChatSession.username)
+                        || (send == ChatSession.username && recv == peerUsername))
             }
             messageAdapter.setMessages(filtered)
             if (filtered.isNotEmpty()) {

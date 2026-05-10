@@ -355,8 +355,9 @@ class ChatViewModel(app: Application) : AndroidViewModel(app) {
                 val messages = mutableListOf<ChatMessage>()
                 for (i in 0 until arr.length()) {
                     val m = arr.getJSONObject(i)
+                    // Use chatType from outer packet — server doesn't add isGlobal to history items
                     messages.add(
-                        if (m.optBoolean("isGlobal", true)) parseGlobalMessage(m)
+                        if (chatType == "global") parseGlobalMessage(m)
                         else parsePrivateMessage(m)
                     )
                 }
@@ -367,8 +368,13 @@ class ChatViewModel(app: Application) : AndroidViewModel(app) {
                         dao.insertAll(messages.map { MessageEntity.from(it) })
                     }
                 } else {
+                    val otherUsername = json.optString("otherUsername")
                     _privateMessages.postValue(messages.toMutableList())
                     viewModelScope.launch(Dispatchers.IO) {
+                        // Clear old (possibly corrupted) cache, then insert fresh from server
+                        if (otherUsername.isNotEmpty()) {
+                            dao.clearPrivateConversation(myUsername, otherUsername)
+                        }
                         dao.insertAll(messages.map { MessageEntity.from(it) })
                     }
                 }

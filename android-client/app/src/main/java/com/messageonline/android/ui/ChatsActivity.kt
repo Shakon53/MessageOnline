@@ -1,13 +1,18 @@
 package com.messageonline.android.ui
 
+import android.Manifest
 import android.content.Intent
+import android.content.pm.PackageManager
+import android.os.Build
 import android.os.Bundle
 import android.text.Editable
 import android.text.TextWatcher
 import android.view.View
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.activity.viewModels
 import androidx.appcompat.app.AppCompatActivity
 import androidx.appcompat.app.AppCompatDelegate
+import androidx.core.content.ContextCompat
 import androidx.recyclerview.widget.LinearLayoutManager
 import com.messageonline.android.R
 import com.messageonline.android.adapter.ChatsAdapter
@@ -20,16 +25,21 @@ class ChatsActivity : AppCompatActivity() {
     private val viewModel: ChatViewModel by viewModels()
     private lateinit var chatsAdapter: ChatsAdapter
 
+    // Runtime permission request for Android 13+
+    private val notifPermLauncher = registerForActivityResult(
+        ActivityResultContracts.RequestPermission()
+    ) { /* granted or denied — nothing extra needed */ }
+
     override fun onCreate(savedInstanceState: Bundle?) {
         AppCompatDelegate.setDefaultNightMode(AppCompatDelegate.MODE_NIGHT_YES)
         super.onCreate(savedInstanceState)
         binding = ActivityChatsBinding.inflate(layoutInflater)
         setContentView(binding.root)
 
-        // No default ActionBar title — we use custom tvToolbarTitle
         setSupportActionBar(binding.toolbar)
         supportActionBar?.setDisplayShowTitleEnabled(false)
 
+        requestNotificationPermission()
         setupChatsList()
         setupBottomNav()
         setupSearch()
@@ -41,6 +51,17 @@ class ChatsActivity : AppCompatActivity() {
         }
         viewModel.refreshConversations()
         viewModel.refreshUsers()
+    }
+
+    // ─── Notification permission (Android 13+) ────────────────────────────────
+
+    private fun requestNotificationPermission() {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            if (ContextCompat.checkSelfPermission(this, Manifest.permission.POST_NOTIFICATIONS)
+                != PackageManager.PERMISSION_GRANTED) {
+                notifPermLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
+            }
+        }
     }
 
     // ─── Chats list ────────────────────────────────────────────────────────────
@@ -66,15 +87,15 @@ class ChatsActivity : AppCompatActivity() {
     private fun setupBottomNav() {
         binding.bottomNav.setOnItemSelectedListener { item ->
             when (item.itemId) {
-                R.id.nav_chats   -> true  // already here
+                R.id.nav_chats   -> true
                 R.id.nav_friends -> {
                     startActivity(Intent(this, FriendsActivity::class.java))
-                    binding.bottomNav.selectedItemId = R.id.nav_chats  // stay on chats
+                    binding.bottomNav.selectedItemId = R.id.nav_chats
                     true
                 }
                 R.id.nav_profile -> {
                     startActivity(Intent(this, ProfileActivity::class.java))
-                    binding.bottomNav.selectedItemId = R.id.nav_chats  // stay on chats
+                    binding.bottomNav.selectedItemId = R.id.nav_chats
                     true
                 }
                 else -> false
@@ -94,7 +115,7 @@ class ChatsActivity : AppCompatActivity() {
         })
     }
 
-    // ─── FAB (new chat / go to contacts) ──────────────────────────────────────
+    // ─── FAB ───────────────────────────────────────────────────────────────────
 
     private fun setupFab() {
         binding.fabNewChat.setOnClickListener {
@@ -112,8 +133,8 @@ class ChatsActivity : AppCompatActivity() {
 
         viewModel.connectionStatus.observe(this) { status ->
             val subtitle = when (status) {
-                ChatViewModel.ConnectionStatus.CONNECTED    -> null
-                ChatViewModel.ConnectionStatus.CONNECTING  -> "Подключение..."
+                ChatViewModel.ConnectionStatus.CONNECTED     -> null
+                ChatViewModel.ConnectionStatus.CONNECTING   -> "Подключение..."
                 ChatViewModel.ConnectionStatus.DISCONNECTED -> "Нет соединения"
                 ChatViewModel.ConnectionStatus.ERROR        -> "Ошибка соединения"
             }
@@ -131,10 +152,8 @@ class ChatsActivity : AppCompatActivity() {
 
         viewModel.incomingFriendRequest.observe(this) { request ->
             if (request != null) {
-                // Show badge on Friends nav item
                 val badge = binding.bottomNav.getOrCreateBadge(R.id.nav_friends)
                 badge.isVisible = true
-
                 com.google.android.material.snackbar.Snackbar
                     .make(binding.root, "📩 ${request.username} хочет подружиться",
                           com.google.android.material.snackbar.Snackbar.LENGTH_LONG)
@@ -150,7 +169,6 @@ class ChatsActivity : AppCompatActivity() {
     override fun onResume() {
         super.onResume()
         viewModel.refreshConversations()
-        // Reset friends badge after returning from FriendsActivity
         binding.bottomNav.removeBadge(R.id.nav_friends)
     }
 }
