@@ -31,6 +31,14 @@ function showApp() {
   setupSearch();
   startSSE();
   loadStats();
+  const refreshBtn = document.getElementById('refreshBtn');
+  if (refreshBtn) refreshBtn.addEventListener('click', () => {
+    if (currentPage === 'dashboard') loadStats();
+    else if (currentPage === 'users') loadUsers(usersPage);
+    else if (currentPage === 'messages') loadMessages(msgsPage);
+    else if (currentPage === 'friends') loadFriends(friendsPage);
+    toast('Обновлено', 'info');
+  });
 }
 
 document.getElementById('loginForm').addEventListener('submit', async e => {
@@ -50,7 +58,8 @@ document.getElementById('logoutBtn').addEventListener('click', async () => {
 });
 
 // ─── NAVIGATION ───────────────────────────────────────
-const pageTitles = { dashboard: 'Дашборд', users: 'Пользователи', messages: 'Сообщения', friends: 'Друзья', live: 'Live' };
+const pageTitles    = { dashboard: 'Дашборд', users: 'Пользователи', messages: 'Сообщения', friends: 'Друзья', live: 'Live' };
+const pageSubtitles = { dashboard: 'Обзор системы', users: 'Управление пользователями', messages: 'Все сообщения платформы', friends: 'Связи между пользователями', live: 'Активность в реальном времени' };
 
 function setupNav() {
   document.querySelectorAll('.nav-item').forEach(el => {
@@ -66,7 +75,9 @@ function navigateTo(page) {
   currentPage = page;
   document.querySelectorAll('.nav-item').forEach(el => el.classList.toggle('active', el.dataset.page === page));
   document.querySelectorAll('.page').forEach(el => el.classList.toggle('active', el.id === `page-${page}`));
-  document.getElementById('pageTitle').textContent = pageTitles[page] || page;
+  document.getElementById('pageTitle').textContent    = pageTitles[page]    || page;
+  const sub = document.getElementById('pageSubtitle');
+  if (sub) sub.textContent = pageSubtitles[page] || '';
 
   if (page === 'users')    { usersPage = 1; loadUsers(); }
   if (page === 'messages') { msgsPage = 1; loadMessages(); }

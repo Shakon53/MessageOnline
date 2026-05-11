@@ -40,12 +40,15 @@
   <!-- SIDEBAR -->
   <aside class="sidebar">
     <div class="sidebar-brand">
-      <svg width="30" height="30" viewBox="0 0 48 48" fill="none">
-        <rect width="48" height="48" rx="10" fill="url(#lg2)"/>
+      <svg width="32" height="32" viewBox="0 0 48 48" fill="none">
+        <rect width="48" height="48" rx="12" fill="url(#lg2)"/>
         <path d="M12 16h24v3H12zM12 22.5h18v3H12zM12 29h14v3H12z" fill="white"/>
-        <defs><linearGradient id="lg2" x1="0" y1="0" x2="48" y2="48"><stop stop-color="#7367F0"/><stop offset="1" stop-color="#CE9FFC"/></linearGradient></defs>
+        <defs><linearGradient id="lg2" x1="0" y1="0" x2="48" y2="48"><stop stop-color="#6366f1"/><stop offset="1" stop-color="#a78bfa"/></linearGradient></defs>
       </svg>
-      <span class="brand-name">MO <strong>Admin</strong></span>
+      <div>
+        <div class="brand-name">Message<span>Online</span></div>
+        <div class="brand-badge">ADMIN</div>
+      </div>
     </div>
 
     <div class="sidebar-label">Главное</div>
@@ -84,6 +87,13 @@
         <span class="sdot" id="javaStatusDot"></span>
         <span id="javaStatusText">Подключение...</span>
       </div>
+      <div class="sidebar-user">
+        <div class="su-av">A</div>
+        <div>
+          <div class="su-name">admin</div>
+          <div class="su-role">Admin</div>
+        </div>
+      </div>
       <button class="btn-logout" id="logoutBtn">
         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4M16 17l5-5-5-5M21 12H9"/></svg>
         Выйти
@@ -95,19 +105,25 @@
   <div class="main-wrap">
     <!-- TOPBAR -->
     <header class="topbar">
-      <h2 class="page-title" id="pageTitle">Дашборд</h2>
+      <button class="topbar-menu">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/></svg>
+      </button>
+      <div class="topbar-title">
+        <div class="page-title" id="pageTitle">Дашборд</div>
+        <div class="page-subtitle" id="pageSubtitle">Обзор системы</div>
+      </div>
       <div class="topbar-right">
         <div class="tsearch">
-          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
           <input type="text" id="topSearch" placeholder="Поиск...">
         </div>
-        <div class="admin-chip">
-          <div class="admin-av">A</div>
-          <div>
-            <div class="aname">Admin</div>
-            <div class="arole">Администратор</div>
-          </div>
-        </div>
+        <button class="topbar-btn" id="refreshBtn" title="Обновить">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/></svg>
+        </button>
+        <button class="topbar-btn" title="Уведомления">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>
+        </button>
+        <button class="topbar-av">A</button>
       </div>
     </header>
 
