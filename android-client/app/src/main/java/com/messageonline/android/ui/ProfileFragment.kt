@@ -375,11 +375,11 @@ class ProfileFragment : Fragment() {
                 R.id.btnThemeAmoled -> "amoled" to androidx.appcompat.app.AppCompatDelegate.MODE_NIGHT_YES
                 else                -> "dark"   to androidx.appcompat.app.AppCompatDelegate.MODE_NIGHT_YES
             }
+            val current = prefs.getString("app_theme", "dark")
+            if (current == mode) return@addOnButtonCheckedListener
             prefs.edit().putString("app_theme", mode).apply()
-            if (mode == "amoled") {
-                requireActivity().window.decorView.setBackgroundColor(android.graphics.Color.BLACK)
-            }
             androidx.appcompat.app.AppCompatDelegate.setDefaultNightMode(nightMode)
+            requireActivity().recreate()
         }
     }
 

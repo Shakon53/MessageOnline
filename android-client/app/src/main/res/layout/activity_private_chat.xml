@@ -90,24 +90,6 @@
                     android:layout_width="40dp"
                     android:layout_height="40dp"
                     android:padding="9dp"
-                    android:src="@drawable/ic_videocam"
-                    android:tint="#94A3B8"
-                    android:background="?attr/selectableItemBackgroundBorderless"
-                    android:contentDescription="@null" />
-
-                <ImageView
-                    android:layout_width="40dp"
-                    android:layout_height="40dp"
-                    android:padding="9dp"
-                    android:src="@drawable/ic_phone"
-                    android:tint="#94A3B8"
-                    android:background="?attr/selectableItemBackgroundBorderless"
-                    android:contentDescription="@null" />
-
-                <ImageView
-                    android:layout_width="40dp"
-                    android:layout_height="40dp"
-                    android:padding="9dp"
                     android:src="@drawable/ic_more_vert"
                     android:tint="#94A3B8"
                     android:background="?attr/selectableItemBackgroundBorderless"
@@ -223,20 +205,12 @@
             android:paddingTop="10dp"
             android:paddingBottom="10dp">
 
-            <ImageView
-                android:layout_width="40dp"
-                android:layout_height="40dp"
-                android:padding="9dp"
-                android:src="@drawable/ic_emoji"
-                android:tint="#64748B"
-                android:background="?attr/selectableItemBackgroundBorderless"
-                android:contentDescription="@null" />
-
             <LinearLayout
                 android:layout_width="0dp"
                 android:layout_height="wrap_content"
                 android:layout_weight="1"
-                android:layout_marginHorizontal="8dp"
+                android:layout_marginStart="4dp"
+                android:layout_marginEnd="8dp"
                 android:background="@drawable/shape_input_field"
                 android:gravity="center_vertical"
                 android:minHeight="44dp"

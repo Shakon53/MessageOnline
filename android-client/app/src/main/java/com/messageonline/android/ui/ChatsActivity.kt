@@ -49,7 +49,11 @@ class ChatsActivity : AppCompatActivity() {
     }
 
     override fun onCreate(savedInstanceState: Bundle?) {
-        AppCompatDelegate.setDefaultNightMode(AppCompatDelegate.MODE_NIGHT_YES)
+        val savedTheme = getSharedPreferences("MessageOnline", MODE_PRIVATE)
+            .getString("app_theme", "dark") ?: "dark"
+        val nightMode = if (savedTheme == "light") AppCompatDelegate.MODE_NIGHT_NO
+                        else AppCompatDelegate.MODE_NIGHT_YES
+        AppCompatDelegate.setDefaultNightMode(nightMode)
         super.onCreate(savedInstanceState)
         binding = ActivityChatsBinding.inflate(layoutInflater)
         setContentView(binding.root)
