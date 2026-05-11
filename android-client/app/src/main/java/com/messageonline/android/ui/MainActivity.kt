@@ -47,6 +47,12 @@ class MainActivity : AppCompatActivity() {
         binding = ActivityMainBinding.inflate(layoutInflater)
         setContentView(binding.root)
 
+        if (getSharedPreferences("MessageOnline", MODE_PRIVATE)
+                .getString("app_theme", "dark") == "amoled") {
+            window.decorView.setBackgroundColor(android.graphics.Color.BLACK)
+            binding.root.setBackgroundColor(android.graphics.Color.BLACK)
+        }
+
         setSupportActionBar(binding.toolbar)
         supportActionBar?.apply {
             title = "Общий чат"
