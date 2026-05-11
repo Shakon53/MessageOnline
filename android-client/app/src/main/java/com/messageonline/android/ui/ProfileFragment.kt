@@ -79,6 +79,7 @@ class ProfileFragment : Fragment() {
         setupQRButton()
         setupDND()
         setupPrivacyToggle()
+        setupThemeToggle()
         observeProfileUpdate()
         observeUsernameChange()
         loadStats()
@@ -356,6 +357,29 @@ class ProfileFragment : Fragment() {
             withContext(Dispatchers.Main) {
                 if (_binding != null) binding.tvStatMessages.text = count.toString()
             }
+        }
+    }
+
+    private fun setupThemeToggle() {
+        val prefs = requireContext().getSharedPreferences("MessageOnline", Context.MODE_PRIVATE)
+        val saved = prefs.getString("app_theme", "dark") ?: "dark"
+        when (saved) {
+            "light"  -> binding.toggleTheme.check(R.id.btnThemeLight)
+            "amoled" -> binding.toggleTheme.check(R.id.btnThemeAmoled)
+            else     -> binding.toggleTheme.check(R.id.btnThemeDark)
+        }
+        binding.toggleTheme.addOnButtonCheckedListener { _, checkedId, isChecked ->
+            if (!isChecked) return@addOnButtonCheckedListener
+            val (mode, nightMode) = when (checkedId) {
+                R.id.btnThemeLight  -> "light"  to androidx.appcompat.app.AppCompatDelegate.MODE_NIGHT_NO
+                R.id.btnThemeAmoled -> "amoled" to androidx.appcompat.app.AppCompatDelegate.MODE_NIGHT_YES
+                else                -> "dark"   to androidx.appcompat.app.AppCompatDelegate.MODE_NIGHT_YES
+            }
+            prefs.edit().putString("app_theme", mode).apply()
+            if (mode == "amoled") {
+                requireActivity().window.decorView.setBackgroundColor(android.graphics.Color.BLACK)
+            }
+            androidx.appcompat.app.AppCompatDelegate.setDefaultNightMode(nightMode)
         }
     }
 

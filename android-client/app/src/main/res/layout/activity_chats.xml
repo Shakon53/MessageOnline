@@ -95,6 +95,61 @@
             </LinearLayout>
         </LinearLayout>
 
+        <!-- Filter chips -->
+        <HorizontalScrollView
+            android:id="@+id/layoutChips"
+            android:layout_width="match_parent"
+            android:layout_height="44dp"
+            android:paddingHorizontal="12dp"
+            android:paddingVertical="6dp"
+            android:scrollbars="none"
+            android:fadeScrollbars="false">
+
+            <com.google.android.material.chip.ChipGroup
+                android:id="@+id/chipGroup"
+                android:layout_width="wrap_content"
+                android:layout_height="match_parent"
+                app:singleSelection="true"
+                app:selectionRequired="true"
+                app:chipSpacingHorizontal="6dp">
+
+                <com.google.android.material.chip.Chip
+                    android:id="@+id/chipAll"
+                    style="@style/Widget.Material3.Chip.Filter"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="Все"
+                    android:checked="true"
+                    android:textColor="#FFFFFF"
+                    app:chipBackgroundColor="@color/chip_bg_selector"
+                    app:chipStrokeColor="#336366F1"
+                    app:chipStrokeWidth="1dp" />
+
+                <com.google.android.material.chip.Chip
+                    android:id="@+id/chipUnread"
+                    style="@style/Widget.Material3.Chip.Filter"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="Непрочитанные"
+                    android:textColor="#FFFFFF"
+                    app:chipBackgroundColor="@color/chip_bg_selector"
+                    app:chipStrokeColor="#336366F1"
+                    app:chipStrokeWidth="1dp" />
+
+                <com.google.android.material.chip.Chip
+                    android:id="@+id/chipOnline"
+                    style="@style/Widget.Material3.Chip.Filter"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="Онлайн"
+                    android:textColor="#FFFFFF"
+                    app:chipBackgroundColor="@color/chip_bg_selector"
+                    app:chipStrokeColor="#336366F1"
+                    app:chipStrokeWidth="1dp" />
+
+            </com.google.android.material.chip.ChipGroup>
+        </HorizontalScrollView>
+
     </com.google.android.material.appbar.AppBarLayout>
 
     <!-- Content -->

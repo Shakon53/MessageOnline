@@ -5,6 +5,8 @@ import android.content.ClipboardManager
 import android.content.Context
 import android.content.Intent
 import android.os.Bundle
+import android.text.Editable
+import android.text.TextWatcher
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
@@ -52,6 +54,7 @@ class FriendsFragment : Fragment() {
 
         setupRecyclerView()
         setupObservers()
+        setupSearch()
 
         binding.btnAddFriend.setOnClickListener { showAddFriendDialog() }
         binding.btnScanQR.setOnClickListener { launchQRScanner() }
@@ -125,6 +128,16 @@ class FriendsFragment : Fragment() {
         }
     }
 
+    private fun setupSearch() {
+        binding.etFriendSearch.addTextChangedListener(object : TextWatcher {
+            override fun beforeTextChanged(s: CharSequence?, start: Int, count: Int, after: Int) {}
+            override fun onTextChanged(s: CharSequence?, start: Int, before: Int, count: Int) {}
+            override fun afterTextChanged(s: Editable?) {
+                adapter.applySearch(s.toString().trim())
+            }
+        })
+    }
+
     private fun setupObservers() {
         viewModel.friends.observe(viewLifecycleOwner) { friends ->
             val requests = viewModel.friendRequests.value ?: emptyList()
@@ -136,6 +149,9 @@ class FriendsFragment : Fragment() {
             val friends = viewModel.friends.value ?: emptyList()
             adapter.setData(friends, requests)
             updateEmptyState(friends.isEmpty() && requests.isEmpty())
+        }
+        viewModel.onlineUsers.observe(viewLifecycleOwner) { users ->
+            adapter.updateOnlineStatuses(users.map { it.username }.toSet())
         }
         viewModel.notification.observe(viewLifecycleOwner) { msg ->
             if (!msg.isNullOrBlank()) Toast.makeText(requireContext(), msg, Toast.LENGTH_SHORT).show()

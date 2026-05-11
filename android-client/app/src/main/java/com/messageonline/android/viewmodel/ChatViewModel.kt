@@ -869,7 +869,29 @@ class ChatViewModel(app: Application) : AndroidViewModel(app) {
             android.app.PendingIntent.FLAG_UPDATE_CURRENT or android.app.PendingIntent.FLAG_IMMUTABLE
         )
 
-        // Avatar initial as large icon color
+        // Quick-reply action
+        val remoteInput = androidx.core.app.RemoteInput.Builder(
+            com.messageonline.android.ui.QuickReplyReceiver.KEY_REPLY_TEXT
+        ).setLabel("Ответить…").build()
+
+        val replyIntent = android.content.Intent(
+            com.messageonline.android.ui.QuickReplyReceiver.ACTION_QUICK_REPLY
+        ).apply {
+            setClass(ctx, com.messageonline.android.ui.QuickReplyReceiver::class.java)
+            putExtra(com.messageonline.android.ui.QuickReplyReceiver.EXTRA_SENDER, senderUsername)
+        }
+        val replyPending = android.app.PendingIntent.getBroadcast(
+            ctx,
+            senderUsername.hashCode() + 1,
+            replyIntent,
+            android.app.PendingIntent.FLAG_UPDATE_CURRENT or android.app.PendingIntent.FLAG_MUTABLE
+        )
+        val replyAction = NotificationCompat.Action.Builder(
+            com.messageonline.android.R.drawable.ic_reply,
+            "Ответить",
+            replyPending
+        ).addRemoteInput(remoteInput).build()
+
         val notification = NotificationCompat.Builder(ctx, channelId)
             .setSmallIcon(com.messageonline.android.R.drawable.ic_message)
             .setContentTitle(senderUsername)
@@ -881,7 +903,7 @@ class ChatViewModel(app: Application) : AndroidViewModel(app) {
             .setContentIntent(pendingIntent)
             .setColorized(true)
             .setColor(0xFF6366F1.toInt())
-            // Group multiple messages from same sender
+            .addAction(replyAction)
             .setGroup("messages_$senderUsername")
             .build()
 

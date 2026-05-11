@@ -30,16 +30,42 @@ class FriendsAdapter(
         data class FriendItem(val friend: Friend) : Item()
     }
 
-    private val items = mutableListOf<Item>()
+    private val items       = mutableListOf<Item>()
+    private var allFriends  = listOf<Friend>()
+    private var allRequests = listOf<Friend>()
+    private var searchQuery = ""
+    private var onlineUsernames = emptySet<String>()
 
     fun setData(friends: List<Friend>, requests: List<Friend>) {
-        items.clear()
-        if (requests.isNotEmpty()) {
-            items.add(Item.Header("ЗАПРОСЫ (${requests.size})"))
-            requests.forEach { items.add(Item.RequestItem(it)) }
+        allFriends  = friends
+        allRequests = requests
+        rebuildItems()
+    }
+
+    fun applySearch(query: String) {
+        searchQuery = query
+        rebuildItems()
+    }
+
+    fun updateOnlineStatuses(onlineNames: Set<String>) {
+        onlineUsernames = onlineNames
+        rebuildItems()
+    }
+
+    private fun rebuildItems() {
+        val filteredFriends  = allFriends.filter {
+            searchQuery.isBlank() || it.username.contains(searchQuery, ignoreCase = true)
         }
-        items.add(Item.Header(if (friends.isEmpty()) "ДРУЗЬЯ" else "ДРУЗЬЯ (${friends.size})"))
-        friends.forEach { items.add(Item.FriendItem(it)) }
+        val filteredRequests = allRequests.filter {
+            searchQuery.isBlank() || it.username.contains(searchQuery, ignoreCase = true)
+        }
+        items.clear()
+        if (filteredRequests.isNotEmpty()) {
+            items.add(Item.Header("ЗАПРОСЫ (${filteredRequests.size})"))
+            filteredRequests.forEach { items.add(Item.RequestItem(it)) }
+        }
+        items.add(Item.Header(if (filteredFriends.isEmpty()) "ДРУЗЬЯ" else "ДРУЗЬЯ (${filteredFriends.size})"))
+        filteredFriends.forEach { items.add(Item.FriendItem(it)) }
         notifyDataSetChanged()
     }
 
@@ -106,7 +132,13 @@ class FriendsAdapter(
             tvName.text   = f.username
             tvStatus.text = f.statusText.ifBlank { "ID: #${f.userId}" }
             tvInit.text   = f.username.firstOrNull()?.uppercaseChar()?.toString() ?: "?"
-            vOnline.visibility = if (f.isOnline) View.VISIBLE else View.GONE
+            val isActuallyOnline = f.isOnline || onlineUsernames.contains(f.username)
+            vOnline.visibility = if (isActuallyOnline) View.VISIBLE else View.GONE
+            tvStatus.text = when {
+                isActuallyOnline       -> "В сети"
+                f.statusText.isNotBlank() -> f.statusText
+                else                   -> "ID: #${f.userId}"
+            }
             loadAvatar(ivAvatar, tvInit, f.avatarUrl)
             btnChat.setOnClickListener   { onStartChat(f) }
             btnRemove.setOnClickListener { onRemoveFriend(f) }

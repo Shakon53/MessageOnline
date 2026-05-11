@@ -433,6 +433,68 @@
             </com.google.android.material.button.MaterialButtonToggleGroup>
         </LinearLayout>
 
+        <!-- Theme card -->
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginHorizontal="16dp"
+            android:layout_marginBottom="12dp"
+            android:background="@drawable/bg_glass_card"
+            android:orientation="vertical"
+            android:padding="16dp">
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="ТЕМА ОФОРМЛЕНИЯ"
+                android:textColor="#64748B"
+                android:textSize="10sp"
+                android:letterSpacing="0.12"
+                android:layout_marginBottom="12dp" />
+
+            <com.google.android.material.button.MaterialButtonToggleGroup
+                android:id="@+id/toggleTheme"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                app:singleSelection="true"
+                app:selectionRequired="true">
+
+                <Button
+                    android:id="@+id/btnThemeDark"
+                    style="@style/Widget.Material3.Button.OutlinedButton"
+                    android:layout_width="0dp"
+                    android:layout_height="38dp"
+                    android:layout_weight="1"
+                    android:text="🌙 Тёмная"
+                    android:textSize="12sp"
+                    android:textColor="#FFFFFF"
+                    app:strokeColor="#336366F1" />
+
+                <Button
+                    android:id="@+id/btnThemeLight"
+                    style="@style/Widget.Material3.Button.OutlinedButton"
+                    android:layout_width="0dp"
+                    android:layout_height="38dp"
+                    android:layout_weight="1"
+                    android:text="☀️ Светлая"
+                    android:textSize="12sp"
+                    android:textColor="#FFFFFF"
+                    app:strokeColor="#336366F1" />
+
+                <Button
+                    android:id="@+id/btnThemeAmoled"
+                    style="@style/Widget.Material3.Button.OutlinedButton"
+                    android:layout_width="0dp"
+                    android:layout_height="38dp"
+                    android:layout_weight="1"
+                    android:text="⬛ AMOLED"
+                    android:textSize="12sp"
+                    android:textColor="#FFFFFF"
+                    app:strokeColor="#336366F1" />
+
+            </com.google.android.material.button.MaterialButtonToggleGroup>
+        </LinearLayout>
+
         <com.google.android.material.button.MaterialButton
             android:id="@+id/btnSave"
             android:layout_width="match_parent"

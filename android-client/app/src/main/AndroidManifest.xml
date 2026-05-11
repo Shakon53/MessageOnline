@@ -79,6 +79,15 @@
             android:exported="false"
             android:parentActivityName=".ui.ChatsActivity" />
 
+        <!-- Inline quick-reply from notification -->
+        <receiver
+            android:name=".ui.QuickReplyReceiver"
+            android:exported="false">
+            <intent-filter>
+                <action android:name="com.messageonline.QUICK_REPLY" />
+            </intent-filter>
+        </receiver>
+
         <!-- FCM push-уведомления -->
         <service
             android:name=".service.FCMService"
