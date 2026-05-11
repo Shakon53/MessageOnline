@@ -154,9 +154,9 @@ public class ClientHandler {
 
         String content = p.optString("content", "").trim();
         String messageType = p.optString("messageType", "text");
-        // For images/audio allow larger content (base64)
-        if (content.isEmpty() || (messageType.equals("text") && content.length() > 2000)) {
-            send(Packet.error("Сообщение пустое или слишком длинное"));
+        int maxLen = messageType.equals("text") ? 2000 : 3 * 1024 * 1024;
+        if (content.isEmpty() || content.length() > maxLen) {
+            send(Packet.error("Сообщение пустое или слишком длинное (макс. 3 МБ для медиа)"));
             return;
         }
 
@@ -182,9 +182,14 @@ public class ClientHandler {
         String receiverUsername = p.optString("receiverUsername", "").trim();
         String content = p.optString("content", "").trim();
         String messageType = p.optString("messageType", "text");
+        int maxLen = messageType.equals("text") ? 5000 : 3 * 1024 * 1024;
 
         if (receiverUsername.isEmpty() || content.isEmpty()) {
             send(Packet.error("Укажите получателя и текст сообщения"));
+            return;
+        }
+        if (content.length() > maxLen) {
+            send(Packet.error("Сообщение слишком длинное (макс. 3 МБ для медиа)"));
             return;
         }
         if (receiverUsername.equals(currentUser.getUsername())) {
