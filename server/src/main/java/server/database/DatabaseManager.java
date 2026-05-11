@@ -644,7 +644,8 @@ public class DatabaseManager {
     /** Последние сообщения для admin панели */
     public synchronized JSONArray getRecentMessages(int limit) {
         JSONArray arr = new JSONArray();
-        String sql = "SELECT m.id, m.sender_username, m.receiver_username, m.content, m.type, m.timestamp " +
+        String sql = "SELECT m.id, m.sender_username, COALESCE(m.receiver_username,'') as receiver_username, " +
+                     "m.content, m.is_global, COALESCE(m.message_type,'text') as message_type, m.timestamp " +
                      "FROM messages m ORDER BY m.timestamp DESC LIMIT ?";
         try (PreparedStatement ps = connection.prepareStatement(sql)) {
             ps.setInt(1, limit);
@@ -655,7 +656,8 @@ public class DatabaseManager {
                         .put("senderUsername", rs.getString("sender_username"))
                         .put("receiverUsername", rs.getString("receiver_username"))
                         .put("content", rs.getString("content"))
-                        .put("type", rs.getString("type"))
+                        .put("type", rs.getInt("is_global") == 1 ? "global" : "private")
+                        .put("messageType", rs.getString("message_type"))
                         .put("timestamp", rs.getLong("timestamp")));
             }
         } catch (SQLException e) { /* ignore */ }
