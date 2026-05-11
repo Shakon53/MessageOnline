@@ -96,7 +96,11 @@ public class Packet {
     public static final String ADMIN_STATS          = "ADMIN_STATS";
     public static final String ADMIN_DELETE_USER    = "ADMIN_DELETE_USER";
     public static final String ADMIN_DELETE_MESSAGE = "ADMIN_DELETE_MESSAGE";
+    public static final String ADMIN_BLOCK_USER     = "ADMIN_BLOCK_USER";
+    public static final String ADMIN_UNBLOCK_USER   = "ADMIN_UNBLOCK_USER";
+    public static final String ADMIN_BROADCAST      = "ADMIN_BROADCAST";
     public static final String ADMIN_ACTION_RESULT  = "ADMIN_ACTION_RESULT";
+    public static final String SYSTEM_MESSAGE       = "SYSTEM_MESSAGE";
 
     // ===================== ФАБРИЧНЫЕ МЕТОДЫ =====================
 

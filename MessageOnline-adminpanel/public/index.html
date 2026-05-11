@@ -117,6 +117,9 @@
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
           <input type="text" id="topSearch" placeholder="Поиск...">
         </div>
+        <button class="topbar-btn topbar-btn-broadcast" id="broadcastBtn" title="Broadcast">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07A19.5 19.5 0 0 1 4.37 12 19.79 19.79 0 0 1 1.21 3.4 2 2 0 0 1 3.2 1.18h3a2 2 0 0 1 2 1.72c.127.96.361 1.903.7 2.81a2 2 0 0 1-.45 2.11L7.09 9a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45c.907.339 1.85.573 2.81.7A2 2 0 0 1 21 16z"/></svg>
+        </button>
         <button class="topbar-btn" id="refreshBtn" title="Обновить">
           <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/></svg>
         </button>
@@ -299,6 +302,61 @@
 
   </div><!-- /main-wrap -->
 </div><!-- /app -->
+
+<!-- USER DETAIL MODAL -->
+<div id="userModal" class="modal-overlay" style="display:none">
+  <div class="modal-box modal-lg">
+    <div class="modal-hdr">
+      <div class="modal-title-wrap">
+        <div class="modal-av" id="modalAv">?</div>
+        <div>
+          <h3 id="modalUsername">Пользователь</h3>
+          <span id="modalBadge" class="badge"></span>
+        </div>
+      </div>
+      <button class="modal-close" id="closeUserModal">&times;</button>
+    </div>
+    <div class="modal-body" id="modalUserBody">Загрузка...</div>
+  </div>
+</div>
+
+<!-- BROADCAST MODAL -->
+<div id="broadcastModal" class="modal-overlay" style="display:none">
+  <div class="modal-box">
+    <div class="modal-hdr">
+      <h3>📢 Broadcast сообщение</h3>
+      <button class="modal-close" id="closeBroadcastModal">&times;</button>
+    </div>
+    <div class="modal-body">
+      <p style="color:var(--muted);font-size:13px;margin-bottom:1rem">Сообщение будет отправлено всем онлайн пользователям через Java сервер.</p>
+      <textarea id="broadcastText" class="modal-textarea" placeholder="Введите системное сообщение..."></textarea>
+      <div style="margin-top:1rem;display:flex;gap:.75rem;justify-content:flex-end">
+        <button class="btn-ghost" id="cancelBroadcastBtn">Отмена</button>
+        <button class="btn-primary" id="sendBroadcastBtn">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
+          Отправить всем
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- CONFIRM MODAL -->
+<div id="confirmModal" class="modal-overlay" style="display:none">
+  <div class="modal-box modal-sm">
+    <div class="modal-hdr">
+      <h3 id="confirmTitle">Подтверждение</h3>
+      <button class="modal-close" id="closeConfirmModal">&times;</button>
+    </div>
+    <div class="modal-body">
+      <p id="confirmText" style="color:var(--muted);margin-bottom:1.25rem"></p>
+      <div style="display:flex;gap:.75rem;justify-content:flex-end">
+        <button class="btn-ghost" id="confirmCancel">Отмена</button>
+        <button class="btn-danger-solid" id="confirmOk">Подтвердить</button>
+      </div>
+    </div>
+  </div>
+</div>
 
 <div id="toastContainer"></div>
 <script src="app.js"></script>

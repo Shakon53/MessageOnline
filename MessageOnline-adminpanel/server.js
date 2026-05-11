@@ -424,6 +424,60 @@ app.delete('/api/messages/:id', requireAuth, (req, res) => {
   } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
+// ─── BLOCK / UNBLOCK ──────────────────────────────────────────────────────────
+function javaAdminAction(payload, res, timeoutMs = 4000) {
+  const reqId = `${payload.type}_${Date.now()}`;
+  payload.reqId = reqId;
+  if (javaConnected && javaWs) {
+    const timer = setTimeout(() => {
+      events.removeAllListeners(`admin_result_${reqId}`);
+      res.status(504).json({ error: 'Таймаут ответа от Java сервера' });
+    }, timeoutMs);
+    events.once(`admin_result_${reqId}`, (result) => {
+      clearTimeout(timer);
+      result.ok ? res.json({ ok: true }) : res.status(500).json({ error: result.error || 'Ошибка' });
+    });
+    javaWs.send(JSON.stringify(payload));
+  } else {
+    res.status(503).json({ error: 'Java сервер недоступен' });
+  }
+}
+
+app.patch('/api/users/:id/block', requireAuth, (req, res) => {
+  const id = parseInt(req.params.id);
+  try {
+    const db = getDb();
+    db.run('UPDATE users SET is_blocked=1 WHERE id=?', [id]);
+    saveDb(db); db.close();
+    if (javaConnected && javaWs) javaWs.send(JSON.stringify({ type: 'ADMIN_BLOCK_USER', userId: id, reqId: `blk_${id}` }));
+    res.json({ ok: true });
+  } catch (e) {
+    javaAdminAction({ type: 'ADMIN_BLOCK_USER', userId: id }, res);
+  }
+});
+
+app.patch('/api/users/:id/unblock', requireAuth, (req, res) => {
+  const id = parseInt(req.params.id);
+  try {
+    const db = getDb();
+    db.run('UPDATE users SET is_blocked=0 WHERE id=?', [id]);
+    saveDb(db); db.close();
+    if (javaConnected && javaWs) javaWs.send(JSON.stringify({ type: 'ADMIN_UNBLOCK_USER', userId: id, reqId: `ublk_${id}` }));
+    res.json({ ok: true });
+  } catch (e) {
+    javaAdminAction({ type: 'ADMIN_UNBLOCK_USER', userId: id }, res);
+  }
+});
+
+// ─── BROADCAST ────────────────────────────────────────────────────────────────
+app.post('/api/broadcast', requireAuth, (req, res) => {
+  const { message } = req.body;
+  if (!message || !message.trim()) return res.status(400).json({ error: 'Текст сообщения обязателен' });
+  if (!javaConnected || !javaWs) return res.status(503).json({ error: 'Java сервер недоступен — никто не онлайн' });
+  javaWs.send(JSON.stringify({ type: 'ADMIN_BROADCAST', message: message.trim() }));
+  res.json({ ok: true, onlineCount: liveStats.onlineCount });
+});
+
 // ─── FRIENDS ──────────────────────────────────────────────────────────────────
 app.get('/api/friends', requireAuth, (req, res) => {
   try {

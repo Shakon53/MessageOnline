@@ -304,20 +304,24 @@ async function loadUsers(page, search) {
 
   tbody.innerHTML = d.users.map(u => {
     const av = `<div class="user-av" style="background:${avatarColor(u.username)}">${(u.username||'?')[0].toUpperCase()}</div>`;
-    const privacy = u.privacy_mode === 'friends_only' || u.privacy_mode === 'friends'
-      ? `<span class="privacy-badge pb-friends">Друзья</span>`
-      : `<span class="privacy-badge pb-all">Все</span>`;
+    const isBlocked = !!(u.is_blocked || u.isBlocked);
+    const statusBadge = isBlocked
+      ? `<span class="badge badge-blocked">Заблокирован</span>`
+      : `<span class="badge badge-active">Активен</span>`;
+    const blockBtn = isBlocked
+      ? `<button class="btn-unblock" onclick="event.stopPropagation();toggleBlock(${u.id},'${esc(u.username)}',false)" title="Разблокировать"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" width="13" height="13"><path d="M12 22c5.52 0 10-4.48 10-10S17.52 2 12 2 2 6.48 2 12s4.48 10 10 10z"/><path d="m9 12 2 2 4-4"/></svg></button>`
+      : `<button class="btn-block" onclick="event.stopPropagation();toggleBlock(${u.id},'${esc(u.username)}',true)" title="Заблокировать"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" width="13" height="13"><circle cx="12" cy="12" r="10"/><line x1="4.93" y1="4.93" x2="19.07" y2="19.07"/></svg></button>`;
     const reg = u.created_at ? new Date(u.created_at).toLocaleDateString('ru') : '—';
-    return `<tr>
+    return `<tr style="cursor:pointer" onclick="openUserModal(${u.id})">
       <td><span style="color:var(--muted)">#${u.id}</span></td>
       <td><div class="user-cell">${av}<span class="user-cell-name">${esc(u.username)}</span></div></td>
       <td style="color:var(--muted)">${esc(u.phone||'—')}</td>
-      <td style="color:var(--muted);max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(u.status_text||'—')}</td>
+      <td>${statusBadge}</td>
       <td>${u.msg_count ?? 0}</td>
       <td>${u.friend_count ?? 0}</td>
-      <td>${privacy}</td>
       <td style="color:var(--muted)">${reg}</td>
-      <td><div class="actions-cell">
+      <td onclick="event.stopPropagation()"><div class="actions-cell" style="display:flex;gap:4px;align-items:center">
+        ${blockBtn}
         <button class="btn-icon btn-danger" onclick="deleteUser(${u.id},'${esc(u.username)}')" title="Удалить">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14H6L5 6"/><path d="M10 11v6M14 11v6"/><path d="M9 6V4h6v2"/></svg>
         </button>
@@ -329,11 +333,25 @@ async function loadUsers(page, search) {
 }
 
 async function deleteUser(id, username) {
-  if (!confirm(`Удалить пользователя ${username}? Это действие нельзя отменить.`)) return;
-  showToast(`Удаление ${username}...`, 'info');
-  const r = await api(`/api/users/${id}`, 'DELETE');
-  if (r.ok) { showToast(`✅ Пользователь ${username} удалён`, 'success'); loadUsers(); loadStats(); }
-  else showToast(`❌ ${r.error || 'Ошибка удаления'}`, 'error');
+  confirmAction('Удалить пользователя',
+    `Удалить "${username}" (#${id})? Все сообщения будут удалены.`, async () => {
+    const r = await api(`/api/users/${id}`, 'DELETE');
+    if (r.ok) { showToast(`Пользователь ${username} удалён`, 'success'); closeModal('userModal'); loadUsers(); loadStats(); }
+    else showToast(r.error || 'Ошибка удаления', 'error');
+  });
+}
+
+async function toggleBlock(id, username, block) {
+  const verb = block ? 'заблокировать' : 'разблокировать';
+  confirmAction(block ? 'Блокировка' : 'Разблокировка',
+    `${verb.charAt(0).toUpperCase()+verb.slice(1)} пользователя "${username}"?`, async () => {
+    const r = await api(`/api/users/${id}/${block ? 'block' : 'unblock'}`, 'PATCH');
+    if (r.ok) {
+      showToast(`${username} ${block ? 'заблокирован' : 'разблокирован'}`, 'success');
+      closeModal('userModal');
+      loadUsers();
+    } else showToast(r.error || 'Ошибка', 'error');
+  });
 }
 
 // ─── MESSAGES ─────────────────────────────────────────
@@ -369,10 +387,11 @@ async function loadMessages(page) {
 }
 
 async function deleteMessage(id) {
-  if (!confirm(`Удалить сообщение #${id}?`)) return;
-  const r = await api(`/api/messages/${id}`, 'DELETE');
-  if (r.ok) { showToast('✅ Сообщение удалено', 'success'); loadMessages(); loadStats(); }
-  else showToast(`❌ ${r.error || 'Ошибка удаления'}`, 'error');
+  confirmAction('Удалить сообщение', `Удалить сообщение #${id}?`, async () => {
+    const r = await api(`/api/messages/${id}`, 'DELETE');
+    if (r.ok) { showToast('Сообщение удалено', 'success'); loadMessages(); loadStats(); }
+    else showToast(r.error || 'Ошибка удаления', 'error');
+  });
 }
 
 // ─── FRIENDS ──────────────────────────────────────────
@@ -423,6 +442,115 @@ function showToast(msg, type = 'info', ms = 3500) {
   el.innerHTML = `<span>${icons[type]||''}</span><span>${msg}</span>`;
   c.appendChild(el);
   setTimeout(() => { el.style.transition = 'opacity .3s'; el.style.opacity = '0'; setTimeout(() => el.remove(), 300); }, ms);
+}
+
+// ─── MODAL HELPERS ────────────────────────────────────
+function openModal(id)  { document.getElementById(id).style.display = 'flex'; }
+function closeModal(id) { document.getElementById(id).style.display = 'none'; }
+
+let _confirmCb = null;
+function confirmAction(title, text, cb) {
+  document.getElementById('confirmTitle').textContent = title;
+  document.getElementById('confirmText').textContent  = text;
+  _confirmCb = cb;
+  openModal('confirmModal');
+}
+document.getElementById('confirmOk').addEventListener('click', () => {
+  closeModal('confirmModal');
+  if (_confirmCb) { _confirmCb(); _confirmCb = null; }
+});
+document.querySelectorAll('.modal-overlay').forEach(el => {
+  el.addEventListener('click', e => { if (e.target === el) closeModal(el.id); });
+});
+
+// ─── BROADCAST ────────────────────────────────────────
+document.getElementById('broadcastBtn').addEventListener('click', () => openModal('broadcastModal'));
+document.getElementById('closeBroadcastModal').addEventListener('click', () => closeModal('broadcastModal'));
+document.getElementById('cancelBroadcastBtn').addEventListener('click', () => closeModal('broadcastModal'));
+document.getElementById('sendBroadcastBtn').addEventListener('click', async () => {
+  const msg = document.getElementById('broadcastText').value.trim();
+  if (!msg) { showToast('Введите текст сообщения', 'error'); return; }
+  const r = await api('/api/broadcast', 'POST', { message: msg });
+  if (r.ok) {
+    showToast(`Broadcast отправлен (${r.onlineCount || 0} пользователей)`, 'success');
+    document.getElementById('broadcastText').value = '';
+    closeModal('broadcastModal');
+  } else {
+    showToast(r.error || 'Ошибка отправки', 'error');
+  }
+});
+
+// ─── USER DETAIL MODAL ────────────────────────────────
+document.getElementById('closeUserModal').addEventListener('click', () => closeModal('userModal'));
+document.getElementById('closeConfirmModal').addEventListener('click', () => closeModal('confirmModal'));
+document.getElementById('confirmCancel').addEventListener('click', () => closeModal('confirmModal'));
+
+async function openUserModal(userId) {
+  openModal('userModal');
+  document.getElementById('modalUserBody').innerHTML =
+    '<div style="text-align:center;padding:2.5rem;color:var(--muted)">Загрузка...</div>';
+
+  const d = await api(`/api/users/${userId}`);
+  if (d.error || !d.user) {
+    document.getElementById('modalUserBody').innerHTML =
+      `<div style="color:var(--danger);padding:1rem">Ошибка: ${esc(d.error||'Не найден')}</div>`;
+    return;
+  }
+  const u = d.user;
+  const isBlocked = !!(u.is_blocked || u.isBlocked);
+  const col = avatarColor(u.username);
+  const av  = document.getElementById('modalAv');
+  av.textContent   = (u.username||'?')[0].toUpperCase();
+  av.style.background = col;
+  document.getElementById('modalUsername').textContent = u.username;
+  const badge = document.getElementById('modalBadge');
+  badge.textContent = isBlocked ? 'Заблокирован' : 'Активен';
+  badge.className   = `badge ${isBlocked ? 'badge-blocked' : 'badge-active'}`;
+
+  const msgsHtml = (d.recentMsgs||[]).slice(0,5).map(m => {
+    const ts   = m.timestamp ? new Date(m.timestamp).toLocaleString('ru') : '';
+    const type = m.is_global
+      ? `<span class="type-badge tb-global">Global</span>`
+      : `<span class="type-badge tb-private">Private</span>`;
+    return `<tr><td>${type}</td>
+      <td style="max-width:240px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(m.content||'')}</td>
+      <td style="color:var(--muted);font-size:11px;white-space:nowrap">${ts}</td></tr>`;
+  }).join('');
+
+  const friendsHtml = (d.friends||[]).slice(0,8).map(f =>
+    `<span class="uchip" style="background:rgba(99,102,241,.1);border-color:rgba(99,102,241,.3);color:var(--primary)">${esc(f.username)}</span>`
+  ).join('');
+
+  const blockBtnHtml = isBlocked
+    ? `<button class="btn-primary" style="background:var(--success);border-color:var(--success)"
+         onclick="toggleBlock(${u.id},'${esc(u.username)}',false)">✅ Разблокировать</button>`
+    : `<button class="btn-primary" style="background:var(--warning);border-color:var(--warning)"
+         onclick="toggleBlock(${u.id},'${esc(u.username)}',true)">⛔ Заблокировать</button>`;
+
+  document.getElementById('modalUserBody').innerHTML = `
+    <div class="modal-section">
+      <div class="modal-section-title">Основная информация</div>
+      <div class="modal-info-grid">
+        <div class="minfo-item"><div class="minfo-label">ID</div><div class="minfo-val">#${u.id}</div></div>
+        <div class="minfo-item"><div class="minfo-label">Телефон</div><div class="minfo-val">${esc(u.phone||'—')}</div></div>
+        <div class="minfo-item"><div class="minfo-label">Статус</div><div class="minfo-val" style="font-size:12px">${esc(u.status_text||'—')}</div></div>
+        <div class="minfo-item"><div class="minfo-label">Приватность</div><div class="minfo-val">${(u.privacy_mode==='friends_only'||u.privacyMode==='friends_only')?'Только друзья':'Все'}</div></div>
+        <div class="minfo-item"><div class="minfo-label">Регистрация</div><div class="minfo-val">${u.created_at ? new Date(u.created_at).toLocaleDateString('ru') : '—'}</div></div>
+        <div class="minfo-item"><div class="minfo-label">Сообщений</div><div class="minfo-val">${u.msg_count ?? '—'}</div></div>
+      </div>
+    </div>
+    ${msgsHtml ? `<div class="modal-section">
+      <div class="modal-section-title">Последние сообщения</div>
+      <table class="modal-mini-table">${msgsHtml}</table>
+    </div>` : ''}
+    ${friendsHtml ? `<div class="modal-section">
+      <div class="modal-section-title">Друзья (${(d.friends||[]).length})</div>
+      <div style="display:flex;flex-wrap:wrap;gap:.4rem">${friendsHtml}</div>
+    </div>` : ''}
+    <div style="display:flex;gap:.6rem;padding-top:.75rem;border-top:1px solid var(--border)">
+      ${blockBtnHtml}
+      <button class="btn-danger-solid" onclick="deleteUser(${u.id},'${esc(u.username)}')">🗑 Удалить</button>
+    </div>`;
 }
 
 // ─── UTILS ────────────────────────────────────────────

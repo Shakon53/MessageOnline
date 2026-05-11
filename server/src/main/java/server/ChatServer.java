@@ -89,6 +89,13 @@ public class ChatServer extends WebSocketServer {
         return onlineClients.get(username);
     }
 
+    public ClientHandler getClientById(int userId) {
+        for (ClientHandler h : onlineClients.values()) {
+            if (h.getUserId() == userId) return h;
+        }
+        return null;
+    }
+
     public Collection<ClientHandler> getOnlineClients() {
         return onlineClients.values();
     }

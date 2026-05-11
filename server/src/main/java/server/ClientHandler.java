@@ -68,6 +68,9 @@ public class ClientHandler {
                 case Packet.ADMIN_LOGIN          -> handleAdminLogin(packet);
                 case Packet.ADMIN_DELETE_USER    -> handleAdminDeleteUser(packet);
                 case Packet.ADMIN_DELETE_MESSAGE -> handleAdminDeleteMessage(packet);
+                case Packet.ADMIN_BLOCK_USER     -> handleAdminBlockUser(packet);
+                case Packet.ADMIN_UNBLOCK_USER   -> handleAdminUnblockUser(packet);
+                case Packet.ADMIN_BROADCAST      -> handleAdminBroadcast(packet);
                 default -> send(Packet.error("Неизвестный тип пакета: " + type));
             }
 
@@ -120,6 +123,11 @@ public class ClientHandler {
         }
 
         User user = DatabaseManager.getInstance().loginUser(username, password);
+        if (user == null && DatabaseManager.getInstance().getUserByUsername(username) != null
+                && DatabaseManager.getInstance().isUserBlocked(DatabaseManager.getInstance().getUserByUsername(username).getId())) {
+            send(Packet.loginFail("Ваш аккаунт заблокирован администратором"));
+            return;
+        }
         if (user != null) {
             currentUser = user;
             currentUser.setOnline(true);
@@ -703,6 +711,62 @@ public class ClientHandler {
                 .put("messageId", msgId)
                 .put("reqId", reqId)
                 .put("ok", ok)
+                .toString());
+    }
+
+    private void handleAdminBlockUser(JSONObject p) {
+        if (!isAdmin) return;
+        int userId = p.optInt("userId", -1);
+        String reqId = p.optString("reqId", "");
+        boolean ok = userId > 0 && DatabaseManager.getInstance().blockUser(userId);
+        // Kick user if currently online
+        if (ok) {
+            ClientHandler target = server.getClientById(userId);
+            if (target != null) {
+                target.send(Packet.error("Ваш аккаунт заблокирован"));
+                target.cleanup();
+            }
+        }
+        send(new JSONObject()
+                .put("type", Packet.ADMIN_ACTION_RESULT)
+                .put("action", "block_user")
+                .put("userId", userId)
+                .put("reqId", reqId)
+                .put("ok", ok)
+                .toString());
+        ServerLogger.info("[Admin] Заблокирован пользователь #" + userId + " ok=" + ok);
+    }
+
+    private void handleAdminUnblockUser(JSONObject p) {
+        if (!isAdmin) return;
+        int userId = p.optInt("userId", -1);
+        String reqId = p.optString("reqId", "");
+        boolean ok = userId > 0 && DatabaseManager.getInstance().unblockUser(userId);
+        send(new JSONObject()
+                .put("type", Packet.ADMIN_ACTION_RESULT)
+                .put("action", "unblock_user")
+                .put("userId", userId)
+                .put("reqId", reqId)
+                .put("ok", ok)
+                .toString());
+        ServerLogger.info("[Admin] Разблокирован пользователь #" + userId + " ok=" + ok);
+    }
+
+    private void handleAdminBroadcast(JSONObject p) {
+        if (!isAdmin) return;
+        String message = p.optString("message", "").trim();
+        if (message.isEmpty()) return;
+        String packet = new JSONObject()
+                .put("type", Packet.SYSTEM_MESSAGE)
+                .put("content", message)
+                .put("timestamp", System.currentTimeMillis())
+                .toString();
+        server.broadcastAll(packet);
+        ServerLogger.info("[Admin] Broadcast: " + message);
+        send(new JSONObject()
+                .put("type", Packet.ADMIN_ACTION_RESULT)
+                .put("action", "broadcast")
+                .put("ok", true)
                 .toString());
     }
 }

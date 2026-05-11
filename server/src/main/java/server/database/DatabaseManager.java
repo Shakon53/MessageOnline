@@ -81,6 +81,7 @@ public class DatabaseManager {
             try { stmt.execute("ALTER TABLE messages ADD COLUMN content_edited TEXT"); ServerLogger.info("Migration: added content_edited"); } catch (Exception ignored) {}
             try { stmt.execute("ALTER TABLE messages ADD COLUMN message_type TEXT NOT NULL DEFAULT 'text'"); ServerLogger.info("Migration: added message_type"); } catch (Exception ignored) {}
             try { stmt.execute("ALTER TABLE users ADD COLUMN privacy_mode TEXT NOT NULL DEFAULT 'all'"); ServerLogger.info("Migration: added privacy_mode"); } catch (Exception ignored) {}
+            try { stmt.execute("ALTER TABLE users ADD COLUMN is_blocked INTEGER NOT NULL DEFAULT 0"); ServerLogger.info("Migration: added is_blocked"); } catch (Exception ignored) {}
 
             // Таблица сообщений
             stmt.execute("""
@@ -156,7 +157,7 @@ public class DatabaseManager {
      * @return User если данные верны, null если нет
      */
     public synchronized User loginUser(String username, String password) {
-        String sql = "SELECT id, username, phone, password_hash, status_text, avatar_url, COALESCE(privacy_mode,'all') as privacy_mode, created_at FROM users WHERE username = ?";
+        String sql = "SELECT id, username, phone, password_hash, status_text, avatar_url, COALESCE(privacy_mode,'all') as privacy_mode, created_at, COALESCE(is_blocked,0) as is_blocked FROM users WHERE username = ?";
         try (PreparedStatement ps = connection.prepareStatement(sql)) {
             ps.setString(1, username);
             ResultSet rs = ps.executeQuery();
@@ -164,6 +165,7 @@ public class DatabaseManager {
             if (rs.next()) {
                 String storedHash = rs.getString("password_hash");
                 if (PasswordUtil.verifyPassword(password, storedHash)) {
+                    if (rs.getInt("is_blocked") == 1) return null; // blocked — return null same as wrong password
                     User user = new User(rs.getInt("id"), rs.getString("username"),
                             rs.getString("phone"), storedHash);
                     user.setStatusText(rs.getString("status_text"));
@@ -625,7 +627,7 @@ public class DatabaseManager {
     /** Список всех пользователей для admin панели */
     public synchronized JSONArray getAllUsers() {
         JSONArray arr = new JSONArray();
-        String sql = "SELECT id, username, phone, status_text, privacy_mode, created_at FROM users ORDER BY created_at DESC LIMIT 200";
+        String sql = "SELECT id, username, phone, status_text, privacy_mode, COALESCE(is_blocked,0) as is_blocked, created_at FROM users ORDER BY created_at DESC LIMIT 200";
         try (PreparedStatement ps = connection.prepareStatement(sql)) {
             ResultSet rs = ps.executeQuery();
             while (rs.next()) {
@@ -635,10 +637,40 @@ public class DatabaseManager {
                         .put("phone", rs.getString("phone"))
                         .put("statusText", rs.getString("status_text"))
                         .put("privacyMode", rs.getString("privacy_mode"))
+                        .put("isBlocked", rs.getInt("is_blocked") == 1)
                         .put("createdAt", rs.getLong("created_at")));
             }
         } catch (SQLException e) { /* ignore */ }
         return arr;
+    }
+
+    /** Заблокировать пользователя */
+    public synchronized boolean blockUser(int userId) {
+        String sql = "UPDATE users SET is_blocked = 1 WHERE id = ?";
+        try (PreparedStatement ps = connection.prepareStatement(sql)) {
+            ps.setInt(1, userId);
+            return ps.executeUpdate() > 0;
+        } catch (SQLException e) { ServerLogger.error("blockUser: " + e.getMessage()); return false; }
+    }
+
+    /** Разблокировать пользователя */
+    public synchronized boolean unblockUser(int userId) {
+        String sql = "UPDATE users SET is_blocked = 0 WHERE id = ?";
+        try (PreparedStatement ps = connection.prepareStatement(sql)) {
+            ps.setInt(1, userId);
+            return ps.executeUpdate() > 0;
+        } catch (SQLException e) { ServerLogger.error("unblockUser: " + e.getMessage()); return false; }
+    }
+
+    /** Проверить, заблокирован ли пользователь */
+    public synchronized boolean isUserBlocked(int userId) {
+        String sql = "SELECT COALESCE(is_blocked,0) FROM users WHERE id = ?";
+        try (PreparedStatement ps = connection.prepareStatement(sql)) {
+            ps.setInt(1, userId);
+            ResultSet rs = ps.executeQuery();
+            if (rs.next()) return rs.getInt(1) == 1;
+        } catch (SQLException e) { /* ignore */ }
+        return false;
     }
 
     /** Последние сообщения для admin панели */
