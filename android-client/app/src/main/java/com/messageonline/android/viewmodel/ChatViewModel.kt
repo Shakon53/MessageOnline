@@ -172,13 +172,19 @@ class ChatViewModel(app: Application) : AndroidViewModel(app) {
 
     // ==================== SOCKET CALLBACKS ====================
 
+    fun reattachCallbacks() = setupSocketCallbacks()
+
     private fun setupSocketCallbacks() {
         SocketManager.onConnected = {
             _connectionStatus.postValue(ConnectionStatus.CONNECTED)
-            sendSavedFCMToken()
-            sendSavedAvatar()
-            SocketManager.requestFriends()
-            viewModelScope.launch(Dispatchers.IO) { flushPendingMessages() }
+            if (myUsername.isNotEmpty() && myUserId > 0) {
+                // Reconnect scenario — re-authenticate silently
+                val prefs = getApplication<Application>()
+                    .getSharedPreferences("MessageOnline", Context.MODE_PRIVATE)
+                val pass = (prefs.getString("last_password", "") ?: "")
+                    .ifEmpty { prefs.getString("last_uid", "") ?: "" }
+                if (pass.isNotEmpty()) SocketManager.sendLogin(myUsername, pass)
+            }
         }
         SocketManager.onDisconnected = {
             _connectionStatus.postValue(ConnectionStatus.DISCONNECTED)
@@ -221,6 +227,12 @@ class ChatViewModel(app: Application) : AndroidViewModel(app) {
                     json.optLong("createdAt", 0L)
                 )
                 _loginResult.postValue(AuthResult(true))
+                // Post-login setup (runs on both fresh login and reconnect)
+                sendSavedFCMToken()
+                sendSavedAvatar()
+                SocketManager.requestFriends()
+                SocketManager.requestUserList()
+                viewModelScope.launch(Dispatchers.IO) { flushPendingMessages() }
             }
 
             Packet.LOGIN_FAIL -> {
@@ -255,22 +267,27 @@ class ChatViewModel(app: Application) : AndroidViewModel(app) {
 
             Packet.PRIVATE_MESSAGE -> {
                 val msg = parsePrivateMessage(json)
-                val list = _privateMessages.value ?: mutableListOf()
-                if (msg.senderUsername == myUsername) {
-                    val idx = list.indexOfLast {
-                        it.status == ChatMessage.STATUS_PENDING && it.content == msg.content
+                val peerInMsg = if (msg.senderUsername == myUsername)
+                    msg.receiverUsername ?: "" else msg.senderUsername
+                // Only update live list when message belongs to currently open chat
+                if (peerInMsg == currentPrivatePeer) {
+                    val list = _privateMessages.value ?: mutableListOf()
+                    if (msg.senderUsername == myUsername) {
+                        val idx = list.indexOfLast {
+                            it.status == ChatMessage.STATUS_PENDING && it.content == msg.content
+                        }
+                        if (idx >= 0) list[idx] = msg.copy(status = ChatMessage.STATUS_SENT)
+                        else list.add(msg.copy(status = ChatMessage.STATUS_SENT))
+                    } else {
+                        list.add(msg)
+                        vibrate()
                     }
-                    if (idx >= 0) list[idx] = msg.copy(status = ChatMessage.STATUS_SENT)
-                    else list.add(msg.copy(status = ChatMessage.STATUS_SENT))
-                } else {
-                    list.add(msg)
+                    _privateMessages.postValue(list)
+                } else if (msg.senderUsername != myUsername) {
+                    // Message from a different peer — notify but don’t pollute current chat
                     vibrate()
-                    // Show local notification if user is NOT currently in this chat
-                    if (msg.senderUsername != currentPrivatePeer) {
-                        showIncomingNotification(msg.senderUsername, msg.content)
-                    }
+                    showIncomingNotification(msg.senderUsername, formatContent(msg.content))
                 }
-                _privateMessages.postValue(list)
                 saveToRoom(msg)
                 refreshConversations()
             }
@@ -815,7 +832,8 @@ class ChatViewModel(app: Application) : AndroidViewModel(app) {
 
     // ==================== УВЕДОМЛЕНИЯ ====================
 
-    private fun showIncomingNotification(senderUsername: String, messageText: String) {
+    private fun showIncomingNotification(senderUsername: String, rawText: String) {
+        val messageText = formatContent(rawText)
         // Do Not Disturb mode — skip all notifications
         val prefs = getApplication<Application>().getSharedPreferences("MessageOnline", Context.MODE_PRIVATE)
         if (prefs.getBoolean("dnd_enabled", false)) return
@@ -876,13 +894,15 @@ class ChatViewModel(app: Application) : AndroidViewModel(app) {
 
     // ==================== ПАРСИНГ ====================
 
+    private fun formatContent(content: String) = when {
+        content.startsWith("data:audio") -> "🎵 Голосовое сообщение"
+        content.startsWith("data:image") -> "📷 Фото"
+        content.length > 100            -> content.take(100) + "…"
+        else                            -> content
+    }
+
     private fun formatPreview(sender: String, content: String): String {
-        val text = when {
-            content.startsWith("data:audio") -> "🎵 Голосовое сообщение"
-            content.startsWith("data:image") -> "📷 Фото"
-            content.length > 60             -> content.take(60) + "…"
-            else                            -> content
-        }
+        val text = formatContent(content).let { if (it.length > 60) it.take(60) + "…" else it }
         return if (sender == myUsername) "Вы: $text" else text
     }
 

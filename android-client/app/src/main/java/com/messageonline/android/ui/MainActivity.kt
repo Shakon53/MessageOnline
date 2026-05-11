@@ -36,6 +36,11 @@ class MainActivity : AppCompatActivity() {
     private var wasConnected = false
     private var reconnectDialogShown = false
 
+    override fun onResume() {
+        super.onResume()
+        viewModel.reattachCallbacks()
+    }
+
     override fun onCreate(savedInstanceState: Bundle?) {
         AppCompatDelegate.setDefaultNightMode(AppCompatDelegate.MODE_NIGHT_YES)
         super.onCreate(savedInstanceState)

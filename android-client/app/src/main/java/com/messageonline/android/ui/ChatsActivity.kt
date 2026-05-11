@@ -31,6 +31,11 @@ class ChatsActivity : AppCompatActivity() {
         ActivityResultContracts.RequestPermission()
     ) { /* granted or denied — nothing extra needed */ }
 
+    override fun onResume() {
+        super.onResume()
+        viewModel.reattachCallbacks()
+    }
+
     override fun onCreate(savedInstanceState: Bundle?) {
         AppCompatDelegate.setDefaultNightMode(AppCompatDelegate.MODE_NIGHT_YES)
         super.onCreate(savedInstanceState)

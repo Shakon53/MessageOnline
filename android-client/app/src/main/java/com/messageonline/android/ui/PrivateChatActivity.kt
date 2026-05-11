@@ -91,7 +91,6 @@ class PrivateChatActivity : AppCompatActivity() {
         binding.tvTypingStatus.text = "офлайн"
 
         viewModel.currentPrivatePeer = peerUsername
-
         setupRecyclerView()
         setupObservers()
         setupClickListeners()

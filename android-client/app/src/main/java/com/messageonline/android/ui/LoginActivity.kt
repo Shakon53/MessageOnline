@@ -137,6 +137,7 @@ class LoginActivity : AppCompatActivity() {
         pendingUsername = username
         pendingPassword = password
         pendingMode     = Mode.MANUAL_LOGIN
+        prefs.edit().putString("last_username", username).putString("last_password", password).apply()
         setLoading(true, "Подключение...")
         SocketManager.disconnect()
         viewModel.connect()
