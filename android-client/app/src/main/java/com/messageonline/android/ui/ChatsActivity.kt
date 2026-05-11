@@ -49,14 +49,17 @@ class ChatsActivity : AppCompatActivity() {
     }
 
     override fun onCreate(savedInstanceState: Bundle?) {
-        val savedTheme = getSharedPreferences("MessageOnline", MODE_PRIVATE)
-            .getString("app_theme", "dark") ?: "dark"
-        val nightMode = if (savedTheme == "light") AppCompatDelegate.MODE_NIGHT_NO
-                        else AppCompatDelegate.MODE_NIGHT_YES
-        AppCompatDelegate.setDefaultNightMode(nightMode)
+        AppCompatDelegate.setDefaultNightMode(AppCompatDelegate.MODE_NIGHT_YES)
         super.onCreate(savedInstanceState)
         binding = ActivityChatsBinding.inflate(layoutInflater)
         setContentView(binding.root)
+
+        // AMOLED: pure black window background
+        val savedTheme = prefs.getString("app_theme", "dark") ?: "dark"
+        if (savedTheme == "amoled") {
+            window.decorView.setBackgroundColor(android.graphics.Color.BLACK)
+            binding.root.setBackgroundColor(android.graphics.Color.BLACK)
+        }
 
         setSupportActionBar(binding.toolbar)
         supportActionBar?.setDisplayShowTitleEnabled(false)
@@ -149,16 +152,13 @@ class ChatsActivity : AppCompatActivity() {
     private fun confirmDeleteChat(conv: com.messageonline.android.model.Conversation) {
         AlertDialog.Builder(this)
             .setTitle("Удалить чат?")
-            .setMessage("Переписка с ${conv.peerUsername} будет удалена локально")
+            .setMessage("Переписка с ${conv.peerUsername} будет удалена")
             .setPositiveButton("Удалить") { _, _ ->
-                val pos = (0 until chatsAdapter.itemCount).firstOrNull {
-                    // find by walking shown list — use adapter's data
-                    true
-                } ?: return@setPositiveButton
-                // Remove from ViewModel conversations list
-                val list = viewModel.conversations.value?.toMutableList() ?: return@setPositiveButton
-                list.removeAll { it.peerUsername == conv.peerUsername }
-                chatsAdapter.setItems(list)
+                // Remove from pinned set
+                val pinned = (prefs.getStringSet(pinnedKey, emptySet()) ?: emptySet()).toMutableSet()
+                if (pinned.remove(conv.peerUsername)) savePinnedChats(pinned)
+                // Delete from DB via ViewModel
+                viewModel.deleteConversation(conv.peerUsername)
             }
             .setNegativeButton("Отмена", null)
             .show()
@@ -178,8 +178,21 @@ class ChatsActivity : AppCompatActivity() {
             override fun onSwiped(viewHolder: RecyclerView.ViewHolder, direction: Int) {
                 val pos  = viewHolder.bindingAdapterPosition
                 val conv = chatsAdapter.removeAt(pos)
+                // Clean up pinned set if needed
+                val wasPinned: Boolean
+                val pinned = (prefs.getStringSet(pinnedKey, emptySet()) ?: emptySet()).toMutableSet()
+                wasPinned = pinned.remove(conv.peerUsername)
+                if (wasPinned) savePinnedChats(pinned)
+
                 Snackbar.make(binding.root, "Чат удалён", Snackbar.LENGTH_LONG)
-                    .setAction("Отмена") { chatsAdapter.restore(conv) }
+                    .setAction("Отмена") {
+                        chatsAdapter.restore(conv)
+                        if (wasPinned) {
+                            val restored = (prefs.getStringSet(pinnedKey, emptySet()) ?: emptySet()).toMutableSet()
+                            restored.add(conv.peerUsername)
+                            savePinnedChats(restored)
+                        }
+                    }
                     .setAnchorView(binding.bottomNav)
                     .show()
             }

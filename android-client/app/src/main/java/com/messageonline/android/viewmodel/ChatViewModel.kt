@@ -910,6 +910,13 @@ class ChatViewModel(app: Application) : AndroidViewModel(app) {
         manager.notify(senderUsername.hashCode(), notification)
     }
 
+    fun deleteConversation(peerUsername: String) {
+        viewModelScope.launch(Dispatchers.IO) {
+            dao.clearPrivateConversation(myUsername, peerUsername)
+            refreshConversations()
+        }
+    }
+
     fun showNotification(context: Context, title: String, text: String) {
         showIncomingNotification(title, text)
     }

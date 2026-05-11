@@ -78,6 +78,14 @@ class PrivateChatActivity : AppCompatActivity() {
         binding = ActivityPrivateChatBinding.inflate(layoutInflater)
         setContentView(binding.root)
 
+        // AMOLED: pure black background
+        val savedTheme = getSharedPreferences("MessageOnline", MODE_PRIVATE)
+            .getString("app_theme", "dark") ?: "dark"
+        if (savedTheme == "amoled") {
+            window.decorView.setBackgroundColor(android.graphics.Color.BLACK)
+            binding.root.setBackgroundColor(android.graphics.Color.BLACK)
+        }
+
         peerUsername = intent.getStringExtra("peer_username") ?: run { finish(); return }
 
         setSupportActionBar(binding.toolbar)
@@ -97,6 +105,14 @@ class PrivateChatActivity : AppCompatActivity() {
 
         viewModel.loadPrivateHistory(peerUsername)
         viewModel.markAllRead(peerUsername)
+
+        // Pre-fill from quick reply (when socket was disconnected)
+        val prefill = intent.getStringExtra("prefill_text")
+        if (!prefill.isNullOrBlank()) {
+            binding.etMessage.setText(prefill)
+            binding.etMessage.setSelection(prefill.length)
+            binding.etMessage.requestFocus()
+        }
     }
 
     private fun setupRecyclerView() {

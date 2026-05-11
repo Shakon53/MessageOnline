@@ -471,17 +471,6 @@
                     app:strokeColor="#336366F1" />
 
                 <Button
-                    android:id="@+id/btnThemeLight"
-                    style="@style/Widget.Material3.Button.OutlinedButton"
-                    android:layout_width="0dp"
-                    android:layout_height="38dp"
-                    android:layout_weight="1"
-                    android:text="Светлая"
-                    android:textSize="12sp"
-                    android:textColor="#FFFFFF"
-                    app:strokeColor="#336366F1" />
-
-                <Button
                     android:id="@+id/btnThemeAmoled"
                     style="@style/Widget.Material3.Button.OutlinedButton"
                     android:layout_width="0dp"

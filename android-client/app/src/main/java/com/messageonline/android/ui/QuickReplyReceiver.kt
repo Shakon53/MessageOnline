@@ -28,11 +28,12 @@ class QuickReplyReceiver : BroadcastReceiver() {
         if (SocketManager.isConnected && ChatSession.username.isNotBlank()) {
             SocketManager.sendPrivateMessage(sender, replyText)
         } else {
-            // App not connected — open the chat instead
+            // App not connected — open the chat with the text pre-filled
             context.startActivity(
                 Intent(context, PrivateChatActivity::class.java).apply {
                     flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
                     putExtra("peer_username", sender)
+                    putExtra("prefill_text", replyText)
                 }
             )
         }
