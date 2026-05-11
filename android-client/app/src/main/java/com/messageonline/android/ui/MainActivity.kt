@@ -19,6 +19,7 @@ import androidx.core.content.ContextCompat
 import androidx.recyclerview.widget.ItemTouchHelper
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
+import androidx.appcompat.app.AlertDialog
 import com.google.android.material.dialog.MaterialAlertDialogBuilder
 import com.messageonline.android.R
 import com.messageonline.android.adapter.MessageAdapter
@@ -207,6 +208,16 @@ class MainActivity : AppCompatActivity() {
                 if (msg.startsWith("Новое сообщение")) {
                     viewModel.showNotification(this, "MessageOnline", msg)
                 }
+            }
+        }
+
+        viewModel.systemMessage.observe(this) { msg ->
+            if (!msg.isNullOrBlank()) {
+                AlertDialog.Builder(this)
+                    .setTitle("📢 Объявление")
+                    .setMessage(msg)
+                    .setPositiveButton("OK", null)
+                    .show()
             }
         }
 

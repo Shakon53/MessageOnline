@@ -13,31 +13,30 @@
         <LinearLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:gravity="center"
+            android:gravity="center_horizontal"
             android:orientation="vertical"
-            android:padding="28dp">
+            android:padding="24dp">
 
-            <!-- Logo + Brand -->
+            <!-- Logo -->
             <LinearLayout
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:gravity="center"
                 android:orientation="vertical"
-                android:layout_marginBottom="40dp"
-                android:layout_marginTop="60dp">
+                android:layout_marginTop="52dp"
+                android:layout_marginBottom="32dp">
 
-                <!-- App Icon -->
                 <FrameLayout
-                    android:layout_width="88dp"
-                    android:layout_height="88dp"
-                    android:layout_marginBottom="20dp">
+                    android:layout_width="80dp"
+                    android:layout_height="80dp"
+                    android:layout_marginBottom="16dp">
                     <View
-                        android:layout_width="88dp"
-                        android:layout_height="88dp"
+                        android:layout_width="80dp"
+                        android:layout_height="80dp"
                         android:background="@drawable/bg_avatar_ring" />
                     <ImageView
-                        android:layout_width="50dp"
-                        android:layout_height="50dp"
+                        android:layout_width="44dp"
+                        android:layout_height="44dp"
                         android:layout_gravity="center"
                         android:src="@drawable/ic_chat_logo"
                         android:tint="#FFFFFF"
@@ -49,33 +48,254 @@
                     android:layout_height="wrap_content"
                     android:text="MessageOnline"
                     android:textColor="#FFFFFF"
-                    android:textSize="32sp"
+                    android:textSize="30sp"
                     android:textStyle="bold"
                     android:letterSpacing="-0.02" />
 
                 <TextView
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:layout_marginTop="8dp"
+                    android:layout_marginTop="6dp"
                     android:text="Общайся. Без границ."
                     android:textColor="#94A3B8"
-                    android:textSize="15sp" />
+                    android:textSize="14sp" />
             </LinearLayout>
 
-            <!-- Glass Card -->
+            <!-- Card -->
             <LinearLayout
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:background="@drawable/bg_glass_card"
                 android:orientation="vertical"
-                android:padding="28dp">
+                android:padding="24dp">
 
+                <!-- Tab Selector -->
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="48dp"
+                    android:background="#1A1F2E"
+                    android:orientation="horizontal"
+                    android:layout_marginBottom="20dp"
+                    android:padding="4dp">
+
+                    <TextView
+                        android:id="@+id/tabLogin"
+                        android:layout_width="0dp"
+                        android:layout_height="match_parent"
+                        android:layout_weight="1"
+                        android:gravity="center"
+                        android:text="Войти"
+                        android:textColor="#FFFFFF"
+                        android:textSize="14sp"
+                        android:textStyle="bold"
+                        android:background="#6366F1"
+                        android:paddingTop="0dp"
+                        android:paddingBottom="0dp" />
+
+                    <TextView
+                        android:id="@+id/tabRegister"
+                        android:layout_width="0dp"
+                        android:layout_height="match_parent"
+                        android:layout_weight="1"
+                        android:gravity="center"
+                        android:text="Регистрация"
+                        android:textColor="#64748B"
+                        android:textSize="14sp"
+                        android:textStyle="bold"
+                        android:background="@android:color/transparent" />
+                </LinearLayout>
+
+                <!-- LOGIN FORM -->
+                <LinearLayout
+                    android:id="@+id/layoutLoginForm"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="vertical"
+                    android:visibility="visible">
+
+                    <com.google.android.material.textfield.TextInputLayout
+                        style="@style/Widget.Material3.TextInputLayout.OutlinedBox"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginBottom="14dp"
+                        android:hint="Имя пользователя"
+                        app:boxBackgroundColor="#1A2236"
+                        app:boxStrokeColor="#26FFFFFF"
+                        app:boxStrokeWidth="1dp"
+                        app:hintTextColor="#94A3B8"
+                        app:boxCornerRadiusTopStart="14dp"
+                        app:boxCornerRadiusTopEnd="14dp"
+                        app:boxCornerRadiusBottomStart="14dp"
+                        app:boxCornerRadiusBottomEnd="14dp">
+                        <com.google.android.material.textfield.TextInputEditText
+                            android:id="@+id/etLoginUsername"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:inputType="textPersonName"
+                            android:imeOptions="actionNext"
+                            android:textColor="#FFFFFF" />
+                    </com.google.android.material.textfield.TextInputLayout>
+
+                    <com.google.android.material.textfield.TextInputLayout
+                        style="@style/Widget.Material3.TextInputLayout.OutlinedBox"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginBottom="20dp"
+                        android:hint="Пароль"
+                        app:boxBackgroundColor="#1A2236"
+                        app:boxStrokeColor="#26FFFFFF"
+                        app:boxStrokeWidth="1dp"
+                        app:hintTextColor="#94A3B8"
+                        app:endIconMode="password_toggle"
+                        app:endIconTint="#64748B"
+                        app:boxCornerRadiusTopStart="14dp"
+                        app:boxCornerRadiusTopEnd="14dp"
+                        app:boxCornerRadiusBottomStart="14dp"
+                        app:boxCornerRadiusBottomEnd="14dp">
+                        <com.google.android.material.textfield.TextInputEditText
+                            android:id="@+id/etLoginPassword"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:inputType="textPassword"
+                            android:imeOptions="actionDone"
+                            android:textColor="#FFFFFF" />
+                    </com.google.android.material.textfield.TextInputLayout>
+
+                    <com.google.android.material.button.MaterialButton
+                        android:id="@+id/btnLogin"
+                        android:layout_width="match_parent"
+                        android:layout_height="54dp"
+                        android:text="Войти"
+                        android:textColor="#FFFFFF"
+                        android:textSize="15sp"
+                        android:textStyle="bold"
+                        app:backgroundTint="#6366F1"
+                        app:cornerRadius="14dp" />
+                </LinearLayout>
+
+                <!-- REGISTER FORM -->
+                <LinearLayout
+                    android:id="@+id/layoutRegisterForm"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="vertical"
+                    android:visibility="gone">
+
+                    <com.google.android.material.textfield.TextInputLayout
+                        style="@style/Widget.Material3.TextInputLayout.OutlinedBox"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginBottom="14dp"
+                        android:hint="Имя пользователя"
+                        app:boxBackgroundColor="#1A2236"
+                        app:boxStrokeColor="#26FFFFFF"
+                        app:boxStrokeWidth="1dp"
+                        app:hintTextColor="#94A3B8"
+                        app:boxCornerRadiusTopStart="14dp"
+                        app:boxCornerRadiusTopEnd="14dp"
+                        app:boxCornerRadiusBottomStart="14dp"
+                        app:boxCornerRadiusBottomEnd="14dp">
+                        <com.google.android.material.textfield.TextInputEditText
+                            android:id="@+id/etRegUsername"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:inputType="textPersonName"
+                            android:imeOptions="actionNext"
+                            android:textColor="#FFFFFF" />
+                    </com.google.android.material.textfield.TextInputLayout>
+
+                    <com.google.android.material.textfield.TextInputLayout
+                        style="@style/Widget.Material3.TextInputLayout.OutlinedBox"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginBottom="14dp"
+                        android:hint="Телефон (необязательно)"
+                        app:boxBackgroundColor="#1A2236"
+                        app:boxStrokeColor="#26FFFFFF"
+                        app:boxStrokeWidth="1dp"
+                        app:hintTextColor="#94A3B8"
+                        app:boxCornerRadiusTopStart="14dp"
+                        app:boxCornerRadiusTopEnd="14dp"
+                        app:boxCornerRadiusBottomStart="14dp"
+                        app:boxCornerRadiusBottomEnd="14dp">
+                        <com.google.android.material.textfield.TextInputEditText
+                            android:id="@+id/etRegPhone"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:inputType="phone"
+                            android:imeOptions="actionNext"
+                            android:textColor="#FFFFFF" />
+                    </com.google.android.material.textfield.TextInputLayout>
+
+                    <com.google.android.material.textfield.TextInputLayout
+                        style="@style/Widget.Material3.TextInputLayout.OutlinedBox"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginBottom="14dp"
+                        android:hint="Пароль"
+                        app:boxBackgroundColor="#1A2236"
+                        app:boxStrokeColor="#26FFFFFF"
+                        app:boxStrokeWidth="1dp"
+                        app:hintTextColor="#94A3B8"
+                        app:endIconMode="password_toggle"
+                        app:endIconTint="#64748B"
+                        app:boxCornerRadiusTopStart="14dp"
+                        app:boxCornerRadiusTopEnd="14dp"
+                        app:boxCornerRadiusBottomStart="14dp"
+                        app:boxCornerRadiusBottomEnd="14dp">
+                        <com.google.android.material.textfield.TextInputEditText
+                            android:id="@+id/etRegPassword"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:inputType="textPassword"
+                            android:imeOptions="actionNext"
+                            android:textColor="#FFFFFF" />
+                    </com.google.android.material.textfield.TextInputLayout>
+
+                    <com.google.android.material.textfield.TextInputLayout
+                        style="@style/Widget.Material3.TextInputLayout.OutlinedBox"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginBottom="20dp"
+                        android:hint="Повторите пароль"
+                        app:boxBackgroundColor="#1A2236"
+                        app:boxStrokeColor="#26FFFFFF"
+                        app:boxStrokeWidth="1dp"
+                        app:hintTextColor="#94A3B8"
+                        app:endIconMode="password_toggle"
+                        app:endIconTint="#64748B"
+                        app:boxCornerRadiusTopStart="14dp"
+                        app:boxCornerRadiusTopEnd="14dp"
+                        app:boxCornerRadiusBottomStart="14dp"
+                        app:boxCornerRadiusBottomEnd="14dp">
+                        <com.google.android.material.textfield.TextInputEditText
+                            android:id="@+id/etRegPasswordConfirm"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:inputType="textPassword"
+                            android:imeOptions="actionDone"
+                            android:textColor="#FFFFFF" />
+                    </com.google.android.material.textfield.TextInputLayout>
+
+                    <com.google.android.material.button.MaterialButton
+                        android:id="@+id/btnRegister"
+                        android:layout_width="match_parent"
+                        android:layout_height="54dp"
+                        android:text="Создать аккаунт"
+                        android:textColor="#FFFFFF"
+                        android:textSize="15sp"
+                        android:textStyle="bold"
+                        app:backgroundTint="#6366F1"
+                        app:cornerRadius="14dp" />
+                </LinearLayout>
+
+                <!-- Progress + Status -->
                 <ProgressBar
                     android:id="@+id/progressBar"
                     android:layout_width="36dp"
                     android:layout_height="36dp"
                     android:layout_gravity="center"
-                    android:layout_marginBottom="12dp"
+                    android:layout_marginTop="12dp"
                     android:indeterminateTint="#6366F1"
                     android:visibility="gone" />
 
@@ -83,23 +303,51 @@
                     android:id="@+id/tvStatus"
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:layout_marginBottom="16dp"
+                    android:layout_marginTop="8dp"
                     android:gravity="center"
                     android:textColor="#818CF8"
-                    android:textSize="14sp"
+                    android:textSize="13sp"
                     android:visibility="gone" />
 
-                <!-- Google Sign In button -->
+                <!-- Divider -->
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:gravity="center_vertical"
+                    android:orientation="horizontal"
+                    android:layout_marginTop="20dp"
+                    android:layout_marginBottom="16dp">
+                    <View
+                        android:layout_width="0dp"
+                        android:layout_height="1dp"
+                        android:layout_weight="1"
+                        android:background="#1E293B" />
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:paddingStart="12dp"
+                        android:paddingEnd="12dp"
+                        android:text="или"
+                        android:textColor="#475569"
+                        android:textSize="12sp" />
+                    <View
+                        android:layout_width="0dp"
+                        android:layout_height="1dp"
+                        android:layout_weight="1"
+                        android:background="#1E293B" />
+                </LinearLayout>
+
+                <!-- Google -->
                 <com.google.android.material.button.MaterialButton
                     android:id="@+id/btnGoogleSignIn"
                     style="@style/Widget.Material3.Button.OutlinedButton"
                     android:layout_width="match_parent"
-                    android:layout_height="56dp"
+                    android:layout_height="52dp"
                     android:text="Войти через Google"
                     android:textColor="#FFFFFF"
-                    android:textSize="16sp"
+                    android:textSize="14sp"
                     android:textStyle="bold"
-                    app:cornerRadius="16dp"
+                    app:cornerRadius="14dp"
                     app:icon="@drawable/ic_google"
                     app:iconGravity="textStart"
                     app:iconTint="@null"
@@ -111,11 +359,11 @@
             <TextView
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:layout_marginTop="24dp"
-                android:layout_marginBottom="24dp"
-                android:text="Безопасный вход через Google"
-                android:textColor="#4B5563"
-                android:textSize="12sp"
+                android:layout_marginTop="20dp"
+                android:layout_marginBottom="32dp"
+                android:text="Ваши данные защищены и не передаются третьим лицам"
+                android:textColor="#374151"
+                android:textSize="11sp"
                 android:gravity="center" />
 
         </LinearLayout>

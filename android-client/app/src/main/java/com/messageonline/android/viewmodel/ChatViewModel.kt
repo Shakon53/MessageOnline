@@ -54,6 +54,9 @@ class ChatViewModel(app: Application) : AndroidViewModel(app) {
     private val _notification = MutableLiveData<String>()
     val notification: LiveData<String> = _notification
 
+    private val _systemMessage = MutableLiveData<String>()
+    val systemMessage: LiveData<String> = _systemMessage
+
     private val _typing = MutableLiveData<Pair<String, Boolean>>()
     val typing: LiveData<Pair<String, Boolean>> = _typing
 
@@ -220,8 +223,10 @@ class ChatViewModel(app: Application) : AndroidViewModel(app) {
                 _loginResult.postValue(AuthResult(true))
             }
 
-            Packet.LOGIN_FAIL ->
-                _loginResult.postValue(AuthResult(false, json.optString("message")))
+            Packet.LOGIN_FAIL -> {
+                val msg = json.optString("message")
+                _loginResult.postValue(AuthResult(false, msg))
+            }
 
             Packet.REGISTER_SUCCESS ->
                 _registerResult.postValue(AuthResult(true))
@@ -406,8 +411,9 @@ class ChatViewModel(app: Application) : AndroidViewModel(app) {
                 }
             }
 
-            Packet.NOTIFICATION -> _notification.postValue(json.optString("content"))
-            Packet.ERROR        -> _notification.postValue(json.optString("message"))
+            Packet.NOTIFICATION  -> _notification.postValue(json.optString("content"))
+            Packet.ERROR          -> _notification.postValue(json.optString("message"))
+            Packet.SYSTEM_MESSAGE -> _systemMessage.postValue(json.optString("content"))
 
             Packet.TYPING ->
                 _typing.postValue(Pair(

@@ -55,6 +55,9 @@ object Packet {
     const val UPDATE_PRIVACY   = "UPDATE_PRIVACY"
     const val PRIVACY_REJECTED = "PRIVACY_REJECTED"
 
+    // Admin broadcast
+    const val SYSTEM_MESSAGE    = "SYSTEM_MESSAGE"
+
     // Friends
     const val FRIEND_ADD        = "FRIEND_ADD"
     const val FRIEND_REQUEST_IN = "FRIEND_REQUEST_IN"

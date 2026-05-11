@@ -10,6 +10,7 @@ import android.text.TextWatcher
 import android.view.View
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.activity.viewModels
+import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
 import androidx.appcompat.app.AppCompatDelegate
 import androidx.core.content.ContextCompat
@@ -147,6 +148,16 @@ class ChatsActivity : AppCompatActivity() {
             if (count > 0) {
                 binding.tvToolbarSubtitle.visibility = View.VISIBLE
                 binding.tvToolbarSubtitle.text = "$count в сети"
+            }
+        }
+
+        viewModel.systemMessage.observe(this) { msg ->
+            if (!msg.isNullOrBlank()) {
+                AlertDialog.Builder(this)
+                    .setTitle("📢 Объявление")
+                    .setMessage(msg)
+                    .setPositiveButton("OK", null)
+                    .show()
             }
         }
 
