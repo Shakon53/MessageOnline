@@ -46,7 +46,9 @@ class MainActivity : AppCompatActivity() {
         supportActionBar?.apply {
             title = "Общий чат"
             subtitle = viewModel.myUsername
+            setDisplayHomeAsUpEnabled(true)
         }
+        binding.toolbar.setNavigationOnClickListener { onBackPressedDispatcher.onBackPressed() }
 
         setupRecyclerView()
         setupObservers()

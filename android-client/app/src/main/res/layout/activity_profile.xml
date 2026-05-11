@@ -277,11 +277,11 @@
                 android:layout_height="1dp"
                 android:background="#1AFFFFFF" />
 
-            <!-- Email section -->
+            <!-- Phone section -->
             <TextView
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:text="EMAIL"
+                android:text="ТЕЛЕФОН / EMAIL"
                 android:textSize="11sp"
                 android:textColor="#6366F1"
                 android:textStyle="bold"

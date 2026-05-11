@@ -132,7 +132,7 @@ class ChatViewModel(app: Application) : AndroidViewModel(app) {
                                else friendsMap[peer]?.isOnline == true
                 convMap[peer] = Conversation(
                     peerUsername  = peer,
-                    lastMessage   = if (msg.senderUsername == myUsername) "Вы: ${msg.content}" else msg.content,
+                    lastMessage   = formatPreview(msg.senderUsername, msg.content),
                     lastTimestamp = msg.timestamp,
                     unreadCount   = unread,
                     isOnline      = isOnline,
@@ -156,7 +156,7 @@ class ChatViewModel(app: Application) : AndroidViewModel(app) {
             val globalLast = dao.getGlobalMessages().lastOrNull()
             val globalConv = Conversation(
                 peerUsername  = "Общий чат",
-                lastMessage   = globalLast?.let { "${it.senderUsername}: ${it.content}" }
+                lastMessage   = globalLast?.let { formatPreview(it.senderUsername, it.content) }
                                 ?: "Нажмите чтобы присоединиться",
                 lastTimestamp = globalLast?.timestamp ?: 0L,
                 isGlobal      = true
@@ -875,6 +875,16 @@ class ChatViewModel(app: Application) : AndroidViewModel(app) {
     }
 
     // ==================== ПАРСИНГ ====================
+
+    private fun formatPreview(sender: String, content: String): String {
+        val text = when {
+            content.startsWith("data:audio") -> "🎵 Голосовое сообщение"
+            content.startsWith("data:image") -> "📷 Фото"
+            content.length > 60             -> content.take(60) + "…"
+            else                            -> content
+        }
+        return if (sender == myUsername) "Вы: $text" else text
+    }
 
     private fun parseGlobalMessage(json: JSONObject) = ChatMessage(
         senderId = json.optInt("senderId"),

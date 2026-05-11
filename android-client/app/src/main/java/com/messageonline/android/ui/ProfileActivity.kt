@@ -459,17 +459,9 @@ class ProfileActivity : AppCompatActivity() {
 
     private fun setupLogoutButton() {
         binding.btnLogout.setOnClickListener {
-            SocketManager.disconnect()
-
-            getSharedPreferences("MessageOnline", MODE_PRIVATE).edit()
-                .remove("last_username")
-                .remove("last_uid")
-                .remove("last_avatar")
-                .apply()
-
-            ChatSession.logout()
+            viewModel.logout()
+            getSharedPreferences("MessageOnline", MODE_PRIVATE).edit().clear().apply()
             FirebaseAuth.getInstance().signOut()
-
             val intent = Intent(this, LoginActivity::class.java)
             intent.flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK
             startActivity(intent)
