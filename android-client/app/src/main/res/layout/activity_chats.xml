@@ -55,6 +55,7 @@
 
         <!-- Search bar (below toolbar) -->
         <LinearLayout
+            android:id="@+id/layoutSearch"
             android:layout_width="match_parent"
             android:layout_height="52dp"
             android:orientation="horizontal"
@@ -102,51 +103,66 @@
         android:layout_height="match_parent"
         app:layout_behavior="@string/appbar_scrolling_view_behavior">
 
-        <androidx.recyclerview.widget.RecyclerView
-            android:id="@+id/rvChats"
+        <!-- Chats tab content -->
+        <FrameLayout
+            android:id="@+id/layoutChatsContent"
             android:layout_width="match_parent"
-            android:layout_height="match_parent"
-            android:paddingTop="4dp"
-            android:paddingBottom="80dp"
-            android:clipToPadding="false"
-            android:scrollbars="none" />
+            android:layout_height="match_parent">
 
-        <!-- Empty state -->
-        <LinearLayout
-            android:id="@+id/layoutEmpty"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:layout_gravity="center"
-            android:gravity="center"
-            android:orientation="vertical"
-            android:padding="32dp"
-            android:visibility="gone">
+            <androidx.recyclerview.widget.RecyclerView
+                android:id="@+id/rvChats"
+                android:layout_width="match_parent"
+                android:layout_height="match_parent"
+                android:paddingTop="4dp"
+                android:paddingBottom="80dp"
+                android:clipToPadding="false"
+                android:scrollbars="none" />
 
-            <ImageView
-                android:layout_width="80dp"
-                android:layout_height="80dp"
-                android:src="@drawable/ic_message"
-                android:tint="#1F6366F1"
-                android:layout_marginBottom="20dp"
-                android:contentDescription="@null" />
-
-            <TextView
+            <!-- Empty state -->
+            <LinearLayout
+                android:id="@+id/layoutEmpty"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:text="Нет чатов"
-                android:textColor="#FFFFFF"
-                android:textSize="20sp"
-                android:textStyle="bold" />
+                android:layout_gravity="center"
+                android:gravity="center"
+                android:orientation="vertical"
+                android:padding="32dp"
+                android:visibility="gone">
 
-            <TextView
-                android:layout_width="220dp"
-                android:layout_height="wrap_content"
-                android:layout_marginTop="8dp"
-                android:text="Перейдите во вкладку «Друзья» чтобы начать разговор"
-                android:textColor="#64748B"
-                android:textSize="14sp"
-                android:gravity="center" />
-        </LinearLayout>
+                <ImageView
+                    android:layout_width="80dp"
+                    android:layout_height="80dp"
+                    android:src="@drawable/ic_message"
+                    android:tint="#1F6366F1"
+                    android:layout_marginBottom="20dp"
+                    android:contentDescription="@null" />
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="Нет чатов"
+                    android:textColor="#FFFFFF"
+                    android:textSize="20sp"
+                    android:textStyle="bold" />
+
+                <TextView
+                    android:layout_width="220dp"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="8dp"
+                    android:text="Перейдите во вкладку «Друзья» чтобы начать разговор"
+                    android:textColor="#64748B"
+                    android:textSize="14sp"
+                    android:gravity="center" />
+            </LinearLayout>
+
+        </FrameLayout>
+
+        <!-- Fragment container for Friends / Profile tabs -->
+        <FrameLayout
+            android:id="@+id/fragmentContainer"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:visibility="gone" />
 
     </FrameLayout>
 

@@ -26,14 +26,17 @@ class ChatsActivity : AppCompatActivity() {
     private val viewModel: ChatViewModel by viewModels()
     private lateinit var chatsAdapter: ChatsAdapter
 
-    // Runtime permission request for Android 13+
     private val notifPermLauncher = registerForActivityResult(
         ActivityResultContracts.RequestPermission()
-    ) { /* granted or denied — nothing extra needed */ }
+    ) { /* granted or denied */ }
+
+    // ─── Lifecycle ─────────────────────────────────────────────────────────────
 
     override fun onResume() {
         super.onResume()
         viewModel.reattachCallbacks()
+        viewModel.refreshConversations()
+        binding.bottomNav.removeBadge(R.id.nav_friends)
     }
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -93,20 +96,42 @@ class ChatsActivity : AppCompatActivity() {
     private fun setupBottomNav() {
         binding.bottomNav.setOnItemSelectedListener { item ->
             when (item.itemId) {
-                R.id.nav_chats   -> true
-                R.id.nav_friends -> {
-                    startActivity(Intent(this, FriendsActivity::class.java))
-                    binding.bottomNav.selectedItemId = R.id.nav_chats
-                    true
-                }
-                R.id.nav_profile -> {
-                    startActivity(Intent(this, ProfileActivity::class.java))
-                    binding.bottomNav.selectedItemId = R.id.nav_chats
-                    true
-                }
+                R.id.nav_chats   -> { showChatsTab();   true }
+                R.id.nav_friends -> { showFriendsTab(); true }
+                R.id.nav_profile -> { showProfileTab(); true }
                 else -> false
             }
         }
+    }
+
+    private fun showChatsTab() {
+        binding.tvToolbarTitle.text          = "Сообщения"
+        binding.layoutSearch.visibility      = View.VISIBLE
+        binding.layoutChatsContent.visibility = View.VISIBLE
+        binding.fabNewChat.visibility         = View.VISIBLE
+        binding.fragmentContainer.visibility  = View.GONE
+    }
+
+    private fun showFriendsTab() {
+        binding.tvToolbarTitle.text           = "Друзья"
+        binding.layoutSearch.visibility       = View.GONE
+        binding.layoutChatsContent.visibility = View.GONE
+        binding.fabNewChat.visibility         = View.GONE
+        binding.fragmentContainer.visibility  = View.VISIBLE
+        supportFragmentManager.beginTransaction()
+            .replace(R.id.fragmentContainer, FriendsFragment())
+            .commit()
+    }
+
+    private fun showProfileTab() {
+        binding.tvToolbarTitle.text           = "Профиль"
+        binding.layoutSearch.visibility       = View.GONE
+        binding.layoutChatsContent.visibility = View.GONE
+        binding.fabNewChat.visibility         = View.GONE
+        binding.fragmentContainer.visibility  = View.VISIBLE
+        supportFragmentManager.beginTransaction()
+            .replace(R.id.fragmentContainer, ProfileFragment())
+            .commit()
     }
 
     // ─── Search ────────────────────────────────────────────────────────────────
@@ -145,14 +170,13 @@ class ChatsActivity : AppCompatActivity() {
                 ChatViewModel.ConnectionStatus.ERROR        -> "Ошибка соединения"
             }
             binding.tvToolbarSubtitle.visibility = if (subtitle != null) View.VISIBLE else View.GONE
-            binding.tvToolbarSubtitle.text = subtitle ?: ""
+            binding.tvToolbarSubtitle.text       = subtitle ?: ""
         }
 
         viewModel.onlineUsers.observe(this) { users ->
-            val count = users.size
-            if (count > 0) {
+            if (users.size > 0 && binding.bottomNav.selectedItemId == R.id.nav_chats) {
                 binding.tvToolbarSubtitle.visibility = View.VISIBLE
-                binding.tvToolbarSubtitle.text = "$count в сети"
+                binding.tvToolbarSubtitle.text       = "${users.size} в сети"
             }
         }
 
@@ -174,17 +198,11 @@ class ChatsActivity : AppCompatActivity() {
                     .make(binding.root, "📩 ${request.username} хочет подружиться",
                           com.google.android.material.snackbar.Snackbar.LENGTH_LONG)
                     .setAction("Перейти") {
-                        startActivity(Intent(this, FriendsActivity::class.java))
+                        binding.bottomNav.selectedItemId = R.id.nav_friends
                     }
                     .setAnchorView(binding.bottomNav)
                     .show()
             }
         }
-    }
-
-    override fun onResume() {
-        super.onResume()
-        viewModel.refreshConversations()
-        binding.bottomNav.removeBadge(R.id.nav_friends)
     }
 }
