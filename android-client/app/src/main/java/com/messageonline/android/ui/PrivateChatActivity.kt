@@ -105,6 +105,8 @@ class PrivateChatActivity : AppCompatActivity() {
 
         viewModel.loadPrivateHistory(peerUsername)
         viewModel.markAllRead(peerUsername)
+        viewModel.refreshUsers()   // populate onlineUsers for status indicator
+        viewModel.refreshFriends() // fallback online status via friends list
 
         // Pre-fill from quick reply (when socket was disconnected)
         val prefill = intent.getStringExtra("prefill_text")
@@ -113,6 +115,12 @@ class PrivateChatActivity : AppCompatActivity() {
             binding.etMessage.setSelection(prefill.length)
             binding.etMessage.requestFocus()
         }
+    }
+
+    override fun onResume() {
+        super.onResume()
+        viewModel.reattachCallbacks()
+        viewModel.refreshUsers()
     }
 
     private fun setupRecyclerView() {
