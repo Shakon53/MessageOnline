@@ -25,8 +25,12 @@ class ChatsAdapter(
     private val all   = mutableListOf<Conversation>()
     private val shown = mutableListOf<Conversation>()
 
-    var pinnedSet:   Set<String> = emptySet()
-    var activeChip:  ChipFilter  = ChipFilter.ALL
+    var pinnedSet: Set<String> = emptySet()
+        set(value) { field = value; recompute() }
+
+    var activeChip: ChipFilter = ChipFilter.ALL
+        set(value) { field = value; recompute() }
+
     private var searchQuery = ""
 
     private val timeFormat = SimpleDateFormat("HH:mm", Locale.getDefault())
@@ -99,16 +103,6 @@ class ChatsAdapter(
 
     fun applyFilter(query: String) {
         searchQuery = query
-        recompute()
-    }
-
-    fun setChipFilter(filter: ChipFilter) {
-        activeChip = filter
-        recompute()
-    }
-
-    fun setPinnedSet(set: Set<String>) {
-        pinnedSet = set
         recompute()
     }
 

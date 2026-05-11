@@ -112,12 +112,12 @@ class ChatsActivity : AppCompatActivity() {
 
     private fun loadPinnedChats() {
         val set = prefs.getStringSet(pinnedKey, emptySet()) ?: emptySet()
-        chatsAdapter.setPinnedSet(set)
+        chatsAdapter.pinnedSet = set
     }
 
     private fun savePinnedChats(set: Set<String>) {
         prefs.edit().putStringSet(pinnedKey, set).apply()
-        chatsAdapter.setPinnedSet(set)
+        chatsAdapter.pinnedSet = set
     }
 
     private fun showChatContextMenu(conv: com.messageonline.android.model.Conversation) {
@@ -210,7 +210,7 @@ class ChatsActivity : AppCompatActivity() {
                 R.id.chipOnline -> ChipFilter.ONLINE
                 else            -> ChipFilter.ALL
             }
-            chatsAdapter.setChipFilter(filter)
+            chatsAdapter.activeChip = filter
         }
     }
 
